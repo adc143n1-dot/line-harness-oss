@@ -1502,6 +1502,7 @@ export const api = {
         >
       >('/api/tracked-links'),
   },
+  measurements: { get: () => fetchApi<ApiResponse<any[]>>('/api/measurements') },
   pools: {
     list: () => fetchApi<ApiResponse<TrafficPool[]>>('/api/traffic-pools'),
     get: (id: string) => fetchApi<ApiResponse<TrafficPool>>(`/api/traffic-pools/${id}`),

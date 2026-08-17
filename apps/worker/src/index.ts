@@ -77,6 +77,7 @@ import { resolveCorsOrigin } from './middleware/admin-auth-config.js';
 import booking from './routes/booking.js';
 import events from './routes/events.js';
 import { trafficPools } from './routes/traffic-pools.js';
+import { measurements } from './routes/measurements.js';
 import { meetCallback } from './routes/meet-callback.js';
 import { messageTemplates } from './routes/message-templates.js';
 import dedupPreview from './routes/dedup-preview.js';
@@ -123,6 +124,9 @@ export type Env = {
     // of the worker still type-checks in test environments that don't set
     // them; the /admin/update/* route guards on their presence at runtime.
     ADMIN_API_KEY?: string;
+  DASHBOARD_STATS_URL?: string;
+  DASHBOARD_STATS_USER?: string;
+  DASHBOARD_STATS_PASS?: string;
     CF_API_TOKEN?: string;
     CF_ACCOUNT_ID?: string;
     WORKER_NAME?: string;
@@ -225,6 +229,7 @@ app.route('/', setup);
 app.route('/', autoReplies);
 app.route('/', adminAuth);
 app.route('/', trafficPools);
+app.route('/', measurements);
 app.route('/', booking);
 app.route('/', events);
 app.route('/', accountSettings);
