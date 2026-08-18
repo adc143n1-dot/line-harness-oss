@@ -8,6 +8,7 @@ import {
   getLineAccountById,
   updateChat,
   jstNow,
+  toJstString,
 } from '@line-crm/db';
 import type { Env } from '../index.js';
 import { persistableStaffId } from '../middleware/auth.js';
@@ -571,6 +572,79 @@ chats.post('/api/chats/:id/send', async (c) => {
     return c.json({ success: true, data: { sent: true, messageId: logId } });
   } catch (err) {
     console.error('POST /api/chats/:id/send error:', err);
+    return c.json({ success: false, error: 'Internal server error' }, 500);
+  }
+});
+
+// Telegram 誘導リンクを LINE で送る。
+// トークンは 24 時間で失効し、再発行すると未使用の旧トークンは失効する
+// (LINE のトーク履歴に残ったリンクが、いつまでも有効な紐付け用の認証情報に
+//  ならないようにするため)。
+chats.post('/api/chats/:id/invite-telegram', async (c) => {
+  try {
+    const chat = await resolveOrCreateChat(c.env.DB, c.req.param('id'));
+    if (!chat) return c.json({ success: false, error: 'Chat not found' }, 404);
+
+    const botUsername = c.env.TELEGRAM_BOT_USERNAME;
+    if (!botUsername) {
+      return c.json({ success: false, error: 'TELEGRAM_BOT_USERNAME is not configured' }, 500);
+    }
+
+    const { friend, accessToken } = await resolveFriendAndAccessToken(
+      c.env.DB,
+      chat.friend_id,
+      c.env.LINE_CHANNEL_ACCESS_TOKEN,
+    );
+    if (!friend) return c.json({ success: false, error: 'Friend not found' }, 404);
+    if ((friend as { telegram_user_id?: string | null }).telegram_user_id) {
+      return c.json({ success: false, error: 'Already linked' }, 400);
+    }
+
+    const now = jstNow();
+    const expiresAt = toJstString(new Date(Date.now() + 24 * 60 * 60 * 1000));
+
+    await c.env.DB
+      .prepare(
+        `UPDATE tg_invite_tokens SET revoked_at = ?
+          WHERE friend_id = ? AND used_at IS NULL AND revoked_at IS NULL`,
+      )
+      .bind(now, friend.id)
+      .run();
+
+    const token = crypto.randomUUID().replace(/-/g, '').slice(0, 24);
+    await c.env.DB
+      .prepare(
+        `INSERT INTO tg_invite_tokens (token, friend_id, created_at, expires_at) VALUES (?, ?, ?, ?)`,
+      )
+      .bind(token, friend.id, now, expiresAt)
+      .run();
+
+    const inviteUrl = `https://t.me/${botUsername}?start=${token}`;
+    const message = `詳しい案内はこちらの Telegram から↓\n${inviteUrl}\n（このリンクはあなた専用です。24時間で無効になります）`;
+
+    const { LineClient } = await import('@line-crm/line-sdk');
+    await new LineClient(accessToken).pushTextMessage(friend.line_user_id, message);
+
+    // スタッフが送ったメッセージとして記録し、計測列も通常の送信と同じ扱いにする
+    const sentByStaffId = persistableStaffId(c.get('staff'));
+    await c.env.DB
+      .prepare(
+        `INSERT INTO messages_log (id, friend_id, direction, message_type, content, source, sent_by_staff_id, created_at) VALUES (?, ?, 'outgoing', 'text', ?, 'manual', ?, ?)`,
+      )
+      .bind(crypto.randomUUID(), friend.id, message, sentByStaffId, now)
+      .run();
+
+    await updateChat(c.env.DB, chat.id, {
+      status: 'in_progress',
+      lastMessageAt: now,
+      lastActivityAt: now,
+      lastRepliedBy: 'operator',
+      ...(chat.first_response_at ? {} : { firstResponseAt: now }),
+    });
+
+    return c.json({ success: true, data: { inviteUrl, expiresAt } });
+  } catch (err) {
+    console.error('POST /api/chats/:id/invite-telegram error:', err);
     return c.json({ success: false, error: 'Internal server error' }, 500);
   }
 });

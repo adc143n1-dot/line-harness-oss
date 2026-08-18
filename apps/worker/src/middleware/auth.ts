@@ -218,6 +218,10 @@ export async function authMiddleware(c: Context<Env>, next: Next): Promise<Respo
     path.startsWith('/auth/') ||
     path === '/setup' ||
     path === '/api/integrations/stripe/webhook' ||
+    // Telegram Bot webhook — 認証ヘッダを付けられないため、代わりに
+    // setWebhook の secret_token (X-Telegram-Bot-Api-Secret-Token) を
+    // ルート側で検証する。
+    path === '/api/telegram/webhook' ||
     path.match(/^\/api\/webhooks\/incoming\/[^/]+\/receive$/) ||
     path === '/api/meet-callback' || // Meet Harness completion callback
     // Google OAuth redirects without admin headers. Route verifies a signed, expiring state.

@@ -31,6 +31,7 @@ import { DEFAULT_ACCOUNT_SETTINGS } from './services/booking-types.js';
 import { authMiddleware } from './middleware/auth.js';
 import { rateLimitMiddleware } from './middleware/rate-limit.js';
 import { webhook } from './routes/webhook.js';
+import { telegram } from './routes/telegram.js';
 import { friends } from './routes/friends.js';
 import { tags } from './routes/tags.js';
 import { scenarios } from './routes/scenarios.js';
@@ -106,6 +107,9 @@ export type Env = {
     LINE_CHANNEL_ACCESS_TOKEN: string;
     API_KEY: string;
     LEGACY_API_KEY?: string;
+    TELEGRAM_BOT_TOKEN?: string;      // secret: wrangler secret put TELEGRAM_BOT_TOKEN
+    TELEGRAM_BOT_USERNAME?: string;   // var: @ を除いた Bot ユーザー名
+    TELEGRAM_WEBHOOK_SECRET?: string; // secret: setWebhook の secret_token と同値
     LIFF_URL: string;
     LINE_CHANNEL_ID: string;
     LINE_LOGIN_CHANNEL_ID: string;
@@ -188,6 +192,7 @@ app.use('*', authMiddleware);
 
 // Mount route groups — MVP & Round 2
 app.route('/', webhook);
+app.route('/', telegram);
 app.route('/', friends);
 app.route('/', tags);
 app.route('/', scenarios);
