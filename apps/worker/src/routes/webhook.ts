@@ -17,6 +17,7 @@ import {
 import type { EntryRoute, Friend } from '@line-crm/db';
 import { fireEvent } from '../services/event-bus.js';
 import { matchAndReply } from '../services/auto-reply.js';
+import { maybeSendAiReply, type AiReplyEnv } from '../services/ai-reply/index.js';
 import { buildMessage } from '../services/step-delivery.js';
 import { pushImmediateFirstStep } from '../services/immediate-first-step.js';
 import type { Env } from '../index.js';
@@ -176,6 +177,7 @@ webhook.post('/webhook', async (c) => {
           c.env.LIFF_URL,
           c.env.IMAGES,
           proxyDispatch,
+          c.env,
         );
       } catch (err) {
         console.error('Error handling webhook event:', err);
@@ -198,6 +200,7 @@ async function handleEvent(
   liffUrl?: string,
   r2?: R2Bucket,
   proxyDispatch?: HarnessProxyDispatch,
+  aiReplyEnv?: AiReplyEnv,
 ): Promise<void> {
   if (event.type === 'follow') {
     const userId =
@@ -630,7 +633,12 @@ async function handleEvent(
 
     // auto_replies にマッチしなかった = 自発メッセージ → unread にする
     if (!matched) {
-      await upsertChatOnMessage(db, friend.id);
+      const chat = await upsertChatOnMessage(db, friend.id);
+      // キーワード未一致のときだけ AI 一次応答を試みる。担当スタッフが付いて
+      // いる場合は maybeSendAiReply 内で早期リターンする (有人対応を優先)。
+      await maybeSendAiReply(db, lineClient, friend, chat, incomingText, aiReplyEnv ?? {}, {
+        lineAccountId,
+      });
     }
 
     // イベントバス発火: message_received

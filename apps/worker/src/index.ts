@@ -110,6 +110,12 @@ export type Env = {
     TELEGRAM_BOT_TOKEN?: string;      // secret: wrangler secret put TELEGRAM_BOT_TOKEN
     TELEGRAM_BOT_USERNAME?: string;   // var: @ を除いた Bot ユーザー名
     TELEGRAM_WEBHOOK_SECRET?: string; // secret: setWebhook の secret_token と同値
+    // AI 自動応答 (キーワード未一致・担当者未割当のときのみ発動)
+    AI_REPLY_ENABLED?: string;         // var: 'true' のときだけ動作 (フェイルセーフ)
+    AI_PROVIDER?: string;              // var: 現状 'anthropic' のみ
+    ANTHROPIC_API_KEY?: string;        // secret: wrangler secret put ANTHROPIC_API_KEY
+    AI_REPLY_MODEL?: string;           // var: 既定 claude-haiku-4-5-20251001
+    AI_REPLY_SYSTEM_PROMPT?: string;   // var: 既定プロンプトを上書きしたい場合のみ
     LIFF_URL: string;
     LINE_CHANNEL_ID: string;
     LINE_LOGIN_CHANNEL_ID: string;

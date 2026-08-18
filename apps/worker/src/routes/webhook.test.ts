@@ -5,6 +5,7 @@ const lineClientMocks = vi.hoisted(() => ({
   getProfile: vi.fn(),
   replyMessage: vi.fn(),
   pushMessage: vi.fn(),
+  pushTextMessage: vi.fn(),
 }));
 
 // Stub the DB graph — these tests focus on webhook guard behavior and the
@@ -594,5 +595,106 @@ describe('POST /webhook — follow イベントの流入元 (lp=)', () => {
 
   test('referral が無い通常の友だち追加では何も記録しない', async () => {
     expect(await follow(undefined)).toHaveLength(0);
+  });
+});
+
+describe('POST /webhook — AI 自動応答の発動条件', () => {
+  function messageEvent(text: string) {
+    return {
+      type: 'message',
+      replyToken: 'reply-token',
+      message: { type: 'text', id: 'message-1', text },
+      timestamp: Date.now(),
+      source: { type: 'user', userId: 'U-ai' },
+      webhookEventId: 'event-ai',
+      deliveryContext: { isRedelivery: false },
+      mode: 'active',
+    };
+  }
+
+  function chatRow(operatorId: string | null) {
+    return {
+      id: 'chat-ai',
+      friend_id: 'friend-ai',
+      operator_id: operatorId,
+      status: 'unread' as const,
+      notes: null,
+      last_message_at: '2026-08-19T10:00:00.000+09:00',
+      assigned_at: null,
+      first_response_at: null,
+      resolved_at: null,
+      last_activity_at: '2026-08-19T10:00:00.000+09:00',
+      last_replied_by: 'user' as const,
+      outcome: null,
+      version: 1,
+      created_at: '2026-08-19T10:00:00.000+09:00',
+      updated_at: '2026-08-19T10:00:00.000+09:00',
+    };
+  }
+
+  async function send(env: Record<string, unknown>, operatorId: string | null) {
+    vi.mocked(verifySignature).mockResolvedValue(true);
+    vi.mocked(getFriendByLineUserId).mockResolvedValue({
+      id: 'friend-ai',
+      line_user_id: 'U-ai',
+    } as unknown as Awaited<ReturnType<typeof getFriendByLineUserId>>);
+    vi.mocked(jstNow).mockReturnValue('2026-08-19T10:00:00.000+09:00');
+    vi.mocked(upsertChatOnMessage).mockResolvedValue(chatRow(operatorId));
+    lineClientMocks.pushTextMessage.mockClear();
+
+    const stmt = {
+      bind: vi.fn(),
+      run: vi.fn().mockResolvedValue({}),
+      all: vi.fn().mockResolvedValue({ results: [] }),
+    };
+    stmt.bind.mockReturnValue(stmt);
+    const db = { prepare: vi.fn().mockReturnValue(stmt) } as unknown as D1Database;
+    const executionCtx = {
+      waitUntil: vi.fn(),
+      passThroughOnException: vi.fn(),
+      props: {},
+    } as unknown as ExecutionContext;
+
+    const res = await setupApp().request(
+      '/webhook',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Line-Signature': 'A'.repeat(43) + '=' },
+        body: JSON.stringify({ destination: 'bot', events: [messageEvent('料金を教えてください')] }),
+      },
+      { ...baseEnv, DB: db, ...env },
+      executionCtx,
+    );
+
+    expect(res.status).toBe(200);
+    await (vi.mocked(executionCtx.waitUntil).mock.calls[0]?.[0] as Promise<unknown>).catch(() => {});
+    return lineClientMocks.pushTextMessage;
+  }
+
+  test('AI_REPLY_ENABLED 未設定では AI 応答を送らない (フェイルセーフ)', async () => {
+    const push = await send({}, null);
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  test('担当スタッフが付いているチャットでは、有効時でも AI 応答を送らない', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ content: [{ type: 'text', text: 'ok' }] }), { status: 200 })),
+    );
+    const push = await send({ AI_REPLY_ENABLED: 'true', ANTHROPIC_API_KEY: 'sk-test' }, 'staff-9');
+    expect(push).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  test('有効かつ未割当なら AI が生成した文面を push する', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ content: [{ type: 'text', text: '概算からご案内します。' }] }), { status: 200 }),
+      ),
+    );
+    const push = await send({ AI_REPLY_ENABLED: 'true', ANTHROPIC_API_KEY: 'sk-test' }, null);
+    expect(push).toHaveBeenCalledWith('U-ai', '概算からご案内します。');
+    vi.unstubAllGlobals();
   });
 });
