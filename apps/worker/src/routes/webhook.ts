@@ -225,6 +225,23 @@ async function handleEvent(
 
     console.log(`[follow] friend.id=${friend.id} friend.line_account_id=${(friend as any).line_account_id}`);
 
+    // 友だち追加 URL の `?lp=xxx` を流入元として記録する。
+    // LINE は follow イベントの follow.referral.ref にそのまま載せてくる。
+    // 初回のみ記録し上書きしない (source IS NULL)。再訪や再フォローで塗り替わると
+    // 流入元別の成果が測れなくなるため。
+    // 事前登録が要る entry_routes / ref_code とは別系統の軽量な導線ラベル。
+    const followRef = (event as { follow?: { referral?: { ref?: string } } }).follow?.referral?.ref;
+    if (followRef && followRef.startsWith('lp=')) {
+      const source = followRef.slice('lp='.length).trim();
+      if (source) {
+        await db
+          .prepare('UPDATE friends SET source = ?, updated_at = ? WHERE id = ? AND source IS NULL')
+          .bind(source, jstNow(), friend.id)
+          .run();
+        console.log(`[follow] source=${source} for friend ${friend.id}`);
+      }
+    }
+
     // Set line_account_id for multi-account tracking (always update on follow)
     if (lineAccountId) {
       await db.prepare('UPDATE friends SET line_account_id = ?, updated_at = ? WHERE id = ?')

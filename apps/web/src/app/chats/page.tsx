@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { parseStickerMessageContent, stickerFallback } from '@line-crm/shared'
-import { api, fetchApi } from '@/lib/api'
+import { api, fetchApi, ApiError } from '@/lib/api'
 import { UNANSWERED_REFRESH_EVENT } from '@/lib/events'
 import { useAccount } from '@/contexts/account-context'
 import Header from '@/components/layout/header'
@@ -17,7 +17,13 @@ interface Chat {
   friendName: string
   friendPictureUrl: string | null
   operatorId: string | null
-  status: 'unread' | 'in_progress' | 'resolved'
+  status: 'unread' | 'in_progress' | 'waiting_reply' | 'resolved'
+  /** 進行状態とは独立した成果。VIP は顧客属性なのでタグ側で扱う */
+  outcome: 'converted' | 'lost' | null
+  /** 友だち追加 URL の `?lp=xxx` から採取した流入元 */
+  source: string | null
+  /** 紐付け済みの Telegram ユーザー ID (未連携なら null) */
+  telegramUserId: string | null
   notes: string | null
   lastMessageAt: string | null
   lastMessageContent: string | null
@@ -38,6 +44,7 @@ interface ChatMessage {
 interface ChatDetail extends Chat {
   friendName: string
   friendPictureUrl: string | null
+  tgVerifiedAt?: string | null
   messages?: ChatMessage[]
 }
 
@@ -46,8 +53,24 @@ type StatusFilter = 'all' | 'unread' | 'in_progress' | 'resolved'
 const statusConfig: Record<Chat['status'], { label: string; className: string }> = {
   unread: { label: '未読', className: 'bg-red-100 text-red-700' },
   in_progress: { label: '対応中', className: 'bg-yellow-100 text-yellow-700' },
+  waiting_reply: { label: '返信待ち', className: 'bg-blue-100 text-blue-700' },
   resolved: { label: '解決済', className: 'bg-green-100 text-green-700' },
 }
+
+// 進行状態と成果は別々に持つ。1 つのセレクタに混ぜると「成約した対応中」や
+// 「VIP かつ 返信待ち」が表現できなくなる。VIP は人単位の属性なのでタグで付ける。
+const progressOptions: { value: Chat['status']; label: string }[] = [
+  { value: 'unread', label: '🆕 新規' },
+  { value: 'in_progress', label: '💬 対応中' },
+  { value: 'waiting_reply', label: '⏳ 返信待ち' },
+  { value: 'resolved', label: '✅ 完了' },
+]
+
+const outcomeOptions: { value: '' | NonNullable<Chat['outcome']>; label: string }[] = [
+  { value: '', label: '― 成果未設定' },
+  { value: 'converted', label: '✅ 成約' },
+  { value: 'lost', label: '❌ 離脱' },
+]
 
 const statusFilters: { key: StatusFilter; label: string }[] = [
   { key: 'all', label: '全て' },
@@ -332,6 +355,7 @@ export default function ChatsPage() {
   const sendLockRef = useRef(false)
   const [notes, setNotes] = useState('')
   const [savingNotes, setSavingNotes] = useState(false)
+  const [invitingTelegram, setInvitingTelegram] = useState(false)
   const [showLoadingIndicator, setShowLoadingIndicator] = useState(false)
   const [loadingSeconds, setLoadingSeconds] = useState(5)
   const lastLoadingTriggerAtRef = useRef<Record<string, number>>({})
@@ -528,6 +552,9 @@ export default function ChatsPage() {
         friendPictureUrl: chatDetail.friendPictureUrl,
         operatorId: chatDetail.operatorId ?? null,
         status: chatDetail.status,
+        outcome: chatDetail.outcome ?? null,
+        source: chatDetail.source ?? null,
+        telegramUserId: chatDetail.telegramUserId ?? null,
         notes: chatDetail.notes ?? null,
         lastMessageAt: chatDetail.lastMessageAt ?? lastMsg?.createdAt ?? null,
         lastMessageContent: chatDetail.lastMessageContent ?? lastMsg?.content ?? null,
@@ -741,6 +768,40 @@ export default function ChatsPage() {
     }
   }
 
+  const handleOutcomeUpdate = async (value: string) => {
+    if (!selectedChatId) return
+    try {
+      await api.chats.update(selectedChatId, {
+        outcome: value === '' ? null : (value as NonNullable<Chat['outcome']>),
+      })
+      loadChatDetail(selectedChatId)
+      loadChats()
+    } catch {
+      setError('成果の更新に失敗しました。')
+    }
+  }
+
+  const handleInviteTelegram = async () => {
+    if (!selectedChatId) return
+    if (!confirm('このユーザーに Telegram 誘導リンクを LINE で送りますか？')) return
+    setInvitingTelegram(true)
+    try {
+      await api.chats.inviteTelegram(selectedChatId)
+      // 送信内容がトーク履歴に出るので、詳細を取り直して TG バッジも更新する
+      loadChatDetail(selectedChatId)
+      loadChats()
+    } catch (err) {
+      const status = err instanceof ApiError ? err.status : 0
+      setError(
+        status === 400
+          ? 'この友だちは既に Telegram と連携済みです。'
+          : `Telegram 誘導リンクの送信に失敗しました (HTTP ${status || '不明'})。`,
+      )
+    } finally {
+      setInvitingTelegram(false)
+    }
+  }
+
   const handleSaveNotes = async () => {
     if (!selectedChatId) return
     setSavingNotes(true)
@@ -887,6 +948,34 @@ export default function ChatsPage() {
                             )}
                             {preview || <span className="italic text-gray-300">(まだメッセージなし)</span>}
                           </p>
+                          {(chat.source || chat.telegramUserId || chat.outcome) && (
+                            <div className="flex items-center gap-1 mt-1 flex-wrap">
+                              {chat.source && (
+                                <span
+                                  className="px-1.5 py-0.5 text-[10px] rounded bg-indigo-50 text-indigo-700"
+                                  title={`流入元: ${chat.source}`}
+                                >
+                                  {chat.source}
+                                </span>
+                              )}
+                              {chat.telegramUserId && (
+                                <span className="px-1.5 py-0.5 text-[10px] rounded bg-sky-50 text-sky-700">
+                                  ✅ TG
+                                </span>
+                              )}
+                              {chat.outcome && (
+                                <span
+                                  className={`px-1.5 py-0.5 text-[10px] rounded ${
+                                    chat.outcome === 'converted'
+                                      ? 'bg-green-50 text-green-700'
+                                      : 'bg-gray-100 text-gray-500'
+                                  }`}
+                                >
+                                  {chat.outcome === 'converted' ? '✅ 成約' : '❌ 離脱'}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </button>
@@ -972,28 +1061,46 @@ export default function ChatsPage() {
                       次の未対応 →
                     </button>
                   )}
-                  {chatDetail.status !== 'unread' && (
-                    <button
-                      onClick={() => handleStatusUpdate('unread')}
-                      className="px-3 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-md transition-colors"
+                  {/* 進行状態と成果は独立して持つ。VIP は人単位の属性なのでタグで付ける。 */}
+                  <select
+                    value={chatDetail.status}
+                    onChange={(e) => handleStatusUpdate(e.target.value as Chat['status'])}
+                    className="px-2 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium border border-gray-300 rounded-md bg-white"
+                    aria-label="進行状態"
+                  >
+                    {progressOptions.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={chatDetail.outcome ?? ''}
+                    onChange={(e) => handleOutcomeUpdate(e.target.value)}
+                    className="px-2 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium border border-gray-300 rounded-md bg-white"
+                    aria-label="成果"
+                  >
+                    {outcomeOptions.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                  {chatDetail.telegramUserId ? (
+                    <span
+                      className="px-2 py-1 text-xs font-medium text-sky-700 bg-sky-50 rounded-md"
+                      title={chatDetail.tgVerifiedAt ? `連携日時: ${chatDetail.tgVerifiedAt}` : undefined}
                     >
-                      未読に戻す
-                    </button>
-                  )}
-                  {chatDetail.status !== 'in_progress' && (
+                      ✅ TG連携済
+                    </span>
+                  ) : (
                     <button
-                      onClick={() => handleStatusUpdate('in_progress')}
-                      className="px-3 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium text-yellow-700 bg-yellow-50 hover:bg-yellow-100 rounded-md transition-colors"
+                      onClick={handleInviteTelegram}
+                      disabled={invitingTelegram}
+                      className="px-3 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium text-sky-700 bg-sky-50 hover:bg-sky-100 rounded-md transition-colors disabled:opacity-50"
+                      title="Telegram 誘導リンクを LINE で送る (24時間で失効)"
                     >
-                      対応中にする
-                    </button>
-                  )}
-                  {chatDetail.status !== 'resolved' && (
-                    <button
-                      onClick={() => handleStatusUpdate('resolved')}
-                      className="px-3 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-md transition-colors"
-                    >
-                      解決済にする
+                      {invitingTelegram ? '送信中…' : '📨 Telegramに誘導する'}
                     </button>
                   )}
                 </div>

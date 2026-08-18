@@ -405,6 +405,7 @@ describe('POST /webhook — first-contact existing friends', () => {
       resolved_at: null,
       last_activity_at: '2026-06-18T12:00:00.000+09:00',
       last_replied_by: 'user',
+      outcome: null,
       version: 1,
       created_at: '2026-06-18T12:00:00.000+09:00',
       updated_at: '2026-06-18T12:00:00.000+09:00',
@@ -486,5 +487,112 @@ describe('POST /webhook — first-contact existing friends', () => {
     expect(addTagToFriend).not.toHaveBeenCalled();
     expect(getEntryRouteByRefCode).not.toHaveBeenCalled();
     expect(getMessageTemplateById).not.toHaveBeenCalled();
+  });
+});
+
+describe('POST /webhook — follow イベントの流入元 (lp=)', () => {
+  function recordingDb() {
+    const queries: Array<{ sql: string; params: unknown[] }> = [];
+    const db = {
+      prepare: vi.fn((sql: string) => {
+        const stmt = {
+          bind: vi.fn((...params: unknown[]) => {
+            queries.push({ sql, params });
+            return stmt;
+          }),
+          run: vi.fn().mockResolvedValue({}),
+          all: vi.fn().mockResolvedValue({ results: [] }),
+          first: vi.fn().mockResolvedValue(null),
+        };
+        return stmt;
+      }),
+    } as unknown as D1Database;
+    return { db, queries };
+  }
+
+  async function follow(ref: string | undefined) {
+    vi.mocked(verifySignature).mockResolvedValue(true);
+    vi.mocked(jstNow).mockReturnValue('2026-08-18T21:00:00.000+09:00');
+    vi.mocked(getScenarios).mockResolvedValue([]);
+    vi.mocked(getEntryRouteByRefCode).mockResolvedValue(null);
+    lineClientMocks.getProfile.mockResolvedValue({
+      userId: 'U-follow',
+      displayName: 'New Friend',
+      pictureUrl: null,
+      statusMessage: null,
+    });
+    vi.mocked(upsertFriend).mockResolvedValue({
+      id: 'friend-lp',
+      line_user_id: 'U-follow',
+      display_name: 'New Friend',
+      picture_url: null,
+      status_message: null,
+      is_following: 1,
+      user_id: null,
+      line_account_id: null,
+      metadata: '{}',
+      first_tracked_link_id: null,
+      created_at: '2026-08-18T21:00:00.000+09:00',
+      updated_at: '2026-08-18T21:00:00.000+09:00',
+    } as unknown as Awaited<ReturnType<typeof upsertFriend>>);
+
+    const { db, queries } = recordingDb();
+    const executionCtx = {
+      waitUntil: vi.fn(),
+      passThroughOnException: vi.fn(),
+      props: {},
+    } as unknown as ExecutionContext;
+
+    const res = await setupApp().request(
+      '/webhook',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Line-Signature': 'A'.repeat(43) + '=' },
+        body: JSON.stringify({
+          destination: 'bot',
+          events: [
+            {
+              type: 'follow',
+              replyToken: 'reply-token',
+              timestamp: Date.now(),
+              source: { type: 'user', userId: 'U-follow' },
+              webhookEventId: 'event-follow',
+              deliveryContext: { isRedelivery: false },
+              mode: 'active',
+              ...(ref === undefined ? {} : { follow: { referral: { ref } } }),
+            },
+          ],
+        }),
+      },
+      { ...baseEnv, DB: db },
+      executionCtx,
+    );
+
+    expect(res.status).toBe(200);
+    const processing = vi.mocked(executionCtx.waitUntil).mock.calls[0]?.[0] as Promise<unknown>;
+    await processing.catch(() => {});
+    return queries.filter((q) => q.sql.includes('SET source'));
+  }
+
+  test('lp= から流入元を記録する', async () => {
+    const sourceQueries = await follow('lp=instagram');
+
+    expect(sourceQueries).toHaveLength(1);
+    expect(sourceQueries[0].params[0]).toBe('instagram');
+  });
+
+  test('初回のみ記録し、既に値があれば上書きしない', async () => {
+    const sourceQueries = await follow('lp=youtube');
+
+    // 上書き防止は SQL 側の条件で担保する
+    expect(sourceQueries[0].sql).toContain('source IS NULL');
+  });
+
+  test('lp= 以外の referral は流入元として扱わない', async () => {
+    expect(await follow('promo123')).toHaveLength(0);
+  });
+
+  test('referral が無い通常の友だち追加では何も記録しない', async () => {
+    expect(await follow(undefined)).toHaveLength(0);
   });
 });

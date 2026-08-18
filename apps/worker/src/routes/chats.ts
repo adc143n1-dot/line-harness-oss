@@ -266,8 +266,11 @@ chats.get('/api/chats', async (c) => {
         f.picture_url,
         f.line_user_id,
         f.line_account_id,
+        f.source,
+        f.telegram_user_id,
         c.operator_id,
         COALESCE(c.status, 'resolved') AS status,
+        c.outcome,
         c.notes,
         COALESCE(rm.preview_at, d.last_message_at) AS last_message_at,
         rm.content AS last_message_content,
@@ -301,6 +304,9 @@ chats.get('/api/chats', async (c) => {
       friendPictureUrl: ch.picture_url || null,
       operatorId: ch.operator_id,
       status: ch.status,
+      outcome: ch.outcome ?? null,
+      source: ch.source ?? null,
+      telegramUserId: ch.telegram_user_id ?? null,
       notes: ch.notes,
       lastMessageAt: ch.last_message_at,
       lastMessageContent: ch.last_message_content || null,
@@ -372,9 +378,19 @@ chats.get('/api/chats/:id', async (c) => {
     const createdAt = chatRow?.created_at ?? null;
 
     const friend = await c.env.DB
-      .prepare(`SELECT display_name, picture_url, line_user_id FROM friends WHERE id = ?`)
+      .prepare(
+        `SELECT display_name, picture_url, line_user_id, source, telegram_user_id, tg_verified_at
+         FROM friends WHERE id = ?`,
+      )
       .bind(resolvedFriendId)
-      .first<{ display_name: string | null; picture_url: string | null; line_user_id: string }>();
+      .first<{
+        display_name: string | null;
+        picture_url: string | null;
+        line_user_id: string;
+        source: string | null;
+        telegram_user_id: string | null;
+        tg_verified_at: string | null;
+      }>();
 
     // 新しい1000件を取って昇順に戻す。LIMIT 200 ASC だと古い200件だけで broadcast/scenario 等の
     // 新しい push が欠落していた（Shu で 481件中 281件欠落のバグあり）。一覧側と同様に test 配信は除外。
@@ -399,6 +415,10 @@ chats.get('/api/chats/:id', async (c) => {
         friendPictureUrl: friend?.picture_url || null,
         operatorId,
         status,
+        outcome: chatRow?.outcome ?? null,
+        source: friend?.source ?? null,
+        telegramUserId: friend?.telegram_user_id ?? null,
+        tgVerifiedAt: friend?.tg_verified_at ?? null,
         notes,
         lastMessageAt,
         createdAt,
@@ -440,7 +460,12 @@ chats.put('/api/chats/:id', async (c) => {
     const id = c.req.param('id');
     const resolved = await resolveOrCreateChat(c.env.DB, id);
     if (!resolved) return c.json({ success: false, error: 'Not found' }, 404);
-    const body = await c.req.json<{ operatorId?: string | null; status?: string; notes?: string }>();
+    const body = await c.req.json<{
+      operatorId?: string | null;
+      status?: string;
+      notes?: string;
+      outcome?: 'converted' | 'lost' | null;
+    }>();
     // 計測列 (assigned_at / resolved_at 等) はサーバ側でのみ導出する。body を
     // そのまま渡すと KPI をクライアントから書き換えられるため、明示的に絞る。
     const now = jstNow();
@@ -458,13 +483,14 @@ chats.put('/api/chats/:id', async (c) => {
       }
     }
     if (body.notes !== undefined) updates.notes = body.notes;
+    if (body.outcome !== undefined) updates.outcome = body.outcome;
     await updateChat(c.env.DB, resolved.id, updates);
     const updated = await getChatById(c.env.DB, resolved.id);
     if (!updated) return c.json({ success: false, error: 'Not found' }, 404);
     return c.json({
       success: true,
       // 公開 ID は friend_id に統一
-      data: { id: updated.friend_id, friendId: updated.friend_id, operatorId: updated.operator_id, status: updated.status, notes: updated.notes },
+      data: { id: updated.friend_id, friendId: updated.friend_id, operatorId: updated.operator_id, status: updated.status, outcome: updated.outcome ?? null, notes: updated.notes },
     });
   } catch (err) {
     console.error('PUT /api/chats/:id error:', err);

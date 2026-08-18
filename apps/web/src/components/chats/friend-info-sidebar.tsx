@@ -23,7 +23,7 @@ interface FriendDetail {
 }
 
 interface ChatStatusInfo {
-  status: 'unread' | 'in_progress' | 'resolved' | null
+  status: 'unread' | 'in_progress' | 'waiting_reply' | 'resolved' | null
   notes: string | null
 }
 
@@ -44,6 +44,7 @@ function formatDate(iso: string | null): string {
 const statusLabels: Record<NonNullable<ChatStatusInfo['status']>, { label: string; className: string }> = {
   unread: { label: '未対応', className: 'bg-red-100 text-red-700' },
   in_progress: { label: '対応中', className: 'bg-yellow-100 text-yellow-700' },
+  waiting_reply: { label: '返信待ち', className: 'bg-blue-100 text-blue-700' },
   resolved: { label: '解決済', className: 'bg-green-100 text-green-700' },
 }
 

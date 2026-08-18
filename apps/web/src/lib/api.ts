@@ -967,11 +967,25 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(data),
       }),
-    update: (id: string, data: { operatorId?: string | null; status?: Chat['status']; notes?: string | null }) =>
+    update: (
+      id: string,
+      data: {
+        operatorId?: string | null
+        status?: Chat['status']
+        outcome?: Chat['outcome']
+        notes?: string | null
+      },
+    ) =>
       fetchApi<ApiResponse<Chat>>(`/api/chats/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data),
       }),
+    /** Telegram 誘導リンクを LINE で送る。24 時間で失効する専用トークンを発行する */
+    inviteTelegram: (id: string) =>
+      fetchApi<ApiResponse<{ inviteUrl: string; expiresAt: string }>>(
+        `/api/chats/${id}/invite-telegram`,
+        { method: 'POST' },
+      ),
     send: (id: string, data: { content: string; messageType?: string }) =>
       fetchApi<ApiResponse<unknown>>(`/api/chats/${id}/send`, {
         method: 'POST',

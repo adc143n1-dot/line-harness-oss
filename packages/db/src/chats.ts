@@ -3,6 +3,9 @@ import { jstNow } from './utils.js';
 
 export type ChatRepliedBy = 'operator' | 'user';
 
+/** 進行状態 (status) とは独立した成果。VIP は顧客属性なのでタグ側で扱う。 */
+export type ChatOutcome = 'converted' | 'lost';
+
 export interface ChatRow {
   id: string;
   friend_id: string;
@@ -20,6 +23,8 @@ export interface ChatRow {
   last_activity_at: string | null;
   /** 直近に発言したのがスタッフか顧客か (放置検知用) */
   last_replied_by: ChatRepliedBy | null;
+  /** 成果 (converted / lost)。進行状態とは独立 */
+  outcome: ChatOutcome | null;
   /** 楽観ロック用。updateChat が更新のたびに +1 する */
   version: number;
   created_at: string;
@@ -88,6 +93,7 @@ export async function updateChat(
     resolvedAt: string | null;
     lastActivityAt: string | null;
     lastRepliedBy: ChatRepliedBy | null;
+    outcome: ChatOutcome | null;
   }>,
 ): Promise<void> {
   const sets: string[] = [];
@@ -101,6 +107,7 @@ export async function updateChat(
   if (updates.resolvedAt !== undefined) { sets.push('resolved_at = ?'); values.push(updates.resolvedAt); }
   if (updates.lastActivityAt !== undefined) { sets.push('last_activity_at = ?'); values.push(updates.lastActivityAt); }
   if (updates.lastRepliedBy !== undefined) { sets.push('last_replied_by = ?'); values.push(updates.lastRepliedBy); }
+  if (updates.outcome !== undefined) { sets.push('outcome = ?'); values.push(updates.outcome); }
   if (sets.length === 0) return;
   // 楽観ロックの基準。実際に列が変わる更新のたびに +1 する。
   sets.push('version = version + 1');

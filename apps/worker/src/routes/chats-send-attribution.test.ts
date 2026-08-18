@@ -155,3 +155,52 @@ describe('POST /api/chats/:id/send — 計測列の記録', () => {
     expect(vi.mocked(updateChat).mock.calls[0][2]).not.toHaveProperty('firstResponseAt');
   });
 });
+
+describe('PUT /api/chats/:id — 更新できる項目の制限', () => {
+  async function put(body: unknown) {
+    const { db } = fakeDb();
+    const app = new Hono<Env>();
+    app.route('/', chats);
+    vi.mocked(updateChat).mockClear();
+    const res = await app.request(
+      '/api/chats/chat-1',
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      },
+      { DB: db, LINE_CHANNEL_ACCESS_TOKEN: 'token' } as unknown as Env['Bindings'],
+    );
+    return { res, updates: vi.mocked(updateChat).mock.calls[0]?.[2] };
+  }
+
+  test('status と outcome を独立して更新できる', async () => {
+    const { res, updates } = await put({ status: 'waiting_reply', outcome: 'converted' });
+
+    expect(res.status).toBe(200);
+    expect(updates).toMatchObject({ status: 'waiting_reply', outcome: 'converted' });
+  });
+
+  test('outcome は null で解除できる', async () => {
+    const { updates } = await put({ outcome: null });
+    expect(updates).toMatchObject({ outcome: null });
+  });
+
+  test('計測列はクライアントから書き換えられない', async () => {
+    // KPI (初回応答時間・解決時刻) をクライアントが詐称できてはいけない
+    const { updates } = await put({
+      status: 'resolved',
+      assignedAt: '1999-01-01T00:00:00.000+09:00',
+      firstResponseAt: '1999-01-01T00:00:00.000+09:00',
+      lastRepliedBy: 'user',
+      version: 999,
+    });
+
+    expect(updates).not.toHaveProperty('assignedAt');
+    expect(updates).not.toHaveProperty('firstResponseAt');
+    expect(updates).not.toHaveProperty('lastRepliedBy');
+    expect(updates).not.toHaveProperty('version');
+    // resolved への遷移で resolvedAt はサーバ側が導出する
+    expect(updates).toHaveProperty('resolvedAt');
+  });
+});

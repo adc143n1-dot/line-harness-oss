@@ -731,11 +731,21 @@ export interface Operator {
 // チャット (Chat)
 // -----------------------------------------------------------------------------
 
+export type ChatStatus = "unread" | "in_progress" | "waiting_reply" | "resolved";
+
+/** 進行状態 (status) とは独立した成果。VIP は顧客属性なのでタグ側で扱う。 */
+export type ChatOutcome = "converted" | "lost";
+
 export interface Chat {
   id: string;
   friendId: string;
   operatorId: string | null;
-  status: "unread" | "in_progress" | "resolved";
+  status: ChatStatus;
+  outcome: ChatOutcome | null;
+  /** 友だち追加 URL の `?lp=xxx` から採取した流入元 */
+  source: string | null;
+  /** 紐付け済みの Telegram ユーザー ID (未連携なら null) */
+  telegramUserId: string | null;
   notes: string | null;
   lastMessageAt: string | null;
   createdAt: string;
