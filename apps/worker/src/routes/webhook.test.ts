@@ -400,6 +400,12 @@ describe('POST /webhook — first-contact existing friends', () => {
       status: 'unread',
       notes: null,
       last_message_at: '2026-06-18T12:00:00.000+09:00',
+      assigned_at: null,
+      first_response_at: null,
+      resolved_at: null,
+      last_activity_at: '2026-06-18T12:00:00.000+09:00',
+      last_replied_by: 'user',
+      version: 1,
       created_at: '2026-06-18T12:00:00.000+09:00',
       updated_at: '2026-06-18T12:00:00.000+09:00',
     });

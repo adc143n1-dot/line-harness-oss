@@ -55,6 +55,12 @@ type ChatLike = {
   status: string;
   notes: string | null;
   last_message_at: string | null;
+  assigned_at: string | null;
+  first_response_at: string | null;
+  resolved_at: string | null;
+  last_activity_at: string | null;
+  last_replied_by: 'operator' | 'user' | null;
+  version: number;
   created_at: string;
   updated_at: string;
 };
@@ -494,7 +500,24 @@ chats.put('/api/chats/:id', async (c) => {
     const resolved = await resolveOrCreateChat(c.env.DB, id);
     if (!resolved) return c.json({ success: false, error: 'Not found' }, 404);
     const body = await c.req.json<{ operatorId?: string | null; status?: string; notes?: string }>();
-    await updateChat(c.env.DB, resolved.id, body);
+    // 計測列 (assigned_at / resolved_at 等) はサーバ側でのみ導出する。body を
+    // そのまま渡すと KPI をクライアントから書き換えられるため、明示的に絞る。
+    const now = jstNow();
+    const updates: Parameters<typeof updateChat>[2] = {};
+    if (body.operatorId !== undefined) {
+      updates.operatorId = body.operatorId;
+      if (body.operatorId !== resolved.operator_id) {
+        updates.assignedAt = body.operatorId === null ? null : now;
+      }
+    }
+    if (body.status !== undefined) {
+      updates.status = body.status;
+      if (body.status !== resolved.status) {
+        updates.resolvedAt = body.status === 'resolved' ? now : null;
+      }
+    }
+    if (body.notes !== undefined) updates.notes = body.notes;
+    await updateChat(c.env.DB, resolved.id, updates);
     const updated = await getChatById(c.env.DB, resolved.id);
     if (!updated) return c.json({ success: false, error: 'Not found' }, 404);
     return c.json({
@@ -595,7 +618,15 @@ chats.post('/api/chats/:id/send', async (c) => {
       .run();
 
     // チャットの最終メッセージ日時を更新（chat.id を直接使う — friend_id で呼ばれても resolveOrCreateChat 済み）
-    await updateChat(c.env.DB, chat.id, { status: 'in_progress', lastMessageAt: jstNow() });
+    // first_response_at は最初のスタッフ返信時のみ記録する (初回応答時間の算出用)。
+    const sentAt = jstNow();
+    await updateChat(c.env.DB, chat.id, {
+      status: 'in_progress',
+      lastMessageAt: sentAt,
+      lastActivityAt: sentAt,
+      lastRepliedBy: 'operator',
+      ...(chat.first_response_at ? {} : { firstResponseAt: sentAt }),
+    });
 
     return c.json({ success: true, data: { sent: true, messageId: logId } });
   } catch (err) {

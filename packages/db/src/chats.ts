@@ -11,6 +11,8 @@ export interface OperatorRow {
   updated_at: string;
 }
 
+export type ChatRepliedBy = 'operator' | 'user';
+
 export interface ChatRow {
   id: string;
   friend_id: string;
@@ -18,6 +20,18 @@ export interface ChatRow {
   status: string;
   notes: string | null;
   last_message_at: string | null;
+  /** 担当者が割り当てられた時刻 (未割当なら null) */
+  assigned_at: string | null;
+  /** 顧客の待ちに対して最初にスタッフが応答した時刻 (初回応答時間の算出用) */
+  first_response_at: string | null;
+  /** status が resolved になった時刻 */
+  resolved_at: string | null;
+  /** 直近のやり取りの時刻 (放置検知用) */
+  last_activity_at: string | null;
+  /** 直近に発言したのがスタッフか顧客か (放置検知用) */
+  last_replied_by: ChatRepliedBy | null;
+  /** 楽観ロック用。updateChat が更新のたびに +1 する */
+  version: number;
   created_at: string;
   updated_at: string;
 }
@@ -116,7 +130,17 @@ export async function createChat(
 export async function updateChat(
   db: D1Database,
   id: string,
-  updates: Partial<{ operatorId: string | null; status: string; notes: string; lastMessageAt: string }>,
+  updates: Partial<{
+    operatorId: string | null;
+    status: string;
+    notes: string;
+    lastMessageAt: string;
+    assignedAt: string | null;
+    firstResponseAt: string | null;
+    resolvedAt: string | null;
+    lastActivityAt: string | null;
+    lastRepliedBy: ChatRepliedBy | null;
+  }>,
 ): Promise<void> {
   const sets: string[] = [];
   const values: unknown[] = [];
@@ -124,7 +148,14 @@ export async function updateChat(
   if (updates.status !== undefined) { sets.push('status = ?'); values.push(updates.status); }
   if (updates.notes !== undefined) { sets.push('notes = ?'); values.push(updates.notes); }
   if (updates.lastMessageAt !== undefined) { sets.push('last_message_at = ?'); values.push(updates.lastMessageAt); }
+  if (updates.assignedAt !== undefined) { sets.push('assigned_at = ?'); values.push(updates.assignedAt); }
+  if (updates.firstResponseAt !== undefined) { sets.push('first_response_at = ?'); values.push(updates.firstResponseAt); }
+  if (updates.resolvedAt !== undefined) { sets.push('resolved_at = ?'); values.push(updates.resolvedAt); }
+  if (updates.lastActivityAt !== undefined) { sets.push('last_activity_at = ?'); values.push(updates.lastActivityAt); }
+  if (updates.lastRepliedBy !== undefined) { sets.push('last_replied_by = ?'); values.push(updates.lastRepliedBy); }
   if (sets.length === 0) return;
+  // 楽観ロックの基準。実際に列が変わる更新のたびに +1 する。
+  sets.push('version = version + 1');
   sets.push('updated_at = ?');
   values.push(jstNow());
   values.push(id);
@@ -139,6 +170,12 @@ export async function upsertChatOnMessage(db: D1Database, friendId: string): Pro
   // 適用されるが no-op 相当なので害はない。
   const chat = (await getChatByFriendId(db, friendId)) ?? (await createChat(db, { friendId }));
   const newStatus = chat.status === 'resolved' ? 'unread' : chat.status;
-  await updateChat(db, chat.id, { status: newStatus, lastMessageAt: now });
+  // 顧客からの受信なので last_replied_by='user'。放置検知はこの2列だけを見る。
+  await updateChat(db, chat.id, {
+    status: newStatus,
+    lastMessageAt: now,
+    lastActivityAt: now,
+    lastRepliedBy: 'user',
+  });
   return (await getChatById(db, chat.id))!;
 }

@@ -3,6 +3,23 @@ import { Hono } from 'hono';
 import { ENV_OWNER_STAFF_ID, type AuthenticatedStaff } from '../middleware/auth.js';
 import type { Env } from '../index.js';
 
+const chatRow: Record<string, unknown> = {
+  id: 'chat-1',
+  friend_id: 'friend-1',
+  operator_id: null,
+  status: 'unread',
+  notes: null,
+  last_message_at: null,
+  assigned_at: null,
+  first_response_at: null,
+  resolved_at: null,
+  last_activity_at: null,
+  last_replied_by: null,
+  version: 0,
+  created_at: '2026-08-18T10:00:00.000+09:00',
+  updated_at: '2026-08-18T10:00:00.000+09:00',
+};
+
 vi.mock('@line-crm/db', () => ({
   getOperators: vi.fn(),
   getOperatorById: vi.fn(),
@@ -10,16 +27,7 @@ vi.mock('@line-crm/db', () => ({
   updateOperator: vi.fn(),
   deleteOperator: vi.fn(),
   getChats: vi.fn(),
-  getChatById: vi.fn(async () => ({
-    id: 'chat-1',
-    friend_id: 'friend-1',
-    operator_id: null,
-    status: 'unread',
-    notes: null,
-    last_message_at: null,
-    created_at: '2026-08-18T10:00:00.000+09:00',
-    updated_at: '2026-08-18T10:00:00.000+09:00',
-  })),
+  getChatById: vi.fn(async () => chatRow),
   createChat: vi.fn(),
   getFriendById: vi.fn(async () => ({
     id: 'friend-1',
@@ -40,6 +48,7 @@ vi.mock('@line-crm/line-sdk', () => ({
 }));
 
 import { chats } from './chats.js';
+import { updateChat } from '@line-crm/db';
 
 type Insert = { sql: string; params: unknown[] };
 
@@ -120,5 +129,34 @@ describe('POST /api/chats/:id/send — 送信者の記録', () => {
 
     expect(res.status).toBe(200);
     expect(messageInsert!.params[4]).toBeNull();
+  });
+});
+
+describe('POST /api/chats/:id/send — 計測列の記録', () => {
+  test('スタッフ返信で last_replied_by=operator と last_activity_at を記録する', async () => {
+    chatRow.first_response_at = null;
+    vi.mocked(updateChat).mockClear();
+
+    await send({ id: 'staff-7', name: 'Aoi', role: 'staff' });
+
+    const updates = vi.mocked(updateChat).mock.calls[0][2];
+    expect(updates.lastRepliedBy).toBe('operator');
+    expect(updates.lastActivityAt).toBe('2026-08-18T21:00:00.000+09:00');
+    expect(updates.status).toBe('in_progress');
+  });
+
+  test('初回のスタッフ返信でのみ first_response_at を記録する', async () => {
+    chatRow.first_response_at = null;
+    vi.mocked(updateChat).mockClear();
+    await send({ id: 'staff-7', name: 'Aoi', role: 'staff' });
+    expect(vi.mocked(updateChat).mock.calls[0][2].firstResponseAt).toBe(
+      '2026-08-18T21:00:00.000+09:00',
+    );
+
+    // すでに初回応答済みのチャットでは上書きしない (初回応答時間が壊れるため)
+    chatRow.first_response_at = '2026-08-18T11:00:00.000+09:00';
+    vi.mocked(updateChat).mockClear();
+    await send({ id: 'staff-7', name: 'Aoi', role: 'staff' });
+    expect(vi.mocked(updateChat).mock.calls[0][2]).not.toHaveProperty('firstResponseAt');
   });
 });
