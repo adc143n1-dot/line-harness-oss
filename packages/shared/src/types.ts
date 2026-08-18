@@ -748,6 +748,8 @@ export interface Chat {
   telegramUserId: string | null;
   notes: string | null;
   lastMessageAt: string | null;
+  /** 楽観ロック用。チャットが更新されるたびに +1 される */
+  version: number;
   createdAt: string;
   updatedAt: string;
 }

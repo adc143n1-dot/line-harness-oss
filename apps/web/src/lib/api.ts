@@ -974,6 +974,8 @@ export const api = {
         status?: Chat['status']
         outcome?: Chat['outcome']
         notes?: string | null
+        /** 楽観ロック: 読み込んだときの version。他のスタッフが更新済みなら 409 */
+        expectedVersion?: number
       },
     ) =>
       fetchApi<ApiResponse<Chat>>(`/api/chats/${id}`, {
@@ -986,7 +988,13 @@ export const api = {
         `/api/chats/${id}/invite-telegram`,
         { method: 'POST' },
       ),
-    send: (id: string, data: { content: string; messageType?: string }) =>
+    /** 自分に引き取る。他のスタッフが担当中なら 409 (force で引き取り) */
+    claim: (id: string, opts?: { force?: boolean }) =>
+      fetchApi<ApiResponse<{ operatorId: string | null; status: Chat['status']; version: number }>>(
+        `/api/chats/${id}/claim`,
+        { method: 'POST', body: JSON.stringify({ force: opts?.force ?? false }) },
+      ),
+    send: (id: string, data: { content: string; messageType?: string; expectedVersion?: number }) =>
       fetchApi<ApiResponse<unknown>>(`/api/chats/${id}/send`, {
         method: 'POST',
         body: JSON.stringify(data),

@@ -24,6 +24,8 @@ interface Chat {
   source: string | null
   /** 紐付け済みの Telegram ユーザー ID (未連携なら null) */
   telegramUserId: string | null
+  /** 楽観ロック用。更新のたびに +1 される */
+  version: number
   notes: string | null
   lastMessageAt: string | null
   lastMessageContent: string | null
@@ -356,6 +358,25 @@ export default function ChatsPage() {
   const [notes, setNotes] = useState('')
   const [savingNotes, setSavingNotes] = useState(false)
   const [invitingTelegram, setInvitingTelegram] = useState(false)
+  const [myStaffId, setMyStaffId] = useState<string | null>(null)
+  const [claiming, setClaiming] = useState(false)
+
+  // 「自分の担当か」の判定に使う。共有 API キーでログインしている場合は
+  // staff_members 行が無いので null のままになり、担当ボタンは出さない。
+  useEffect(() => {
+    let cancelled = false
+    api.staff
+      .me()
+      .then((res) => {
+        if (!cancelled) setMyStaffId(res.success ? res.data.id : null)
+      })
+      .catch(() => {
+        if (!cancelled) setMyStaffId(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
   const [showLoadingIndicator, setShowLoadingIndicator] = useState(false)
   const [loadingSeconds, setLoadingSeconds] = useState(5)
   const lastLoadingTriggerAtRef = useRef<Record<string, number>>({})
@@ -555,6 +576,7 @@ export default function ChatsPage() {
         outcome: chatDetail.outcome ?? null,
         source: chatDetail.source ?? null,
         telegramUserId: chatDetail.telegramUserId ?? null,
+        version: chatDetail.version ?? 0,
         notes: chatDetail.notes ?? null,
         lastMessageAt: chatDetail.lastMessageAt ?? lastMsg?.createdAt ?? null,
         lastMessageContent: chatDetail.lastMessageContent ?? lastMsg?.content ?? null,
@@ -693,7 +715,7 @@ export default function ChatsPage() {
       // --- Text send path (runs independently — both paths execute when both image and text are present) ---
       if (messageContent.trim()) {
         const content = messageContent.trim()
-        await api.chats.send(sendingChatId, { content })
+        await api.chats.send(sendingChatId, { content, expectedVersion: chatDetail?.version })
         setMessageContent('')
         // Optimistic update: append message locally instead of refetching (prevents scroll jump / full reload feel)
         // Only mutate chatDetail if it still corresponds to the chat we just sent to
@@ -765,6 +787,35 @@ export default function ChatsPage() {
       window.dispatchEvent(new Event(UNANSWERED_REFRESH_EVENT))
     } catch {
       setError('ステータスの更新に失敗しました。')
+    }
+  }
+
+  // 未割当のチャットは「担当する」を踏むまで送信できない。踏ませることが
+  // 二重返信を防ぐ要点なので、ボタンだけでなく入力欄自体をロックする。
+  // 共有 API キー運用 (myStaffId=null) では担当の概念が無いのでロックしない。
+  const composerLocked = Boolean(myStaffId) && chatDetail?.operatorId === null
+
+  const handleClaim = async (force = false) => {
+    if (!selectedChatId) return
+    if (force && !confirm('他のスタッフが担当中です。引き取りますか？')) return
+    setClaiming(true)
+    try {
+      await api.chats.claim(selectedChatId, { force })
+      loadChatDetail(selectedChatId)
+      loadChats()
+      window.dispatchEvent(new Event(UNANSWERED_REFRESH_EVENT))
+    } catch (err) {
+      const status = err instanceof ApiError ? err.status : 0
+      setError(
+        status === 409
+          ? '他のスタッフが先に担当になりました。画面を更新してください。'
+          : status === 400
+            ? '共有 API キーでは担当者になれません。スタッフとしてログインしてください。'
+            : `担当の設定に失敗しました (HTTP ${status || '不明'})。`,
+      )
+      if (status === 409) loadChatDetail(selectedChatId)
+    } finally {
+      setClaiming(false)
     }
   }
 
@@ -1086,6 +1137,33 @@ export default function ChatsPage() {
                       </option>
                     ))}
                   </select>
+                  {/* 担当 (Claim)。複数スタッフが同じキューを見る運用で二重返信を防ぐ。
+                      共有 API キーでログイン中 (myStaffId=null) は担当者になれない。 */}
+                  {myStaffId && chatDetail.operatorId === null && (
+                    <button
+                      onClick={() => handleClaim(false)}
+                      disabled={claiming}
+                      className="px-3 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-md transition-colors disabled:opacity-50"
+                      title="このチャットを自分の担当にする"
+                    >
+                      {claiming ? '設定中…' : '🙋 担当する'}
+                    </button>
+                  )}
+                  {myStaffId && chatDetail.operatorId === myStaffId && (
+                    <span className="px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 rounded-md">
+                      🙋 自分が担当
+                    </span>
+                  )}
+                  {myStaffId && chatDetail.operatorId !== null && chatDetail.operatorId !== myStaffId && (
+                    <button
+                      onClick={() => handleClaim(true)}
+                      disabled={claiming}
+                      className="px-3 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-md transition-colors disabled:opacity-50"
+                      title="他のスタッフが担当中です"
+                    >
+                      {claiming ? '設定中…' : '⚠️ 他スタッフ担当 — 引き取る'}
+                    </button>
+                  )}
                   {chatDetail.telegramUserId ? (
                     <span
                       className="px-2 py-1 text-xs font-medium text-sky-700 bg-sky-50 rounded-md"
@@ -1279,12 +1357,13 @@ export default function ChatsPage() {
                     }}
                     onBlur={() => setIsMessageInputFocused(false)}
                     onKeyDown={handleKeyDown}
-                    placeholder="メッセージを入力..."
-                    className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-green-500 resize-none overflow-y-auto"
+                    disabled={composerLocked}
+                    placeholder={composerLocked ? '「担当する」を押すと入力できます' : 'メッセージを入力...'}
+                    className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-green-500 resize-none overflow-y-auto disabled:bg-gray-100 disabled:cursor-not-allowed"
                   />
                   <button
                     onClick={handleSendMessage}
-                    disabled={sending || (!messageContent.trim() && !pendingImage)}
+                    disabled={composerLocked || sending || (!messageContent.trim() && !pendingImage)}
                     className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{ backgroundColor: '#06C755' }}
                   >

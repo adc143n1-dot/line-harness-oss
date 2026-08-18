@@ -271,6 +271,7 @@ chats.get('/api/chats', async (c) => {
         c.operator_id,
         COALESCE(c.status, 'resolved') AS status,
         c.outcome,
+        COALESCE(c.version, 0) AS version,
         c.notes,
         COALESCE(rm.preview_at, d.last_message_at) AS last_message_at,
         rm.content AS last_message_content,
@@ -305,6 +306,7 @@ chats.get('/api/chats', async (c) => {
       operatorId: ch.operator_id,
       status: ch.status,
       outcome: ch.outcome ?? null,
+      version: ch.version ?? 0,
       source: ch.source ?? null,
       telegramUserId: ch.telegram_user_id ?? null,
       notes: ch.notes,
@@ -416,6 +418,7 @@ chats.get('/api/chats/:id', async (c) => {
         operatorId,
         status,
         outcome: chatRow?.outcome ?? null,
+        version: chatRow?.version ?? 0,
         source: friend?.source ?? null,
         telegramUserId: friend?.telegram_user_id ?? null,
         tgVerifiedAt: friend?.tg_verified_at ?? null,
@@ -465,6 +468,7 @@ chats.put('/api/chats/:id', async (c) => {
       status?: string;
       notes?: string;
       outcome?: 'converted' | 'lost' | null;
+      expectedVersion?: number;
     }>();
     // 計測列 (assigned_at / resolved_at 等) はサーバ側でのみ導出する。body を
     // そのまま渡すと KPI をクライアントから書き換えられるため、明示的に絞る。
@@ -484,7 +488,13 @@ chats.put('/api/chats/:id', async (c) => {
     }
     if (body.notes !== undefined) updates.notes = body.notes;
     if (body.outcome !== undefined) updates.outcome = body.outcome;
-    await updateChat(c.env.DB, resolved.id, updates);
+    const applied = await updateChat(c.env.DB, resolved.id, updates, {
+      expectedVersion: body.expectedVersion,
+    });
+    if (!applied) {
+      // 読み込んでから保存するまでの間に他のスタッフが更新した
+      return c.json({ success: false, error: 'Version conflict' }, 409);
+    }
     const updated = await getChatById(c.env.DB, resolved.id);
     if (!updated) return c.json({ success: false, error: 'Not found' }, 404);
     return c.json({
@@ -542,8 +552,14 @@ chats.post('/api/chats/:id/send', async (c) => {
     const chat = await resolveOrCreateChat(c.env.DB, chatId);
     if (!chat) return c.json({ success: false, error: 'Chat not found' }, 404);
 
-    const body = await c.req.json<{ messageType?: string; content: string }>();
+    const body = await c.req.json<{ messageType?: string; content: string; expectedVersion?: number }>();
     if (!body.content) return c.json({ success: false, error: 'content is required' }, 400);
+
+    // version の確認は LINE へ push する「前」に行う。送ってから 409 を返すと
+    // 相手にはメッセージが届いているのに UI 上は失敗扱いになる。
+    if (body.expectedVersion !== undefined && body.expectedVersion !== chat.version) {
+      return c.json({ success: false, error: 'Version conflict' }, 409);
+    }
 
     const { friend, accessToken } = await resolveFriendAndAccessToken(
       c.env.DB,
@@ -671,6 +687,72 @@ chats.post('/api/chats/:id/invite-telegram', async (c) => {
     return c.json({ success: true, data: { inviteUrl, expiresAt } });
   } catch (err) {
     console.error('POST /api/chats/:id/invite-telegram error:', err);
+    return c.json({ success: false, error: 'Internal server error' }, 500);
+  }
+});
+
+// 自分に引き取る (Claim)。
+// 複数スタッフが同じ未対応キューを見る運用では、これが二重返信を止める主な仕組み。
+// 既に他のスタッフが持っている場合は 409。意図的な引き取りは force で行う。
+chats.post('/api/chats/:id/claim', async (c) => {
+  try {
+    const staffId = persistableStaffId(c.get('staff'));
+    if (!staffId) {
+      // env API_KEY 認証には staff_members 行が無く、担当者にできない
+      return c.json(
+        { success: false, error: 'スタッフとしてログインしてください (共有 API キーでは担当者になれません)' },
+        400,
+      );
+    }
+
+    const chat = await resolveOrCreateChat(c.env.DB, c.req.param('id'));
+    if (!chat) return c.json({ success: false, error: 'Chat not found' }, 404);
+
+    let force = false;
+    try {
+      force = (await c.req.json<{ force?: boolean }>()).force === true;
+    } catch {
+      force = false;
+    }
+
+    if (chat.operator_id && chat.operator_id !== staffId && !force) {
+      return c.json(
+        { success: false, error: 'Already claimed', data: { operatorId: chat.operator_id } },
+        409,
+      );
+    }
+
+    const now = jstNow();
+    const applied = await updateChat(
+      c.env.DB,
+      chat.id,
+      {
+        operatorId: staffId,
+        assignedAt: now,
+        // 未読のまま担当だけ付くと未対応キューに残り続けるので対応中にする
+        ...(chat.status === 'unread' ? { status: 'in_progress' } : {}),
+      },
+      { expectedVersion: chat.version },
+    );
+
+    if (!applied) {
+      // 読んでから書くまでの間に他のスタッフが触った
+      return c.json({ success: false, error: 'Version conflict' }, 409);
+    }
+
+    const updated = await getChatById(c.env.DB, chat.id);
+    return c.json({
+      success: true,
+      data: {
+        id: updated?.friend_id,
+        friendId: updated?.friend_id,
+        operatorId: updated?.operator_id ?? null,
+        status: updated?.status,
+        version: updated?.version ?? 0,
+      },
+    });
+  } catch (err) {
+    console.error('POST /api/chats/:id/claim error:', err);
     return c.json({ success: false, error: 'Internal server error' }, 500);
   }
 });

@@ -95,7 +95,8 @@ export async function updateChat(
     lastRepliedBy: ChatRepliedBy | null;
     outcome: ChatOutcome | null;
   }>,
-): Promise<void> {
+  opts: { expectedVersion?: number } = {},
+): Promise<boolean> {
   const sets: string[] = [];
   const values: unknown[] = [];
   if (updates.operatorId !== undefined) { sets.push('operator_id = ?'); values.push(updates.operatorId); }
@@ -108,13 +109,23 @@ export async function updateChat(
   if (updates.lastActivityAt !== undefined) { sets.push('last_activity_at = ?'); values.push(updates.lastActivityAt); }
   if (updates.lastRepliedBy !== undefined) { sets.push('last_replied_by = ?'); values.push(updates.lastRepliedBy); }
   if (updates.outcome !== undefined) { sets.push('outcome = ?'); values.push(updates.outcome); }
-  if (sets.length === 0) return;
+  if (sets.length === 0) return true;
   // 楽観ロックの基準。実際に列が変わる更新のたびに +1 する。
   sets.push('version = version + 1');
   sets.push('updated_at = ?');
   values.push(jstNow());
   values.push(id);
-  await db.prepare(`UPDATE chats SET ${sets.join(', ')} WHERE id = ?`).bind(...values).run();
+
+  // expectedVersion 指定時は WHERE に version を含める。読み込んでから書き込む
+  // までの間に他のスタッフが更新していれば changes=0 になり、false を返す。
+  const where = opts.expectedVersion === undefined ? 'id = ?' : 'id = ? AND version = ?';
+  if (opts.expectedVersion !== undefined) values.push(opts.expectedVersion);
+
+  const result = await db
+    .prepare(`UPDATE chats SET ${sets.join(', ')} WHERE ${where}`)
+    .bind(...values)
+    .run();
+  return (result.meta?.changes ?? 0) > 0;
 }
 
 /** 友だちからメッセージ受信時にチャットを作成/更新 */
