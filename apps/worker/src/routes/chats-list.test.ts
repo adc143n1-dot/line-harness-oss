@@ -2,11 +2,6 @@ import { describe, expect, test, vi } from 'vitest';
 import { Hono } from 'hono';
 
 vi.mock('@line-crm/db', () => ({
-  getOperators: vi.fn(),
-  getOperatorById: vi.fn(),
-  createOperator: vi.fn(),
-  updateOperator: vi.fn(),
-  deleteOperator: vi.fn(),
   getChats: vi.fn(),
   getChatById: vi.fn(),
   createChat: vi.fn(),

@@ -215,7 +215,8 @@ describe('048_chats_friend_unique.sql migration', () => {
   it('keeps operator assignment and notes even when a webhook later touched the newest row', () => {
     insertFriend(db, 'f-op');
     db.prepare(
-      `INSERT INTO operators (id, name, email) VALUES ('op-1', 'Op', 'op@example.com')`,
+      // 071 で operators は廃止され、担当者は staff_members を参照する。
+      `INSERT INTO staff_members (id, name, email, role, api_key) VALUES ('op-1', 'Op', 'op@example.com', 'staff', 'key-op-1')`,
     ).run();
     // 古い行にアサイン + メモ、その後 webhook が最新行の updated_at を進めたケース。
     // status は最後の更新 (unread) が勝つが、operator/notes は消えてはいけない。

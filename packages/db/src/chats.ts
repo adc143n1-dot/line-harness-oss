@@ -1,16 +1,6 @@
 import { jstNow } from './utils.js';
 // オペレーター＆チャット管理クエリヘルパー
 
-export interface OperatorRow {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  is_active: number;
-  created_at: string;
-  updated_at: string;
-}
-
 export type ChatRepliedBy = 'operator' | 'user';
 
 export interface ChatRow {
@@ -36,49 +26,7 @@ export interface ChatRow {
   updated_at: string;
 }
 
-// --- オペレーター ---
-
-export async function getOperators(db: D1Database): Promise<OperatorRow[]> {
-  const result = await db.prepare(`SELECT * FROM operators ORDER BY created_at DESC`).all<OperatorRow>();
-  return result.results;
-}
-
-export async function getOperatorById(db: D1Database, id: string): Promise<OperatorRow | null> {
-  return db.prepare(`SELECT * FROM operators WHERE id = ?`).bind(id).first<OperatorRow>();
-}
-
-export async function createOperator(
-  db: D1Database,
-  input: { name: string; email: string; role?: string },
-): Promise<OperatorRow> {
-  const id = crypto.randomUUID();
-  const now = jstNow();
-  await db.prepare(`INSERT INTO operators (id, name, email, role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`)
-    .bind(id, input.name, input.email, input.role ?? 'operator', now, now).run();
-  return (await getOperatorById(db, id))!;
-}
-
-export async function updateOperator(
-  db: D1Database,
-  id: string,
-  updates: Partial<{ name: string; email: string; role: string; isActive: boolean }>,
-): Promise<void> {
-  const sets: string[] = [];
-  const values: unknown[] = [];
-  if (updates.name !== undefined) { sets.push('name = ?'); values.push(updates.name); }
-  if (updates.email !== undefined) { sets.push('email = ?'); values.push(updates.email); }
-  if (updates.role !== undefined) { sets.push('role = ?'); values.push(updates.role); }
-  if (updates.isActive !== undefined) { sets.push('is_active = ?'); values.push(updates.isActive ? 1 : 0); }
-  if (sets.length === 0) return;
-  sets.push('updated_at = ?');
-  values.push(jstNow());
-  values.push(id);
-  await db.prepare(`UPDATE operators SET ${sets.join(', ')} WHERE id = ?`).bind(...values).run();
-}
-
-export async function deleteOperator(db: D1Database, id: string): Promise<void> {
-  await db.prepare(`DELETE FROM operators WHERE id = ?`).bind(id).run();
-}
+// operators テーブルは 071 で廃止。担当者は staff_members を参照する。
 
 // --- チャット ---
 

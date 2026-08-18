@@ -21,11 +21,6 @@ const chatRow: Record<string, unknown> = {
 };
 
 vi.mock('@line-crm/db', () => ({
-  getOperators: vi.fn(),
-  getOperatorById: vi.fn(),
-  createOperator: vi.fn(),
-  updateOperator: vi.fn(),
-  deleteOperator: vi.fn(),
   getChats: vi.fn(),
   getChatById: vi.fn(async () => chatRow),
   createChat: vi.fn(),

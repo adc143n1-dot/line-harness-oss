@@ -244,14 +244,13 @@ CREATE TABLE calendar_bookings (
   updated_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
 );
 
-CREATE TABLE chats (
+CREATE TABLE "chats" (
   id            TEXT PRIMARY KEY,
   friend_id     TEXT NOT NULL REFERENCES friends (id) ON DELETE CASCADE,
-  operator_id   TEXT REFERENCES operators (id) ON DELETE SET NULL,
-  status        TEXT NOT NULL DEFAULT 'unread' CHECK (status IN ('unread', 'in_progress', 'resolved')),
+  operator_id   TEXT REFERENCES staff_members (id) ON DELETE SET NULL,
+  status        TEXT NOT NULL DEFAULT 'unread' CHECK (status IN ('unread', 'in_progress', 'waiting_reply', 'resolved')),
   notes         TEXT,
   last_message_at TEXT,
-  -- 070_chat_multi_staff: 複数スタッフ運用向けの計測列 / 楽観ロック
   assigned_at       TEXT,
   first_response_at TEXT,
   resolved_at       TEXT,
@@ -260,7 +259,7 @@ CREATE TABLE chats (
   version           INTEGER NOT NULL DEFAULT 0,
   created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
   updated_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
-, line_account_id TEXT);
+);
 
 CREATE TABLE conversion_events (
   id                   TEXT PRIMARY KEY,
@@ -738,16 +737,6 @@ CREATE TABLE notifications (
   created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
 );
 
-CREATE TABLE operators (
-  id         TEXT PRIMARY KEY,
-  name       TEXT NOT NULL,
-  email      TEXT NOT NULL UNIQUE,
-  role       TEXT NOT NULL DEFAULT 'operator' CHECK (role IN ('admin', 'operator')),
-  is_active  INTEGER NOT NULL DEFAULT 1,
-  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
-  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
-);
-
 CREATE TABLE outgoing_webhooks (
   id          TEXT PRIMARY KEY,
   name        TEXT NOT NULL,
@@ -1201,7 +1190,7 @@ CREATE INDEX idx_calendar_bookings_start ON calendar_bookings (start_at);
 
 CREATE UNIQUE INDEX idx_chats_friend_unique ON chats (friend_id);
 
-CREATE INDEX idx_chats_last_activity ON chats(last_activity_at);
+CREATE INDEX idx_chats_last_activity ON chats (last_activity_at);
 
 CREATE INDEX idx_chats_operator ON chats (operator_id);
 

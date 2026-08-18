@@ -1,11 +1,6 @@
 import { Hono } from 'hono';
 import { extractFlexAltText } from '../utils/flex-alt-text.js';
 import {
-  getOperators,
-  getOperatorById,
-  createOperator,
-  updateOperator,
-  deleteOperator,
   getChats,
   getChatById,
   createChat,
@@ -131,62 +126,7 @@ async function resolveFriendAndAccessToken(
 
 // ========== オペレーターCRUD ==========
 
-chats.get('/api/operators', async (c) => {
-  try {
-    const items = await getOperators(c.env.DB);
-    return c.json({
-      success: true,
-      data: items.map((o) => ({
-        id: o.id,
-        name: o.name,
-        email: o.email,
-        role: o.role,
-        isActive: Boolean(o.is_active),
-        createdAt: o.created_at,
-        updatedAt: o.updated_at,
-      })),
-    });
-  } catch (err) {
-    console.error('GET /api/operators error:', err);
-    return c.json({ success: false, error: 'Internal server error' }, 500);
-  }
-});
-
-chats.post('/api/operators', async (c) => {
-  try {
-    const body = await c.req.json<{ name: string; email: string; role?: string }>();
-    if (!body.name || !body.email) return c.json({ success: false, error: 'name and email are required' }, 400);
-    const item = await createOperator(c.env.DB, body);
-    return c.json({ success: true, data: { id: item.id, name: item.name, email: item.email, role: item.role } }, 201);
-  } catch (err) {
-    console.error('POST /api/operators error:', err);
-    return c.json({ success: false, error: 'Internal server error' }, 500);
-  }
-});
-
-chats.put('/api/operators/:id', async (c) => {
-  try {
-    const id = c.req.param('id');
-    const body = await c.req.json();
-    await updateOperator(c.env.DB, id, body);
-    const updated = await getOperatorById(c.env.DB, id);
-    if (!updated) return c.json({ success: false, error: 'Not found' }, 404);
-    return c.json({ success: true, data: { id: updated.id, name: updated.name, email: updated.email, role: updated.role, isActive: Boolean(updated.is_active) } });
-  } catch (err) {
-    console.error('PUT /api/operators/:id error:', err);
-    return c.json({ success: false, error: 'Internal server error' }, 500);
-  }
-});
-
-chats.delete('/api/operators/:id', async (c) => {
-  try {
-    await deleteOperator(c.env.DB, c.req.param('id'));
-    return c.json({ success: true, data: null });
-  } catch (err) {
-    console.error('DELETE /api/operators/:id error:', err);
-    return c.json({ success: false, error: 'Internal server error' }, 500);
-  }
-});
+// /api/operators は 071 で廃止。担当者候補は GET /api/staff から引く。
 
 // ========== チャットCRUD ==========
 

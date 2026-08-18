@@ -74,7 +74,8 @@
     "067_mileage_keyword_auto_reply.sql",
     "068_media_inquiries.sql",
     "069_rich_menu_selected.sql",
-    "070_chat_multi_staff.sql"
+    "070_chat_multi_staff.sql",
+    "071_merge_operators_into_staff.sql"
   ],
-  "migrationCount": 75
+  "migrationCount": 76
 }

@@ -179,6 +179,24 @@ CREATE INDEX IF NOT EXISTS idx_broadcast_insights_status ON broadcast_insights(s
 -- ============================================================
 -- Messages Log
 -- ============================================================
+-- staff_members は messages_log.sent_by_staff_id / chats.operator_id から参照される
+-- ため、参照側より前に定義する (schema.sql は上から順に適用され、後続の DML で
+-- 外部キーの解決が必要になる)。
+-- Staff member accounts with role-based access control
+CREATE TABLE IF NOT EXISTS staff_members (
+  id         TEXT PRIMARY KEY,
+  name       TEXT NOT NULL,
+  email      TEXT,
+  role       TEXT NOT NULL CHECK (role IN ('owner', 'admin', 'staff')),
+  api_key    TEXT UNIQUE NOT NULL,
+  is_active  INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_staff_members_api_key ON staff_members(api_key);
+CREATE INDEX IF NOT EXISTS idx_staff_members_role ON staff_members(role);
+
 CREATE TABLE IF NOT EXISTS messages_log (
   id               TEXT PRIMARY KEY,
   friend_id        TEXT NOT NULL REFERENCES friends (id) ON DELETE CASCADE,
@@ -202,6 +220,7 @@ CREATE INDEX IF NOT EXISTS idx_messages_log_friend_id ON messages_log (friend_id
 CREATE INDEX IF NOT EXISTS idx_messages_log_created_at ON messages_log (created_at);
 CREATE INDEX IF NOT EXISTS idx_messages_log_friend_source ON messages_log (friend_id, source);
 CREATE INDEX IF NOT EXISTS idx_messages_log_friend_direction_created ON messages_log (friend_id, direction, created_at);
+CREATE INDEX IF NOT EXISTS idx_messages_log_sent_by_staff ON messages_log(sent_by_staff_id);
 
 -- ============================================================
 -- Auto Replies
@@ -692,21 +711,14 @@ CREATE INDEX IF NOT EXISTS idx_templates_category ON templates (category);
 -- ============================================================
 -- Round 3: オペレーター/チャット
 -- ============================================================
-CREATE TABLE IF NOT EXISTS operators (
-  id         TEXT PRIMARY KEY,
-  name       TEXT NOT NULL,
-  email      TEXT NOT NULL UNIQUE,
-  role       TEXT NOT NULL DEFAULT 'operator' CHECK (role IN ('admin', 'operator')),
-  is_active  INTEGER NOT NULL DEFAULT 1,
-  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
-  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
-);
+-- operators テーブルは 071_merge_operators_into_staff で廃止。
+-- チャット担当者は staff_members を参照する。
 
 CREATE TABLE IF NOT EXISTS chats (
   id            TEXT PRIMARY KEY,
   friend_id     TEXT NOT NULL REFERENCES friends (id) ON DELETE CASCADE,
-  operator_id   TEXT REFERENCES operators (id) ON DELETE SET NULL,
-  status        TEXT NOT NULL DEFAULT 'unread' CHECK (status IN ('unread', 'in_progress', 'resolved')),
+  operator_id   TEXT REFERENCES staff_members (id) ON DELETE SET NULL,
+  status        TEXT NOT NULL DEFAULT 'unread' CHECK (status IN ('unread', 'in_progress', 'waiting_reply', 'resolved')),
   notes         TEXT,
   last_message_at TEXT,
   -- 070_chat_multi_staff: 複数スタッフ運用向けの計測列 / 楽観ロック
@@ -759,6 +771,7 @@ DROP INDEX IF EXISTS idx_chats_friend;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_chats_friend_unique ON chats (friend_id);
 CREATE INDEX IF NOT EXISTS idx_chats_operator ON chats (operator_id);
 CREATE INDEX IF NOT EXISTS idx_chats_status ON chats (status);
+CREATE INDEX IF NOT EXISTS idx_chats_last_activity ON chats (last_activity_at);
 
 -- ============================================================
 -- Round 3: 通知機能
@@ -897,21 +910,6 @@ CREATE TABLE IF NOT EXISTS ad_conversion_logs (
 CREATE INDEX IF NOT EXISTS idx_ad_conversion_logs_platform ON ad_conversion_logs (ad_platform_id);
 CREATE INDEX IF NOT EXISTS idx_ad_conversion_logs_friend ON ad_conversion_logs (friend_id);
 CREATE INDEX IF NOT EXISTS idx_ad_conversion_logs_status ON ad_conversion_logs (status);
-
--- Staff member accounts with role-based access control
-CREATE TABLE IF NOT EXISTS staff_members (
-  id         TEXT PRIMARY KEY,
-  name       TEXT NOT NULL,
-  email      TEXT,
-  role       TEXT NOT NULL CHECK (role IN ('owner', 'admin', 'staff')),
-  api_key    TEXT UNIQUE NOT NULL,
-  is_active  INTEGER NOT NULL DEFAULT 1,
-  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
-  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
-);
-
-CREATE UNIQUE INDEX IF NOT EXISTS idx_staff_members_api_key ON staff_members(api_key);
-CREATE INDEX IF NOT EXISTS idx_staff_members_role ON staff_members(role);
 
 -- Reusable message templates (text or Flex) for reward messages in campaigns
 CREATE TABLE IF NOT EXISTS message_templates (
