@@ -20,6 +20,42 @@ function fakeHistoryDb(rows: Array<{ direction: string; message_type: string; co
   } as unknown as D1Database;
 }
 
+/**
+ * account_settings / messages_log への first()/all() 呼び出しを SQL 文字列で
+ * 振り分ける汎用フェイク。アカウント別トグルと日次上限のテストで使う。
+ */
+function fakeAccountAwareDb(opts: {
+  historyRows?: Array<{ direction: string; message_type: string; content: string }>;
+  aiReplyEnabledValue?: string; // account_settings.ai_reply_enabled の value (無ければ未設定)
+  dailyLimitValue?: string; // account_settings.ai_reply_daily_limit の value
+  aiReplyCountToday?: number; // messages_log の COUNT(*)
+}) {
+  const historyRows = opts.historyRows ?? [];
+  return {
+    prepare: vi.fn((sql: string) => ({
+      bind: vi.fn(() => ({
+        all: vi.fn().mockResolvedValue({ results: historyRows }),
+        first: vi.fn().mockImplementation(() => {
+          if (sql.includes("key = 'ai_reply_enabled'")) {
+            return opts.aiReplyEnabledValue === undefined
+              ? Promise.resolve(null)
+              : Promise.resolve({ value: opts.aiReplyEnabledValue });
+          }
+          if (sql.includes("key = 'ai_reply_daily_limit'")) {
+            return opts.dailyLimitValue === undefined
+              ? Promise.resolve(null)
+              : Promise.resolve({ value: opts.dailyLimitValue });
+          }
+          if (sql.includes('COUNT(*) AS n')) {
+            return Promise.resolve({ n: opts.aiReplyCountToday ?? 0 });
+          }
+          return Promise.resolve(null);
+        }),
+      })),
+    })),
+  } as unknown as D1Database;
+}
+
 function fakeLineClient(push: ReturnType<typeof vi.fn> = vi.fn()) {
   return { pushTextMessage: push } as unknown as import('@line-crm/line-sdk').LineClient;
 }
@@ -165,6 +201,103 @@ describe('maybeSendAiReply — 送信とログ記録', () => {
     expect(result).toEqual({ sent: false, reason: 'push_failed' });
     expect(logOutgoingMessage).not.toHaveBeenCalled();
 
+    vi.unstubAllGlobals();
+  });
+});
+
+describe('maybeSendAiReply — アカウント別トグルと日次上限', () => {
+  const env = { AI_REPLY_ENABLED: 'true', ANTHROPIC_API_KEY: 'sk-test' };
+
+  beforeEach(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ content: [{ type: 'text', text: 'ok' }] }), { status: 200 }),
+      ),
+    );
+  });
+
+  test('アカウント設定が未設定ならマスタースイッチどおり送る', async () => {
+    const push = vi.fn();
+    const result = await maybeSendAiReply(
+      fakeAccountAwareDb({}),
+      fakeLineClient(push),
+      fakeFriend(),
+      { operator_id: null },
+      'こんにちは',
+      env,
+      { lineAccountId: 'acct-1' },
+    );
+
+    expect(result).toEqual({ sent: true });
+    expect(push).toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  test("アカウント別に 'false' が設定されていたら送らない", async () => {
+    const push = vi.fn();
+    const result = await maybeSendAiReply(
+      fakeAccountAwareDb({ aiReplyEnabledValue: 'false' }),
+      fakeLineClient(push),
+      fakeFriend(),
+      { operator_id: null },
+      'こんにちは',
+      env,
+      { lineAccountId: 'acct-1' },
+    );
+
+    expect(result).toEqual({ sent: false, reason: 'account_disabled' });
+    expect(push).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  test('日次上限に達していたら送らない', async () => {
+    const push = vi.fn();
+    const result = await maybeSendAiReply(
+      fakeAccountAwareDb({ dailyLimitValue: '5', aiReplyCountToday: 5 }),
+      fakeLineClient(push),
+      fakeFriend(),
+      { operator_id: null },
+      'こんにちは',
+      env,
+      { lineAccountId: 'acct-1' },
+    );
+
+    expect(result).toEqual({ sent: false, reason: 'daily_limit_reached' });
+    expect(push).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  test('日次上限未満なら送る', async () => {
+    const push = vi.fn();
+    const result = await maybeSendAiReply(
+      fakeAccountAwareDb({ dailyLimitValue: '5', aiReplyCountToday: 4 }),
+      fakeLineClient(push),
+      fakeFriend(),
+      { operator_id: null },
+      'こんにちは',
+      env,
+      { lineAccountId: 'acct-1' },
+    );
+
+    expect(result).toEqual({ sent: true });
+    expect(push).toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  test('lineAccountId が無ければアカウント別設定は見ない (グローバル運用)', async () => {
+    const push = vi.fn();
+    const result = await maybeSendAiReply(
+      fakeAccountAwareDb({ aiReplyEnabledValue: 'false' }), // DB は見に行かないので影響しないはず
+      fakeLineClient(push),
+      fakeFriend(),
+      { operator_id: null },
+      'こんにちは',
+      env,
+      {},
+    );
+
+    expect(result).toEqual({ sent: true });
     vi.unstubAllGlobals();
   });
 });

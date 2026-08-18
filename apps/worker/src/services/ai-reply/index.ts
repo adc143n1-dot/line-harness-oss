@@ -38,7 +38,56 @@ function buildProvider(env: AiReplyEnv): AiReplyProvider | null {
 
 export interface MaybeSendAiReplyResult {
   sent: boolean;
-  reason?: 'disabled' | 'operator_assigned' | 'provider_not_configured' | 'generation_failed' | 'push_failed';
+  reason?:
+    | 'disabled'
+    | 'operator_assigned'
+    | 'account_disabled'
+    | 'daily_limit_reached'
+    | 'provider_not_configured'
+    | 'generation_failed'
+    | 'push_failed';
+}
+
+/**
+ * アカウント別のオプトアウト設定 (account_settings.ai_reply_enabled) を見る。
+ * 未設定 (null) はマスタースイッチ (env.AI_REPLY_ENABLED) の判断に従う ——
+ * マスターを ON にしただけで全アカウント有効になる既存挙動を変えないため。
+ */
+async function isAccountOptedOut(db: D1Database, lineAccountId: string | null): Promise<boolean> {
+  if (!lineAccountId) return false;
+  const row = await db
+    .prepare(`SELECT value FROM account_settings WHERE line_account_id = ? AND key = 'ai_reply_enabled'`)
+    .bind(lineAccountId)
+    .first<{ value: string }>();
+  return row?.value === 'false';
+}
+
+/**
+ * 日次上限を messages_log の実測でチェックする。専用のカウンターテーブルは
+ * 持たない (二重管理・書き込み競合を避けるため)。境界付近での多少の超過は
+ * 許容する — 会計上の厳密なガードではなく運用コストの抑制が目的。
+ */
+async function isDailyLimitReached(
+  db: D1Database,
+  lineAccountId: string | null,
+  todayPrefix: string,
+): Promise<boolean> {
+  if (!lineAccountId) return false;
+  const limitRow = await db
+    .prepare(`SELECT value FROM account_settings WHERE line_account_id = ? AND key = 'ai_reply_daily_limit'`)
+    .bind(lineAccountId)
+    .first<{ value: string }>();
+  if (!limitRow) return false;
+  const limit = Number(limitRow.value);
+  if (!Number.isFinite(limit)) return false;
+
+  const countRow = await db
+    .prepare(
+      `SELECT COUNT(*) AS n FROM messages_log WHERE source = 'ai_reply' AND line_account_id = ? AND created_at LIKE ?`,
+    )
+    .bind(lineAccountId, `${todayPrefix}%`)
+    .first<{ n: number }>();
+  return (countRow?.n ?? 0) >= limit;
 }
 
 /**
@@ -64,6 +113,14 @@ export async function maybeSendAiReply(
 ): Promise<MaybeSendAiReplyResult> {
   if (env.AI_REPLY_ENABLED !== 'true') return { sent: false, reason: 'disabled' };
   if (chat.operator_id) return { sent: false, reason: 'operator_assigned' };
+
+  const lineAccountId = opts.lineAccountId ?? null;
+  if (await isAccountOptedOut(db, lineAccountId)) return { sent: false, reason: 'account_disabled' };
+
+  const todayPrefix = new Date(Date.now() + 9 * 60 * 60_000).toISOString().slice(0, 10);
+  if (await isDailyLimitReached(db, lineAccountId, todayPrefix)) {
+    return { sent: false, reason: 'daily_limit_reached' };
+  }
 
   const provider = buildProvider(env);
   if (!provider) return { sent: false, reason: 'provider_not_configured' };

@@ -5,6 +5,7 @@ import { api } from '@/lib/api'
 import Header from '@/components/layout/header'
 import CcPromptButton from '@/components/cc-prompt-button'
 import TestRecipientsSetting from '@/components/accounts/test-recipients-setting'
+import AiReplySetting from '@/components/accounts/ai-reply-setting'
 import AccountSettingsSection from '@/components/accounts/account-settings-section'
 import ReorderMode from '@/components/accounts/reorder-mode'
 import {
@@ -320,6 +321,7 @@ export default function AccountsPage() {
                 onUpdated={load}
               />
               <TestRecipientsSetting accountId={account.id} />
+              <AiReplySetting accountId={account.id} />
               <FollowerImportButton accountId={account.id} onImported={load} />
 
               <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">

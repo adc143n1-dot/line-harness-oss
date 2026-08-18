@@ -115,4 +115,112 @@ accountSettings.put('/api/account-settings/tracked-link-base-url', async (c) => 
   }
 });
 
+
+// ── ai_reply_enabled / ai_reply_daily_limit (アカウント別、account_settings に相乗り) ─
+//
+// マスタースイッチは env.AI_REPLY_ENABLED (未設定なら常に無効・フェイルセーフ)。
+// ここでの設定はマスタースイッチが ON の場合の「アカウント別オプトアウト」と
+// 「1日あたりの送信上限」。マスターを ON にしただけでは全アカウント有効の
+// ままになる (既存挙動を変えない)。
+
+accountSettings.get('/api/account-settings/ai-reply-enabled', async (c) => {
+  const accountId = c.req.query('accountId');
+  if (!accountId) return c.json({ success: false, error: 'accountId required' }, 400);
+
+  const row = await c.env.DB.prepare(
+    `SELECT value FROM account_settings WHERE line_account_id = ? AND key = 'ai_reply_enabled'`,
+  ).bind(accountId).first<{ value: string }>();
+
+  // 未設定 = 上位設定 (マスタースイッチ) に従う、を意味するので null を返す
+  return c.json({ success: true, data: row ? row.value === 'true' : null });
+});
+
+accountSettings.put('/api/account-settings/ai-reply-enabled', async (c) => {
+  const body = await c.req
+    .json<{ accountId?: string; enabled?: boolean | null }>()
+    .catch((): { accountId?: string; enabled?: boolean | null } => ({}));
+  if (!body.accountId) return c.json({ success: false, error: 'accountId required' }, 400);
+
+  if (body.enabled === null || body.enabled === undefined) {
+    // 明示的に「上位設定に従う」へ戻す
+    await c.env.DB.prepare(
+      `DELETE FROM account_settings WHERE line_account_id = ? AND key = 'ai_reply_enabled'`,
+    ).bind(body.accountId).run();
+    return c.json({ success: true });
+  }
+
+  const id = crypto.randomUUID();
+  const now = new Date(Date.now() + 9 * 60 * 60_000).toISOString().replace('Z', '+09:00');
+  const value = body.enabled ? 'true' : 'false';
+  await c.env.DB.prepare(
+    `INSERT INTO account_settings (id, line_account_id, key, value, created_at, updated_at)
+     VALUES (?, ?, 'ai_reply_enabled', ?, ?, ?)
+     ON CONFLICT (line_account_id, key) DO UPDATE SET value = ?, updated_at = ?`,
+  ).bind(id, body.accountId, value, now, now, value, now).run();
+
+  return c.json({ success: true });
+});
+
+accountSettings.get('/api/account-settings/ai-reply-daily-limit', async (c) => {
+  const accountId = c.req.query('accountId');
+  if (!accountId) return c.json({ success: false, error: 'accountId required' }, 400);
+
+  const row = await c.env.DB.prepare(
+    `SELECT value FROM account_settings WHERE line_account_id = ? AND key = 'ai_reply_daily_limit'`,
+  ).bind(accountId).first<{ value: string }>();
+
+  return c.json({ success: true, data: row ? Number(row.value) : null });
+});
+
+accountSettings.put('/api/account-settings/ai-reply-daily-limit', async (c) => {
+  const body = await c.req
+    .json<{ accountId?: string; limit?: number | null }>()
+    .catch((): { accountId?: string; limit?: number | null } => ({}));
+  if (!body.accountId) return c.json({ success: false, error: 'accountId required' }, 400);
+
+  if (body.limit === null || body.limit === undefined) {
+    await c.env.DB.prepare(
+      `DELETE FROM account_settings WHERE line_account_id = ? AND key = 'ai_reply_daily_limit'`,
+    ).bind(body.accountId).run();
+    return c.json({ success: true });
+  }
+  if (!Number.isInteger(body.limit) || body.limit < 0) {
+    return c.json({ success: false, error: 'limit must be a non-negative integer' }, 400);
+  }
+
+  const id = crypto.randomUUID();
+  const now = new Date(Date.now() + 9 * 60 * 60_000).toISOString().replace('Z', '+09:00');
+  const value = String(body.limit);
+  await c.env.DB.prepare(
+    `INSERT INTO account_settings (id, line_account_id, key, value, created_at, updated_at)
+     VALUES (?, ?, 'ai_reply_daily_limit', ?, ?, ?)
+     ON CONFLICT (line_account_id, key) DO UPDATE SET value = ?, updated_at = ?`,
+  ).bind(id, body.accountId, value, now, now, value, now).run();
+
+  return c.json({ success: true });
+});
+
+// 可視化: 直近の AI 応答送信数。messages_log.source='ai_reply' を実測として
+// 集計する (専用のカウンターテーブルは持たない — 二重管理を避けるため)。
+accountSettings.get('/api/account-settings/ai-reply-stats', async (c) => {
+  const accountId = c.req.query('accountId');
+  if (!accountId) return c.json({ success: false, error: 'accountId required' }, 400);
+
+  const todayPrefix = new Date(Date.now() + 9 * 60 * 60_000).toISOString().slice(0, 10);
+  const sevenDaysAgo = new Date(Date.now() + 9 * 60 * 60_000 - 7 * 24 * 60 * 60_000)
+    .toISOString()
+    .slice(0, 10);
+
+  const [today, last7Days] = await Promise.all([
+    c.env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM messages_log WHERE source = 'ai_reply' AND line_account_id = ? AND created_at LIKE ?`,
+    ).bind(accountId, `${todayPrefix}%`).first<{ n: number }>(),
+    c.env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM messages_log WHERE source = 'ai_reply' AND line_account_id = ? AND created_at >= ?`,
+    ).bind(accountId, sevenDaysAgo).first<{ n: number }>(),
+  ]);
+
+  return c.json({ success: true, data: { today: today?.n ?? 0, last7Days: last7Days?.n ?? 0 } });
+});
+
 export { accountSettings };
