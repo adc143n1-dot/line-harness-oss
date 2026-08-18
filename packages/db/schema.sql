@@ -1153,6 +1153,18 @@ CREATE INDEX IF NOT EXISTS idx_rich_menu_pages_group    ON rich_menu_pages(group
 CREATE INDEX IF NOT EXISTS idx_rich_menu_areas_page     ON rich_menu_areas(page_id);
 CREATE INDEX IF NOT EXISTS idx_rich_menu_groups_account ON rich_menu_groups(account_id, status);
 
+-- 073: チャットの内部メモ (時系列・追記専用)。誰が・いつ・何を書いたかを
+-- 残す。既存の chats.notes (上書き式) は残すが新しい UI からは使わない。
+CREATE TABLE IF NOT EXISTS chat_notes (
+  id         TEXT PRIMARY KEY,
+  chat_id    TEXT NOT NULL REFERENCES chats (id) ON DELETE CASCADE,
+  staff_id   TEXT REFERENCES staff_members (id) ON DELETE SET NULL,
+  content    TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_notes_chat_id ON chat_notes(chat_id, created_at);
+
 -- 072: LINE↔Telegram 紐付けの招待トークン (ワンタイム・期限付き)
 CREATE TABLE IF NOT EXISTS tg_invite_tokens (
   token      TEXT PRIMARY KEY,

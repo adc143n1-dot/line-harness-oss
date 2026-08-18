@@ -145,3 +145,52 @@ export async function upsertChatOnMessage(db: D1Database, friendId: string): Pro
   });
   return (await getChatById(db, chat.id))!;
 }
+
+// --- 内部メモ (時系列・追記専用) ---
+
+export interface ChatNoteRow {
+  id: string;
+  chat_id: string;
+  staff_id: string | null;
+  staff_name: string | null;
+  content: string;
+  created_at: string;
+}
+
+export async function listChatNotes(db: D1Database, chatId: string): Promise<ChatNoteRow[]> {
+  const result = await db
+    .prepare(
+      `SELECT n.id, n.chat_id, n.staff_id, s.name AS staff_name, n.content, n.created_at
+         FROM chat_notes n
+         LEFT JOIN staff_members s ON s.id = n.staff_id
+        WHERE n.chat_id = ?
+        ORDER BY n.created_at ASC`,
+    )
+    .bind(chatId)
+    .all<ChatNoteRow>();
+  return result.results;
+}
+
+export async function createChatNote(
+  db: D1Database,
+  input: { chatId: string; staffId: string | null; content: string },
+): Promise<ChatNoteRow> {
+  const id = crypto.randomUUID();
+  const now = jstNow();
+  await db
+    .prepare(`INSERT INTO chat_notes (id, chat_id, staff_id, content, created_at) VALUES (?, ?, ?, ?, ?)`)
+    .bind(id, input.chatId, input.staffId, input.content, now)
+    .run();
+  return {
+    id,
+    chat_id: input.chatId,
+    staff_id: input.staffId,
+    staff_name:
+      input.staffId === null
+        ? null
+        : ((await db.prepare(`SELECT name FROM staff_members WHERE id = ?`).bind(input.staffId).first<{ name: string }>())
+            ?.name ?? null),
+    content: input.content,
+    created_at: now,
+  };
+}

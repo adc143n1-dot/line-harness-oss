@@ -244,6 +244,14 @@ CREATE TABLE calendar_bookings (
   updated_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
 );
 
+CREATE TABLE chat_notes (
+  id         TEXT PRIMARY KEY,
+  chat_id    TEXT NOT NULL REFERENCES chats (id) ON DELETE CASCADE,
+  staff_id   TEXT REFERENCES staff_members (id) ON DELETE SET NULL,
+  content    TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+
 CREATE TABLE "chats" (
   id            TEXT PRIMARY KEY,
   friend_id     TEXT NOT NULL REFERENCES friends (id) ON DELETE CASCADE,
@@ -1202,6 +1210,8 @@ CREATE INDEX idx_broadcasts_status ON broadcasts (status);
 CREATE INDEX idx_calendar_bookings_friend ON calendar_bookings (friend_id);
 
 CREATE INDEX idx_calendar_bookings_start ON calendar_bookings (start_at);
+
+CREATE INDEX idx_chat_notes_chat_id ON chat_notes(chat_id, created_at);
 
 CREATE UNIQUE INDEX idx_chats_friend_unique ON chats (friend_id);
 

@@ -569,6 +569,24 @@ export const api = {
         method: 'PUT',
         body: JSON.stringify({ value }),
       }),
+    getAiReplyEnabled: (accountId: string) =>
+      fetchApi<{ success: boolean; data: boolean | null }>(`/api/account-settings/ai-reply-enabled?accountId=${accountId}`),
+    updateAiReplyEnabled: (accountId: string, enabled: boolean | null) =>
+      fetchApi<{ success: boolean }>('/api/account-settings/ai-reply-enabled', {
+        method: 'PUT',
+        body: JSON.stringify({ accountId, enabled }),
+      }),
+    getAiReplyDailyLimit: (accountId: string) =>
+      fetchApi<{ success: boolean; data: number | null }>(`/api/account-settings/ai-reply-daily-limit?accountId=${accountId}`),
+    updateAiReplyDailyLimit: (accountId: string, limit: number | null) =>
+      fetchApi<{ success: boolean; error?: string }>('/api/account-settings/ai-reply-daily-limit', {
+        method: 'PUT',
+        body: JSON.stringify({ accountId, limit }),
+      }),
+    getAiReplyStats: (accountId: string) =>
+      fetchApi<{ success: boolean; data: { today: number; last7Days: number } }>(
+        `/api/account-settings/ai-reply-stats?accountId=${accountId}`,
+      ),
   },
 
   // ── Round 2 APIs ─────────────────────────────────────────────────────────
@@ -982,6 +1000,16 @@ export const api = {
         method: 'PUT',
         body: JSON.stringify(data),
       }),
+    /** 時系列の内部メモ (追記専用)。誰が・いつ・何を書いたかを残す */
+    listNotes: (id: string) =>
+      fetchApi<ApiResponse<{ id: string; content: string; createdAt: string; staffId: string | null; staffName: string | null }[]>>(
+        `/api/chats/${id}/notes`,
+      ),
+    addNote: (id: string, content: string) =>
+      fetchApi<ApiResponse<{ id: string; content: string; createdAt: string; staffId: string | null; staffName: string | null }>>(
+        `/api/chats/${id}/notes`,
+        { method: 'POST', body: JSON.stringify({ content }) },
+      ),
     /** Telegram 誘導リンクを LINE で送る。24 時間で失効する専用トークンを発行する */
     inviteTelegram: (id: string) =>
       fetchApi<ApiResponse<{ inviteUrl: string; expiresAt: string }>>(

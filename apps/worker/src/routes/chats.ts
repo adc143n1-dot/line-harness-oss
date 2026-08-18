@@ -2,6 +2,8 @@ import { Hono } from 'hono';
 import { extractFlexAltText } from '../utils/flex-alt-text.js';
 import {
   getChats,
+  listChatNotes,
+  createChatNote,
   getChatById,
   createChat,
   getFriendById,
@@ -753,6 +755,62 @@ chats.post('/api/chats/:id/claim', async (c) => {
     });
   } catch (err) {
     console.error('POST /api/chats/:id/claim error:', err);
+    return c.json({ success: false, error: 'Internal server error' }, 500);
+  }
+});
+
+// 内部メモ (時系列・追記専用)。
+// 複数スタッフが同時対応する運用では、上書き式の 1 枚メモは「書いた端から
+// 消し合う」事故になる。誰が・いつ・何を書いたかを残す。
+chats.get('/api/chats/:id/notes', async (c) => {
+  try {
+    const chat = await resolveOrCreateChat(c.env.DB, c.req.param('id'));
+    if (!chat) return c.json({ success: false, error: 'Chat not found' }, 404);
+
+    const notes = await listChatNotes(c.env.DB, chat.id);
+    return c.json({
+      success: true,
+      data: notes.map((n) => ({
+        id: n.id,
+        content: n.content,
+        createdAt: n.created_at,
+        staffId: n.staff_id,
+        staffName: n.staff_name,
+      })),
+    });
+  } catch (err) {
+    console.error('GET /api/chats/:id/notes error:', err);
+    return c.json({ success: false, error: 'Internal server error' }, 500);
+  }
+});
+
+chats.post('/api/chats/:id/notes', async (c) => {
+  try {
+    const chat = await resolveOrCreateChat(c.env.DB, c.req.param('id'));
+    if (!chat) return c.json({ success: false, error: 'Chat not found' }, 404);
+
+    const body = await c.req.json<{ content?: string }>();
+    const content = body.content?.trim();
+    if (!content) return c.json({ success: false, error: 'content is required' }, 400);
+
+    const note = await createChatNote(c.env.DB, {
+      chatId: chat.id,
+      staffId: persistableStaffId(c.get('staff')),
+      content,
+    });
+
+    return c.json({
+      success: true,
+      data: {
+        id: note.id,
+        content: note.content,
+        createdAt: note.created_at,
+        staffId: note.staff_id,
+        staffName: note.staff_name,
+      },
+    });
+  } catch (err) {
+    console.error('POST /api/chats/:id/notes error:', err);
     return c.json({ success: false, error: 'Internal server error' }, 500);
   }
 });

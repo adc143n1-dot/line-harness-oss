@@ -11,6 +11,14 @@ import FlexPreviewComponent from '@/components/flex-preview'
 import FriendInfoSidebar from '@/components/chats/friend-info-sidebar'
 import ImageUploader, { type ImageUploaderValue } from '@/components/shared/image-uploader'
 
+interface ChatNote {
+  id: string
+  content: string
+  createdAt: string
+  staffId: string | null
+  staffName: string | null
+}
+
 interface Chat {
   id: string
   friendId: string
@@ -329,6 +337,18 @@ export default function ChatsPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const statusFilterRef = useRef<StatusFilter>('all')
   const unansweredOnlyRef = useRef(false)
+  // 「自分の担当」ビュー。myStaffId が判明するまでは無効のまま (共有 API キー
+  // 運用ではトグル自体を出さない)。既定は「全員が全件を眺める状態が一番詰まる」
+  // という判断から ON。ユーザーが変更したら localStorage に覚える。
+  const [myChatsOnly, setMyChatsOnly] = useState(() => {
+    if (typeof window === 'undefined') return false
+    const stored = window.localStorage.getItem('lh_chat_my_view')
+    return stored === null ? true : stored === '1'
+  })
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem('lh_chat_my_view', myChatsOnly ? '1' : '0')
+  }, [myChatsOnly])
   const [unansweredOnly, setUnansweredOnly] = useState(() => {
     if (typeof window === 'undefined') return false
     return new URLSearchParams(window.location.search).get('unanswered') === '1'
@@ -355,8 +375,9 @@ export default function ChatsPage() {
   const [pendingImage, setPendingImage] = useState<ImageUploaderValue | null>(null)
   const [sending, setSending] = useState(false)
   const sendLockRef = useRef(false)
-  const [notes, setNotes] = useState('')
-  const [savingNotes, setSavingNotes] = useState(false)
+  const [chatNotes, setChatNotes] = useState<ChatNote[]>([])
+  const [newNoteContent, setNewNoteContent] = useState('')
+  const [addingNote, setAddingNote] = useState(false)
   const [invitingTelegram, setInvitingTelegram] = useState(false)
   const [myStaffId, setMyStaffId] = useState<string | null>(null)
   const [claiming, setClaiming] = useState(false)
@@ -415,10 +436,11 @@ export default function ChatsPage() {
 
   const buildListParams = useCallback((cursor: { at: string; id: string } | null) => {
     const params: {
-      status?: string; accountId?: string; unansweredOnly?: boolean;
+      status?: string; operatorId?: string; accountId?: string; unansweredOnly?: boolean;
       limit?: number; beforeAt?: string; beforeId?: string;
     } = {}
     if (statusFilter !== 'all' && !unansweredOnly) params.status = statusFilter
+    if (myChatsOnly && myStaffId) params.operatorId = myStaffId
     if (selectedAccountId) params.accountId = selectedAccountId
     if (unansweredOnly) params.unansweredOnly = true
     else params.limit = CHAT_PAGE_SIZE
@@ -427,7 +449,7 @@ export default function ChatsPage() {
       params.beforeId = cursor.id
     }
     return params
-  }, [statusFilter, selectedAccountId, unansweredOnly])
+  }, [statusFilter, selectedAccountId, unansweredOnly, myChatsOnly, myStaffId])
 
   const loadChats = useCallback(async () => {
     setLoading(true)
@@ -513,7 +535,9 @@ export default function ChatsPage() {
       const res = await api.chats.get(chatId)
       if (res.success) {
         setChatDetail(res.data as unknown as ChatDetail)
-        setNotes((res.data as unknown as ChatDetail).notes || '')
+        api.chats.listNotes(chatId)
+          .then((notesRes) => { if (notesRes.success) setChatNotes(notesRes.data) })
+          .catch(() => {})
       } else {
         // API は 200 で success:false を返す可能性 (例: 404 lookup)。詳細を画面に出す。
         const errMsg = (res as { error?: string }).error ?? '不明なエラー'
@@ -853,16 +877,19 @@ export default function ChatsPage() {
     }
   }
 
-  const handleSaveNotes = async () => {
-    if (!selectedChatId) return
-    setSavingNotes(true)
+  const handleAddNote = async () => {
+    if (!selectedChatId || !newNoteContent.trim()) return
+    setAddingNote(true)
     try {
-      await api.chats.update(selectedChatId, { notes })
-      loadChatDetail(selectedChatId)
+      const res = await api.chats.addNote(selectedChatId, newNoteContent.trim())
+      if (res.success) {
+        setChatNotes((prev) => [...prev, res.data])
+        setNewNoteContent('')
+      }
     } catch {
-      setError('メモの保存に失敗しました。')
+      setError('メモの追加に失敗しました。')
     } finally {
-      setSavingNotes(false)
+      setAddingNote(false)
     }
   }
 
@@ -911,6 +938,18 @@ export default function ChatsPage() {
                 {f.label}
               </button>
             ))}
+            {/* 共有 API キー運用 (myStaffId 不明) では担当の概念が無いので出さない */}
+            {myStaffId && (
+              <label className="flex items-center gap-1.5 text-xs font-medium whitespace-nowrap cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={myChatsOnly}
+                  onChange={(e) => setMyChatsOnly(e.target.checked)}
+                  className="rounded"
+                />
+                🙋 自分の担当
+              </label>
+            )}
             <label className="flex items-center gap-1.5 text-xs font-medium whitespace-nowrap ml-auto cursor-pointer select-none">
               <input
                 type="checkbox"
@@ -1264,22 +1303,38 @@ export default function ChatsPage() {
                 )}
               </div>
 
-              {/* Notes */}
+              {/* Notes — 時系列・追記専用。複数スタッフの同時対応で上書きし合わないよう、
+                  誰が・いつ・何を書いたかを残す (旧: 上書き式の1行メモ)。 */}
               <div className="px-4 py-2 border-t border-gray-200 bg-gray-50">
+                {chatNotes.length > 0 && (
+                  <div className="max-h-28 overflow-y-auto mb-2 space-y-1">
+                    {chatNotes.map((n) => (
+                      <div key={n.id} className="text-xs bg-white border border-gray-200 rounded-md px-2 py-1">
+                        <span className="font-medium text-gray-600">{n.staffName ?? '(不明)'}</span>
+                        <span className="text-gray-300 mx-1">·</span>
+                        <span className="text-gray-400">{formatDatetime(n.createdAt)}</span>
+                        <p className="text-gray-800 whitespace-pre-wrap break-words">{n.content}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
+                    value={newNoteContent}
+                    onChange={(e) => setNewNoteContent(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleAddNote()
+                    }}
                     placeholder="メモを入力..."
                     className="flex-1 text-xs border border-gray-300 rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-green-500"
                   />
                   <button
-                    onClick={handleSaveNotes}
-                    disabled={savingNotes}
+                    onClick={handleAddNote}
+                    disabled={addingNote || !newNoteContent.trim()}
                     className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors disabled:opacity-50"
                   >
-                    {savingNotes ? '保存中...' : 'メモ保存'}
+                    {addingNote ? '追加中...' : '追加'}
                   </button>
                 </div>
               </div>

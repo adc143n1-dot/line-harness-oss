@@ -76,7 +76,8 @@
     "069_rich_menu_selected.sql",
     "070_chat_multi_staff.sql",
     "071_merge_operators_into_staff.sql",
-    "072_source_status_telegram.sql"
+    "072_source_status_telegram.sql",
+    "073_chat_notes.sql"
   ],
-  "migrationCount": 77
+  "migrationCount": 78
 }
