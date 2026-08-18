@@ -1,0 +1,1048 @@
+<title>L Harness 運用ガイド</title>
+<meta name="description" content="LINE Harness 管理画面の全40画面を、現場スタッフ向けに機能・操作・注意点でまとめた運用リファレンス。">
+
+<style>
+  :root {
+    --bg: #F6FAF7;
+    --surface: #FFFFFF;
+    --surface-alt: #EBF2ED;
+    --border: #DCE7DF;
+    --ink: #16231C;
+    --ink-muted: #55655C;
+    --ink-faint: #8AA095;
+    --accent: #06C755;
+    --accent-ink: #04693B;
+    --accent-tint: #E4F9EC;
+    --owner-fg: #8A5A0A;
+    --owner-bg: #FBF0D6;
+    --admin-fg: #1D4ED8;
+    --admin-bg: #E1EAFB;
+    --danger-fg: #B91C1C;
+    --danger-bg: #FBE4E2;
+    --danger-border: #F0B8B3;
+    --caution-fg: #92620A;
+    --caution-bg: #FBF0D9;
+    --caution-border: #EAD59B;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+    --sans: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", system-ui, -apple-system, sans-serif;
+    --shadow-sm: 0 1px 2px rgba(22, 35, 28, 0.06);
+    --shadow-md: 0 6px 20px rgba(22, 35, 28, 0.08);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0D1310;
+      --surface: #141F18;
+      --surface-alt: #1B2822;
+      --border: #263A2E;
+      --ink: #E9F3EC;
+      --ink-muted: #9FB4A7;
+      --ink-faint: #66796E;
+      --accent: #2FE07B;
+      --accent-ink: #7BF0AA;
+      --accent-tint: #17301F;
+      --owner-fg: #F0CE86;
+      --owner-bg: #3A2E10;
+      --admin-fg: #9CB8FA;
+      --admin-bg: #182644;
+      --danger-fg: #FCA5A1;
+      --danger-bg: #3A1512;
+      --danger-border: #5C231D;
+      --caution-fg: #F0CE86;
+      --caution-bg: #352708;
+      --caution-border: #5C4715;
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.4);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #0D1310;
+    --surface: #141F18;
+    --surface-alt: #1B2822;
+    --border: #263A2E;
+    --ink: #E9F3EC;
+    --ink-muted: #9FB4A7;
+    --ink-faint: #66796E;
+    --accent: #2FE07B;
+    --accent-ink: #7BF0AA;
+    --accent-tint: #17301F;
+    --owner-fg: #F0CE86;
+    --owner-bg: #3A2E10;
+    --admin-fg: #9CB8FA;
+    --admin-bg: #182644;
+    --danger-fg: #FCA5A1;
+    --danger-bg: #3A1512;
+    --danger-border: #5C231D;
+    --caution-fg: #F0CE86;
+    --caution-bg: #352708;
+    --caution-border: #5C4715;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.4);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15.5px;
+    line-height: 1.85;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4 { text-wrap: balance; font-weight: 800; margin: 0; }
+  p { margin: 0; }
+  a { color: var(--accent-ink); }
+
+  .shell {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    min-height: 100vh;
+  }
+
+  /* ─── サイドバー ─── */
+
+  .sidebar {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 20px 14px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 10px 16px;
+  }
+
+  .brand-mark {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #06331B;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .brand-text p:first-child { font-size: 14px; font-weight: 800; line-height: 1.2; }
+  .brand-text p:last-child { font-size: 11px; color: var(--ink-faint); margin-top: 2px; }
+
+  .nav-search {
+    position: relative;
+    margin: 0 2px 14px;
+  }
+
+  .nav-search input {
+    width: 100%;
+    font-family: var(--sans);
+    font-size: 13px;
+    padding: 9px 12px 9px 32px;
+    border-radius: 9px;
+    border: 1px solid var(--border);
+    background: var(--surface-alt);
+    color: var(--ink);
+    outline: none;
+  }
+
+  .nav-search input:focus { border-color: var(--accent); }
+  .nav-search svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--ink-faint); pointer-events: none; }
+
+  .nav-group-label {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    padding: 14px 12px 6px;
+  }
+
+  .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    border-radius: 8px;
+    font-size: 13.5px;
+    color: var(--ink-muted);
+    text-decoration: none;
+    line-height: 1.4;
+  }
+
+  .nav-link:hover { background: var(--surface-alt); color: var(--ink); }
+  .nav-link.active { background: var(--accent-tint); color: var(--accent-ink); font-weight: 700; }
+  .nav-link .tag-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+  .nav-empty { padding: 10px 12px; font-size: 12.5px; color: var(--ink-faint); }
+
+  .sidebar-foot {
+    margin-top: auto;
+    padding: 16px 12px 4px;
+    font-size: 11px;
+    color: var(--ink-faint);
+    border-top: 1px solid var(--border);
+  }
+
+  .nav-toggle {
+    display: none;
+    position: fixed;
+    z-index: 30;
+    top: 14px;
+    left: 14px;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+    align-items: center;
+    justify-content: center;
+  }
+
+  .nav-toggle svg { width: 18px; height: 18px; color: var(--ink); }
+
+  /* ─── メイン ─── */
+
+  main { min-width: 0; padding: 56px 48px 120px; }
+  .content { max-width: 760px; margin: 0 auto; }
+
+  .page-head { margin-bottom: 44px; }
+  .page-head h1 { font-size: 30px; letter-spacing: -0.01em; }
+  .page-head .lede { margin-top: 12px; font-size: 15.5px; color: var(--ink-muted); max-width: 62ch; }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 10px;
+    margin-top: 22px;
+    padding: 16px 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+
+  .legend-item { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ink-muted); }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    padding: 2.5px 8px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  .badge-new { background: var(--accent-tint); color: var(--accent-ink); }
+  .badge-owner { background: var(--owner-bg); color: var(--owner-fg); }
+  .badge-admin { background: var(--admin-bg); color: var(--admin-fg); }
+  .badge-danger { background: var(--danger-bg); color: var(--danger-fg); }
+
+  .group-header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin: 68px 0 22px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+  }
+
+  .group-header:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
+
+  .group-eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--accent-ink);
+    text-transform: uppercase;
+  }
+
+  .group-header h2 { font-size: 21px; }
+
+  .screen {
+    scroll-margin-top: 24px;
+    padding: 26px 26px 24px;
+    margin-bottom: 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .screen-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .screen h3 { font-size: 18px; }
+  .screen-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  .screen-purpose {
+    margin-top: 6px;
+    font-size: 14px;
+    color: var(--ink-muted);
+  }
+
+  .screen-body { margin-top: 16px; display: flex; flex-direction: column; gap: 14px; }
+
+  .block-label {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    margin-bottom: 7px;
+  }
+
+  .screen ul { margin: 0; padding-left: 20px; font-size: 14px; color: var(--ink); }
+  .screen ul li { margin-bottom: 5px; }
+  .screen ul li::marker { color: var(--ink-faint); }
+  .screen ul li:last-child { margin-bottom: 0; }
+
+  .flow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    font-size: 13.5px;
+    color: var(--ink-muted);
+  }
+
+  .flow-step {
+    background: var(--surface-alt);
+    padding: 4px 10px;
+    border-radius: 7px;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+
+  .flow-arrow { color: var(--ink-faint); font-size: 12px; }
+
+  .callout {
+    display: flex;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid;
+    font-size: 13.5px;
+    line-height: 1.75;
+  }
+
+  .callout svg { width: 17px; height: 17px; flex-shrink: 0; margin-top: 1px; }
+  .callout b { font-weight: 700; }
+
+  .callout-caution { background: var(--caution-bg); border-color: var(--caution-border); color: var(--caution-fg); }
+  .callout-danger { background: var(--danger-bg); border-color: var(--danger-border); color: var(--danger-fg); }
+  .callout-info { background: var(--surface-alt); border-color: var(--border); color: var(--ink-muted); }
+
+  code.path {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--ink-faint);
+  }
+
+  .top-notice {
+    display: flex;
+    gap: 12px;
+    padding: 18px 20px;
+    background: var(--accent-tint);
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    margin-top: 20px;
+  }
+
+  .top-notice svg { width: 20px; height: 20px; color: var(--accent-ink); flex-shrink: 0; margin-top: 2px; }
+  .top-notice p { font-size: 13.5px; color: var(--accent-ink); line-height: 1.7; }
+  .top-notice b { font-weight: 800; }
+
+  @media (max-width: 920px) {
+    .shell { grid-template-columns: 1fr; }
+    .nav-toggle { display: flex; }
+    .sidebar {
+      position: fixed;
+      z-index: 25;
+      inset: 0 auto 0 0;
+      width: 280px;
+      transform: translateX(-100%);
+      transition: transform 0.25s ease;
+      box-shadow: var(--shadow-md);
+    }
+    .sidebar.open { transform: translateX(0); }
+    .scrim { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 20; }
+    .scrim.open { display: block; }
+    main { padding: 72px 20px 100px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .sidebar { transition: none; }
+  }
+</style>
+
+<svg style="position:absolute;width:0;height:0" aria-hidden="true">
+  <symbol id="ic-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></symbol>
+  <symbol id="ic-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16"/></symbol>
+  <symbol id="ic-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"/></symbol>
+  <symbol id="ic-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M12 11v5"/><circle cx="12" cy="8" r="0.7" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="ic-caution" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linejoin="round" d="M12 3l9.5 17H2.5L12 3z"/><path stroke-linecap="round" d="M12 10v4"/><circle cx="12" cy="17" r="0.7" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="ic-danger" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linejoin="round" d="M7.5 3h9L21 7.5v9L16.5 21h-9L3 16.5v-9L7.5 3z"/><path stroke-linecap="round" d="M12 8v5"/><circle cx="12" cy="16" r="0.7" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="ic-sparkle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linejoin="round" d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M18 6l-2.5 2.5M8.5 15.5L6 18"/></symbol>
+</svg>
+
+<div class="scrim" id="scrim"></div>
+<button class="nav-toggle" id="navToggle" aria-label="メニューを開く"><svg><use href="#ic-menu"/></svg></button>
+
+<div class="shell">
+  <nav class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">H</div>
+      <div class="brand-text">
+        <p>L Harness</p>
+        <p>運用ガイド</p>
+      </div>
+    </div>
+
+    <div class="nav-search">
+      <svg><use href="#ic-search"/></svg>
+      <input type="text" id="navFilter" placeholder="画面名で検索…" autocomplete="off">
+    </div>
+
+    <div id="navList">
+      <div class="nav-group-label">はじめに</div>
+      <a class="nav-link" href="#top" data-label="このガイドについて">このガイドについて</a>
+
+      <div class="nav-group-label">メイン</div>
+      <a class="nav-link" href="#dashboard" data-label="ダッシュボード">ダッシュボード</a>
+      <a class="nav-link" href="#friends" data-label="友だち管理">友だち管理</a>
+      <a class="nav-link" href="#tags" data-label="タグ管理">タグ管理</a>
+      <a class="nav-link" href="#chats" data-label="個別チャット">個別チャット <span class="tag-dot" title="新機能あり"></span></a>
+
+      <div class="nav-group-label">配信</div>
+      <a class="nav-link" href="#friend-add-settings" data-label="友だち追加時設定">友だち追加時設定</a>
+      <a class="nav-link" href="#scenarios" data-label="シナリオ配信">シナリオ配信</a>
+      <a class="nav-link" href="#broadcasts" data-label="一斉配信">一斉配信</a>
+      <a class="nav-link" href="#templates" data-label="テンプレート">テンプレート</a>
+      <a class="nav-link" href="#rich-menus" data-label="リッチメニュー">リッチメニュー</a>
+      <a class="nav-link" href="#reminders" data-label="リマインダ">リマインダ</a>
+      <a class="nav-link" href="#webinars" data-label="ウェビナー">ウェビナー</a>
+
+      <div class="nav-group-label">分析</div>
+      <a class="nav-link" href="#inflow-links" data-label="リファラルリンク">リファラルリンク</a>
+      <a class="nav-link" href="#affiliates" data-label="アフィリエイト">アフィリエイト</a>
+      <a class="nav-link" href="#conversions" data-label="CV計測">CV計測</a>
+      <a class="nav-link" href="#scoring" data-label="マイル">マイル</a>
+      <a class="nav-link" href="#form-submissions" data-label="フォーム回答">フォーム回答</a>
+      <a class="nav-link" href="#duplicates" data-label="重複検出">重複検出</a>
+
+      <div class="nav-group-label">自動化</div>
+      <a class="nav-link" href="#automations" data-label="オートメーション">オートメーション</a>
+      <a class="nav-link" href="#auto-replies" data-label="自動返信ルール">自動返信ルール</a>
+      <a class="nav-link" href="#webhooks" data-label="Webhook">Webhook</a>
+      <a class="nav-link" href="#notifications" data-label="未対応">未対応</a>
+
+      <div class="nav-group-label">予約</div>
+      <a class="nav-link" href="#booking-bookings" data-label="予約管理">予約管理</a>
+      <a class="nav-link" href="#booking-menus" data-label="メニュー">メニュー</a>
+      <a class="nav-link" href="#booking-staff" data-label="スタッフ（予約担当者）">スタッフ（予約担当者）</a>
+      <a class="nav-link" href="#events" data-label="イベント予約">イベント予約</a>
+
+      <div class="nav-group-label">設定</div>
+      <a class="nav-link" href="#staff" data-label="スタッフ管理">スタッフ管理</a>
+      <a class="nav-link" href="#accounts" data-label="LINEアカウント">LINEアカウント <span class="tag-dot" title="新機能あり"></span></a>
+      <a class="nav-link" href="#pools" data-label="プール管理">プール管理</a>
+      <a class="nav-link" href="#measurements" data-label="計測データ">計測データ</a>
+      <a class="nav-link" href="#users" data-label="ユーザー一覧">ユーザー一覧</a>
+      <a class="nav-link" href="#health" data-label="BAN検知">BAN検知</a>
+      <a class="nav-link" href="#updates" data-label="アップデート履歴">アップデート履歴</a>
+      <a class="nav-link" href="#emergency" data-label="緊急コントロール">緊急コントロール</a>
+    </div>
+    <div id="navEmpty" class="nav-empty" style="display:none">一致する画面がありません</div>
+
+    <div class="sidebar-foot">全40画面を6グループに整理。<br>左上の検索で画面名から絞り込めます。</div>
+  </nav>
+
+  <main>
+    <div class="content" id="top">
+
+      <header class="page-head">
+        <h1>L Harness 運用ガイド</h1>
+        <p class="lede">LINE公式アカウントの運用に使う管理画面「L Harness」の、全画面の機能・操作・注意点をまとめたリファレンスです。左のメニューから画面名で探すか、上の検索欄で絞り込んでください。</p>
+
+        <div class="legend">
+          <div class="legend-item"><span class="badge badge-new"><svg style="width:11px;height:11px"><use href="#ic-sparkle"/></svg>NEW</span>今回追加された新機能</div>
+          <div class="legend-item"><span class="badge badge-owner">オーナー限定</span>オーナー権限でしか開けない</div>
+          <div class="legend-item"><span class="badge badge-admin">管理者以上</span>スタッフには表示されない</div>
+          <div class="legend-item"><span class="badge badge-danger">危険操作</span>影響が大きい・取り消せない操作を含む</div>
+        </div>
+
+        <div class="top-notice">
+          <svg><use href="#ic-sparkle"/></svg>
+          <p><b>複数スタッフでの同時対応を始める方へ</b> — 今回のアップデートの中心は「個別チャット」画面です。担当の重複防止（Claim）・内部メモの時系列化・自分の担当だけを見るビュー・Telegram連携・AI自動応答の運用制御が新しく入りました。まずは <a href="#chats">個別チャット</a> と <a href="#accounts">LINEアカウント</a> のセクションから読むことをおすすめします。</p>
+        </div>
+      </header>
+
+      <!-- ═══════════════════ メイン ═══════════════════ -->
+      <div class="group-header" id="group-main">
+        <span class="group-eyebrow">Main</span>
+        <h2>メイン</h2>
+      </div>
+
+      <article class="screen" id="dashboard">
+        <div class="screen-head"><h3>ダッシュボード</h3></div>
+        <p class="screen-purpose">友だち数・稼働中シナリオ数・配信数・テンプレート数などをKPIカードで一覧できる、状況確認と各画面への入口。</p>
+        <div class="screen-body">
+          <ul>
+            <li>KPIカードから該当する管理画面へワンクリックで移動できる</li>
+            <li>「Claude Code にプロンプトを貼り付けて使う」ボタンから、KPI分析・新シナリオ提案の定型プロンプトをコピーできる</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="screen" id="friends">
+        <div class="screen-head"><h3>友だち管理</h3></div>
+        <p class="screen-purpose">LINE公式アカウントの友だち一覧を検索し、タグを付け外しする画面。</p>
+        <div class="screen-body">
+          <div>
+            <div class="block-label">できること</div>
+            <ul>
+              <li>名前検索、追加が新しい順／古い順の並び替え、タグ絞り込み、「対応マーク＝未対応のみ」絞り込み、アカウント切り替え</li>
+              <li>各行から友だちへのタグ付与・削除（「タグ編集」）</li>
+              <li>行クリックでその友だちの個別チャット画面へ移動</li>
+              <li>対応状況・直近の受信メッセージ・稼働中シナリオ・流入経路も一覧表示</li>
+            </ul>
+          </div>
+          <div class="callout callout-info"><svg><use href="#ic-info"/></svg><span>ブロック・退会済みの友だちは行に赤字で表示される。検索欄を空にすると絞り込み条件も自動解除される。</span></div>
+        </div>
+      </article>
+
+      <article class="screen" id="tags">
+        <div class="screen-head"><h3>タグ管理</h3></div>
+        <p class="screen-purpose">友だちに付けるタグの作成・削除と、タグごとのマイル報酬の設定。</p>
+        <div class="screen-body">
+          <ul>
+            <li>新規タグ作成（名前・色をプリセットまたはカラーピッカーで選択）</li>
+            <li>各タグの「獲得マイル」「紹介者マイル」「行動倍率（0.1〜10倍）」「優先度」を個別に保存</li>
+            <li>タグ削除。付与人数・作成日を一覧表示</li>
+          </ul>
+          <div class="callout callout-caution"><svg><use href="#ic-caution"/></svg><span>マイル設定の反映は<b>非同期</b>。保存してもすぐには友だちのマイルに反映されないことがある。タグ名は重複不可、使用中タグを削除しようとすると「◯人の友だちから外れます」と確認が出る。</span></div>
+        </div>
+      </article>
+
+      <article class="screen" id="chats">
+        <div class="screen-head">
+          <h3>個別チャット</h3>
+          <div class="screen-badges"><span class="badge badge-new"><svg style="width:11px;height:11px"><use href="#ic-sparkle"/></svg>NEW</span></div>
+        </div>
+        <p class="screen-purpose">一人ひとりの友だちとのLINEトーク画面。複数スタッフでの同時対応を前提に、今回のアップデートで大幅に強化されている。</p>
+
+        <div class="screen-body">
+          <div>
+            <div class="block-label">一覧（左ペイン）</div>
+            <ul>
+              <li>ステータスフィルタ：全て／未読／対応中／解決済</li>
+              <li><b>🙋 自分の担当</b>（新規）— ONにすると自分が担当しているチャットだけに絞る。<b>既定でON</b>。共有APIキーでのログイン時はこのトグル自体が表示されない</li>
+              <li><b>🔥 未対応のみ</b> — 長時間放置されているチャットに絞る</li>
+              <li>各行のバッジ：未読の赤丸、<b>流入元バッジ</b>（新規・友だち追加URLの <code class="path">?lp=xxx</code> から採取）、<b>TG連携バッジ</b>（新規）、<b>成果バッジ</b>（新規・✅成約／❌離脱）</li>
+              <li>最終メッセージのプレビュー（画像・Flex・スタンプ・動画・音声・ファイル・位置情報はアイコン付きで種類表示）</li>
+            </ul>
+          </div>
+
+          <div>
+            <div class="block-label">詳細（右ペイン）</div>
+            <ul>
+              <li><b>進行状態セレクタ</b>（新規・旧: ボタン3つ）：🆕新規／💬対応中／⏳返信待ち／✅完了</li>
+              <li><b>成果セレクタ</b>（新規）：―未設定／✅成約／❌離脱。<b>進行状態とは完全に独立</b>しているため「対応中のまま成約」のような状態も表現できる</li>
+              <li><b>担当（Claim、新規）</b>：未割当のチャットには「🙋 担当する」ボタンが出る。<b>押すまで入力欄がロックされ、メッセージを送れない</b>。自分の担当なら表示のみ、他スタッフの担当なら「⚠️ 他スタッフ担当 — 引き取る」ボタン</li>
+              <li><b>Telegram誘導</b>（新規）：未連携の相手には「📨 Telegramに誘導する」ボタン。押すとLINEに専用リンクを自動送信（24時間で失効）。連携済みなら「✅ TG連携済」に変わる</li>
+              <li>メッセージ履歴：テキスト・画像・Flex・スタンプに対応。テンプレートの呼び出し、「CCプロンプトテンプレート」（Claude Code向け分析プロンプトのコピー）</li>
+              <li><b>内部メモ</b>（新規・旧: 上書き式の1行メモ）：誰が・いつ・何を書いたかが時系列で残る<b>追記専用</b>。編集・削除は不可</li>
+              <li>友だち情報サイドバー（プロフィール・タグ・マイル履歴など）</li>
+              <li>送信オプション：Enter送信／Shift+Enter送信の切替、入力中ローディング表示のON/OFF</li>
+            </ul>
+          </div>
+
+          <div class="callout callout-info"><svg><use href="#ic-info"/></svg><span><b>裏側で動く自動応答</b> — キーワード自動返信に一致したメッセージには自動で返信が送られる。一致せず、かつ<b>担当スタッフが誰も付いていない</b>チャットには、条件が揃っていればAIが自動で一次応答することがある（設定は<a href="#accounts">LINEアカウント</a>画面）。<b>担当（Claim）が付いた瞬間、AIの自動応答は止まる。</b></span></div>
+
+          <div class="callout callout-caution"><svg><use href="#ic-caution"/></svg><span>「他のスタッフが先に担当になりました」というエラーが出ることがある（自分の操作中に他の人が先に更新した場合）。出たら画面を再読み込みすれば最新状態になる。</span></div>
+        </div>
+      </article>
+
+      <!-- ═══════════════════ 配信 ═══════════════════ -->
+      <div class="group-header" id="group-broadcast">
+        <span class="group-eyebrow">Messaging</span>
+        <h2>配信</h2>
+      </div>
+
+      <article class="screen" id="friend-add-settings">
+        <div class="screen-head"><h3>友だち追加時設定</h3></div>
+        <p class="screen-purpose">新しく友だち登録した人に、どのシナリオが自動配信されるかをLINEアカウントごとに確認・ON/OFFする画面。</p>
+        <div class="screen-body">
+          <ul>
+            <li>アカウントごとに「friend_add」トリガーのシナリオを一覧表示（全アカ共通シナリオは「全アカ共通」バッジ）</li>
+            <li>各シナリオのON/OFFをトグル。シナリオ0件のアカウントには新規作成ボタン</li>
+          </ul>
+          <div class="callout callout-caution"><svg><use href="#ic-caution"/></svg><span>アクティブなシナリオが1件もないアカウントは<b>赤いバッジで警告</b>（「新規友だちに何も届きません」）。所属アカウントが削除済みの「孤児シナリオ」は実質配信されない残骸なので削除推奨。</span></div>
+          <div class="flow"><span class="flow-step">新アカウント追加</span><span class="flow-arrow">→</span><span class="flow-step">「アクティブ0件」警告に気づく</span><span class="flow-arrow">→</span><span class="flow-step">シナリオ作成 or ON化</span></div>
+        </div>
+      </article>
+
+      <article class="screen" id="scenarios">
+        <div class="screen-head"><h3>シナリオ配信</h3></div>
+        <p class="screen-purpose">友だち追加・タグ付与・手動などをきっかけに、複数ステップのメッセージを時間差で自動配信する仕組み。</p>
+        <div class="screen-body">
+          <ul>
+            <li>新規シナリオ作成（トリガー種別・配信モード選択）、有効/無効トグル、削除</li>
+            <li>詳細画面でステップの追加/編集/削除/並び替え。ステップは「直接入力」か「テンプレート参照」を選択可（参照だと元テンプレ更新時に自動同期）</li>
+            <li>ステップ到達時に自動タグ付与も設定可能</li>
+            <li>集計バー（登録数・進行中・完了・一時停止）、ステップごとの到達率表示</li>
+          </ul>
+          <div class="callout callout-danger"><svg><use href="#ic-danger"/></svg><span>配信モード（経過分指定／経過時間／時刻指定）は<b>作成後に変更できない。</b>作る前によく確認すること。</span></div>
+          <div class="flow"><span class="flow-step">新規作成</span><span class="flow-arrow">→</span><span class="flow-step">トリガー・配信モードを選ぶ</span><span class="flow-arrow">→</span><span class="flow-step">ステップ追加</span><span class="flow-arrow">→</span><span class="flow-step">有効化</span></div>
+        </div>
+      </article>
+
+      <article class="screen" id="broadcasts">
+        <div class="screen-head"><h3>一斉配信</h3></div>
+        <p class="screen-purpose">全員またはタグ指定の友だちに、まとめて（即時／予約で）メッセージを一括送信する画面。</p>
+        <div class="screen-body">
+          <ul>
+            <li>タブで「全部／単アカ配信／複アカ重複除外」に分類。新規作成、削除（下書き・予約済みのみ）</li>
+            <li>送信済みはインサイト（配信数・開封数・クリック数）を表示</li>
+          </ul>
+          <div class="callout callout-caution"><svg><use href="#ic-caution"/></svg><span><b>500人超のタグ配信・複数アカウント重複除外配信は必ずキュー方式</b>で、送信ボタンを押した直後には完了しない（500人以下または「全員」なら即時送信）。差し込み変数を使う配信は必ずキュー配信になり、<b>表示名が未設定の友だちが1人でもいると送信自体が拒否される。</b></span></div>
+          <div class="callout callout-info"><svg><use href="#ic-info"/></svg><span>テスト送信の前に「テスト送信先」の登録が必要。テスト送信は本文冒頭に「【テスト配信】」が自動で付く。</span></div>
+          <div class="flow"><span class="flow-step">新規配信</span><span class="flow-arrow">→</span><span class="flow-step">対象を指定</span><span class="flow-arrow">→</span><span class="flow-step">テスト送信で確認</span><span class="flow-arrow">→</span><span class="flow-step">本送信</span></div>
+        </div>
+      </article>
+
+      <article class="screen" id="templates">
+        <div class="screen-head"><h3>テンプレート</h3></div>
+        <p class="screen-purpose">よく使うメッセージ文面（テキスト／Flex／画像）を保存し、各所で使い回すための画面。</p>
+        <div class="screen-body">
+          <ul>
+            <li>一覧（タイプ・未使用でフィルタ）、新規作成、削除</li>
+            <li>「使用箇所」表示：自動返信・オートメーション・シナリオのどこで使われているか一覧、各リンクから移動可能</li>
+          </ul>
+          <div class="callout callout-info"><svg><use href="#ic-info"/></svg><span><b>オートメーションから参照されているテンプレートは削除できない。</b>修正はテンプレート側を1箇所直せば、使っている全箇所に反映される。</span></div>
+        </div>
+      </article>
+
+      <article class="screen" id="rich-menus">
+        <div class="screen-head"><h3>リッチメニュー</h3></div>
+        <p class="screen-purpose">LINEトーク画面下部に出るメニュー（画像＋タップ領域）の作成・LINEへの登録・友だちへの適用。</p>
+        <div class="screen-body">
+          <ul>
+            <li>新規作成：テンプレート選択（Large 2500×1686／Compact 2500×843）、トーク下文言、初期表示ON/OFF</li>
+            <li>編集画面でタップ領域をドラッグ編集（最大20エリア/ページ）、複数ページ対応</li>
+            <li>公開済みメニューは「友だちに表示」から全員 or 特定タグへ一括適用</li>
+            <li>危険な操作枠：LINEからの取り下げ、ページ削除、メニュー全体削除</li>
+          </ul>
+          <div class="callout callout-danger"><svg><use href="#ic-danger"/></svg><span><b>「LINEに登録」しただけでは友だちには表示されない。</b>別途「友だちに表示」を実行する必要がある。公開中のメニューは直接削除できず、先に「LINEから取り下げ」が必要。全体削除はメニュー名の再入力を要求する二重確認。</span></div>
+          <div class="flow"><span class="flow-step">テンプレから新規作成</span><span class="flow-arrow">→</span><span class="flow-step">画像・タップ領域を編集</span><span class="flow-arrow">→</span><span class="flow-step">下書き保存</span><span class="flow-arrow">→</span><span class="flow-step">LINEに登録</span><span class="flow-arrow">→</span><span class="flow-step">友だちに表示</span></div>
+        </div>
+      </article>
+
+      <article class="screen" id="reminders">
+        <div class="screen-head"><h3>リマインダ</h3></div>
+        <p class="screen-purpose">予約日など基準時刻からの前後オフセット（例：1時間前、3日前）でメッセージを配信する仕組みの管理画面。</p>
+        <div class="screen-body">
+          <ul>
+            <li>リマインダー（名前・説明）の新規作成、有効/無効トグル、削除</li>
+            <li>カード展開でステップ（オフセット分・メッセージタイプ・内容）の追加・削除</li>
+          </ul>
+          <div class="callout callout-info"><svg><use href="#ic-info"/></svg><span>この画面自体には個々の友だちを登録するUIは無い（対象者は別画面・自動化経由で登録される想定）。</span></div>
+        </div>
+      </article>
+
+      <article class="screen" id="webinars">
+        <div class="screen-head"><h3>ウェビナー</h3></div>
+        <p class="screen-purpose">録画動画を「疑似ライブ配信」として繰り返し流す機能。視聴者には毎回「今始まったばかり」に見える。分析ダッシュボード付き。</p>
+        <div class="screen-body">
+          <ul>
+            <li>編集は4タブ：概要・分析／配信設定／CTA・フォーム／コメント演出</li>
+            <li>CTAは動画の指定時間にカード表示（「フォーム」種別はタグ付与・シナリオ発火まで自動、「URL」種別は外部リンクを開くだけ）</li>
+            <li>サクラコメント（視聴中に自動で流れるダミーコメント）をJSON一括インポートまたは手動追加</li>
+          </ul>
+          <div class="callout callout-caution"><svg><use href="#ic-caution"/></svg><span>動画のアップロード機能自体はこの画面には無い（既にアップロード済みの保存先パスを入力する形）。サクラコメント・CTAは「保存」を押すまで反映されず、<b>初回読み込みが失敗している間は保存ボタンが無効化される</b>（既存設定を誤って全消去する事故を防ぐため）。</span></div>
+        </div>
+      </article>
+
+      <!-- ═══════════════════ 分析 ═══════════════════ -->
+      <div class="group-header" id="group-analytics">
+        <span class="group-eyebrow">Analytics</span>
+        <h2>分析</h2>
+      </div>
+
+      <article class="screen" id="inflow-links">
+        <div class="screen-head"><h3>リファラルリンク</h3></div>
+        <p class="screen-purpose">友だち獲得の入口URLを発行・管理し、そのリンク経由の友だち数やクリック数を確認する画面。</p>
+        <div class="screen-body">
+          <ul>
+            <li>新規リンク作成（名前・ref・自動付与タグ・送り先Pool・起動シナリオ・即時pushテンプレ）</li>
+            <li>行展開でref経由の友だち一覧、URLコピー、詳細ページでファネル（クリック→友だち追加→フォーム送信→CV）表示</li>
+          </ul>
+          <div class="callout callout-caution"><svg><use href="#ic-caution"/></svg><span>一覧には「正式登録」「Tracked Link（別管理）」「未登録」の3種類の行が混在するので混同しないこと。起動シナリオ・即時pushとも未設定で保存しようとすると「このリンクで友だち追加した人には何も届きません」と警告される。</span></div>
+        </div>
+      </article>
+
+      <article class="screen" id="affiliates">
+        <div class="screen-head"><h3>アフィリエイト</h3></div>
+        <p class="screen-purpose">紹介者（アフィリエイター）の管理、ASP案件の設定、成果承認をまとめて行う画面（3タブ構成）。</p>
+        <div class="screen-body">
+          <ul>
+            <li>「アフィリエイター」タブ：友だち検索から紹介者を新規登録。詳細でクリック数・CV件数・確定報酬などを確認</li>
+            <li>「案件」タブ：ASP案件の新規作成・編集</li>
+            <li>「成果承認」タブ：承認待ち／承認済み／却下済みでフィルタし、個別に承認・却下</li>
+          </ul>
+          <div class="callout callout-caution"><svg><use href="#ic-caution"/></svg><span>承認すると裏でマイル付与とアフィリエイターへのLINE通知が自動で走る（却下時は通知なし）。<b>「重複」フラグ（同一人物の疑い）が付いた申請は、承認前に確認すること。</b></span></div>
+        </div>
+      </article>
+
+      <article class="screen" id="conversions">
+        <div class="screen-head"><h3>CV計測</h3></div>
+        <p class="screen-purpose">コンバージョン（成果地点）を定義し、その発生状況を確認する画面。</p>
+        <div class="screen-body">
+          <ul>
+            <li>CVポイント作成（名前・イベントタイプ・金額任意）</li>
+            <li>レポートカードでCVポイントごとの発火件数・売上合計を確認</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="screen" id="scoring">
+        <div class="screen-head"><h3>マイル</h3></div>
+        <p class="screen-purpose">友だちの行動（メッセージ・リンククリック・フォーム・予約・紹介成果など）に応じたポイント付与ルールの管理とランキング確認。</p>
+        <div class="screen-body">
+          <ul>
+            <li>各ルールカードで有効/無効の切替と付与マイル数の変更</li>
+            <li>ランキング表で行動内訳（メッセージ／リンク／フォーム／予約／継続日数など）を確認</li>
+          </ul>
+          <div class="callout callout-info"><svg><use href="#ic-info"/></svg><span>マイル付与は<b>非同期</b>（キュー処理）。「反映待ち」件数はすぐには反映されないことがある。付与ルールの変更は今後の行動にのみ適用され、過去の付与分は変わらない。</span></div>
+        </div>
+      </article>
+
+      <article class="screen" id="form-submissions">
+        <div class="screen-head"><h3>フォーム回答</h3></div>
+        <p class="screen-purpose">LINE公式アカウント経由で集めたフォームの回答一覧・詳細確認。</p>
+        <div class="screen-body">
+          <ul>
+            <li>フォームをカード一覧で表示（回答件数、アカウント別内訳）。フィルタ・検索</li>
+            <li>回答詳細をサイドパネル表示、回答者名から個別チャットへ遷移</li>
+          </ul>
+          <div class="callout callout-info"><svg><use href="#ic-info"/></svg><span>同名フォームが複数あると「同名あり」バッジが出る。フォーム名変更は表示名のみで、回答データやURLには影響しない。</span></div>
+        </div>
+      </article>
+
+      <article class="screen" id="duplicates">
+        <div class="screen-head"><h3>重複検出</h3></div>
+        <p class="screen-purpose">同一人物が複数のLINE公式アカウントに重複登録されている状況を可視化し、配信コストの無駄を把握する画面。</p>
+        <div class="screen-body">
+          <ul>
+            <li>サマリーカード（友だち総数、ユニーク人数、余分な配信回数、浪費額）</li>
+            <li>アカウント別重複率テーブル、アカウント間の重複マトリックス、「再計算」ボタン</li>
+          </ul>
+          <div class="callout callout-info"><svg><use href="#ic-info"/></svg><span>集計結果は5分間キャッシュされる。再計算に失敗しても直前の集計は消えず、警告バナー付きで表示され続ける。</span></div>
+        </div>
+      </article>
+
+      <!-- ═══════════════════ 自動化 ═══════════════════ -->
+      <div class="group-header" id="group-automation">
+        <span class="group-eyebrow">Automation</span>
+        <h2>自動化</h2>
+      </div>
+
+      <article class="screen" id="automations">
+        <div class="screen-head"><h3>オートメーション</h3></div>
+        <p class="screen-purpose">「友だち追加時にタグを付ける」など、LINE公式アカウントの動きを自動化するルールの管理画面。</p>
+        <div class="screen-body">
+          <ul>
+            <li>新規ルール作成（イベントタイプ：友だち追加／タグ変更／スコア閾値／CV発火／メッセージ受信／ポストバック受信／カレンダー予約、条件・アクションをJSON形式、優先度）</li>
+            <li>有効/無効切替、削除</li>
+          </ul>
+          <div class="callout callout-caution"><svg><use href="#ic-caution"/></svg><span>「全アカウント共通（global）」ルールを無効化・削除しようとすると<b>「すべてのアカウントに影響します」</b>と警告される。優先度は数値が大きいほど先に評価される。</span></div>
+        </div>
+      </article>
+
+      <article class="screen" id="auto-replies">
+        <div class="screen-head"><h3>自動返信ルール</h3></div>
+        <p class="screen-purpose">届いたメッセージの「キーワード」に反応して自動返信するルールの一覧・編集画面。</p>
+        <div class="screen-body">
+          <ul>
+            <li>新規ルール（キーワード、完全一致／部分一致、返信タイプ〈テキスト／Flex／画像／silent〉、適用アカウント、有効/無効）</li>
+            <li>どのアカウントで実際に返信されるか色分けバッジで表示（✓緑＝返信あり、⚠黄＝マッチだけして返信しない、グレー＝適用外）</li>
+          </ul>
+          <div class="callout callout-info"><svg><use href="#ic-info"/></svg><span>「silent（返信しない）」ルールは本当に何も返信しない（別途オートメーション側で送信ルールが無い限り）。</span></div>
+        </div>
+      </article>
+
+      <article class="screen" id="webhooks">
+        <div class="screen-head"><h3>Webhook</h3></div>
+        <p class="screen-purpose">外部システムとの連携用Webhookを、受信（Incoming）・送信（Outgoing）の2タブで管理する画面。</p>
+        <div class="screen-body">
+          <ul>
+            <li>受信Webhook作成：名前、ソースタイプ、シークレット（32文字以上、自動生成ボタンあり）</li>
+            <li>送信Webhook作成：名前、URL（https必須）、イベントタイプ、シークレット</li>
+          </ul>
+          <div class="callout callout-danger"><svg><use href="#ic-danger"/></svg><span><b>シークレットは作成成功直後だけ画面に表示され、以降二度と表示されない。</b>控え忘れると「シークレット更新」で作り直すしかない。シークレット未設定、または送信URLがhttpsでない場合は有効化できない。</span></div>
+        </div>
+      </article>
+
+      <article class="screen" id="notifications">
+        <div class="screen-head"><h3>未対応</h3></div>
+        <p class="screen-purpose">人間からまだ返信していない会話を一覧表示する、対応漏れ防止のトリアージ画面。</p>
+        <div class="screen-body">
+          <ul>
+            <li>検索（友だち名）、アカウント絞り込み、「1時間以上未対応のみ」フィルタ</li>
+            <li>サマリーバー：総未対応件数、アカウント別件数</li>
+            <li>行クリックで<a href="#chats">個別チャット</a>画面に遷移して直接返信。30秒ごとに自動更新</li>
+          </ul>
+          <div class="callout callout-info"><svg><use href="#ic-info"/></svg><span><b>自動返信は人間の返信としてカウントされない。</b>自動返信が飛んでいても人間が手動対応していなければここに残り続ける。一度に取得する上限は2000件（超過時は警告バナー）。</span></div>
+        </div>
+      </article>
+
+      <!-- ═══════════════════ 予約 ═══════════════════ -->
+      <div class="group-header" id="group-booking">
+        <span class="group-eyebrow">Booking</span>
+        <h2>予約</h2>
+      </div>
+
+      <article class="screen" id="booking-bookings">
+        <div class="screen-head"><h3>予約管理</h3></div>
+        <p class="screen-purpose">サロン・店舗向けの「1件の予約」を承認・完了・キャンセルする画面。</p>
+        <div class="screen-body">
+          <ul>
+            <li>予約フォームURLをコピーしてLINE等で配信（LIFF ID未設定だと非表示）</li>
+            <li>サマリーカード（要対応／今日／今後／過去）・期間・状態フィルタ</li>
+            <li>「承認」「拒否」（未承認）、「完了」「無断」「取消」（確定済み）を実行、すべて確認ダイアログ入り</li>
+          </ul>
+          <div class="callout callout-danger"><svg><use href="#ic-danger"/></svg><span>ステータス遷移は固定：未承認→確定/拒否、確定→取消/無断/完了のみ。<b>一度拒否・完了・キャンセルした予約は元に戻せない。</b>承認すると自動でリマインダー登録・カレンダー同期・LINE通知が走る。</span></div>
+          <div class="flow"><span class="flow-step">予約URLを配信</span><span class="flow-arrow">→</span><span class="flow-step">友だちがLIFFで予約</span><span class="flow-arrow">→</span><span class="flow-step">「要対応」から承認/拒否</span><span class="flow-arrow">→</span><span class="flow-step">当日「完了」or「無断」</span></div>
+        </div>
+      </article>
+
+      <article class="screen" id="booking-menus">
+        <div class="screen-head"><h3>メニュー</h3></div>
+        <p class="screen-purpose">予約できる施術・商品メニューの登録と、担当スタッフの割当。</p>
+        <div class="screen-body">
+          <ul>
+            <li>新規メニュー（名前・カテゴリ・説明・所要時間・後バッファ・料金・並び順・有効/無効・自動付与タグ）</li>
+            <li>スタッフ割当（マトリクス画面）：メニュー×スタッフの提供可否と、個別の所要時間・料金の上書き</li>
+          </ul>
+          <div class="callout callout-caution"><svg><use href="#ic-caution"/></svg><span><b>専用URLはメニューが無効の間はコピーできない</b>（誤予約を防ぐため）。</span></div>
+        </div>
+      </article>
+
+      <article class="screen" id="booking-staff">
+        <div class="screen-head"><h3>スタッフ（予約担当者）</h3></div>
+        <p class="screen-purpose">予約を受け付ける担当者の登録と、各担当者の受付可能時間の管理。</p>
+        <div class="screen-body">
+          <ul>
+            <li>新規スタッフ（内部名・表示名・役職・プロフィール画像・紹介文・「指名なし」枠フラグ・有効/無効）</li>
+            <li>シフト画面：「毎週の受付時間」を曜日ごとに設定、Googleカレンダー連携、日付別の応急枠</li>
+          </ul>
+          <div class="callout callout-info"><svg><use href="#ic-info"/></svg><span>「指名なし」枠は仮想スタッフとして扱われる。日付別の応急枠は毎週設定より優先。<b>Googleカレンダー未連携だと二重予約防止が働かない。</b></span></div>
+        </div>
+      </article>
+
+      <article class="screen" id="events">
+        <div class="screen-head"><h3>イベント予約</h3></div>
+        <p class="screen-purpose">日時指定の勉強会・説明会・オフ会などをLIFF経由で予約してもらう機能。</p>
+        <div class="screen-body">
+          <ul>
+            <li>編集は3タブ：概要／予約枠／公開設定</li>
+            <li>予約枠は「＋枠を追加」（個別）または「📅一括追加」（曜日×時間パターンで自動生成）</li>
+            <li>承認制ON/OFF、キャンセル期限、リマインダ、予約者向けカスタムメッセージを設定可能</li>
+            <li>「予約管理」タブで承認・拒否・運営側キャンセル・参加済/無断マーク</li>
+          </ul>
+          <div class="callout callout-caution"><svg><use href="#ic-caution"/></svg><span>概要を保存しないと他タブが使えない。予約枠の削除は既存予約がゼロでないとできない。運営側キャンセルは友だちに<b>LINE通知が送られる。</b></span></div>
+        </div>
+      </article>
+
+      <!-- ═══════════════════ 設定 ═══════════════════ -->
+      <div class="group-header" id="group-settings">
+        <span class="group-eyebrow">Settings</span>
+        <h2>設定</h2>
+      </div>
+
+      <article class="screen" id="staff">
+        <div class="screen-head">
+          <h3>スタッフ管理</h3>
+          <div class="screen-badges"><span class="badge badge-owner">オーナー限定</span></div>
+        </div>
+        <p class="screen-purpose">管理画面にログインできるスタッフのアカウントとAPIキーを管理する画面。</p>
+        <div class="screen-body">
+          <ul>
+            <li>「+スタッフを追加」（名前・メール任意・ロール〈管理者／スタッフ〉）</li>
+            <li>APIキーは先頭4桁・末尾4桁以外は伏せ字。各行に「無効化」「キー再生成」「削除」</li>
+          </ul>
+          <div class="callout callout-danger"><svg><use href="#ic-danger"/></svg><span><b>APIキーは作成・キー再生成の直後だけ画面に表示され、以降二度と表示されない。</b>その場で必ず控えること。キー再生成を押すと旧キーは即座に無効になる。オーナーは最低1人必要というガードがあり、オーナー自身は無効化・削除できない。</span></div>
+        </div>
+      </article>
+
+      <article class="screen" id="accounts">
+        <div class="screen-head">
+          <h3>LINEアカウント</h3>
+          <div class="screen-badges"><span class="badge badge-admin">管理者以上</span><span class="badge badge-new"><svg style="width:11px;height:11px"><use href="#ic-sparkle"/></svg>NEW</span></div>
+        </div>
+        <p class="screen-purpose">運用する複数のLINE公式アカウント（チャネル）を登録・設定する画面。</p>
+        <div class="screen-body">
+          <ul>
+            <li>「+アカウント追加」（Channel ID／アクセストークン／シークレット、作成はオーナー限定）</li>
+            <li>各カード：有効/無効切替、友だち数などの表示、国/地域・役割タグ</li>
+            <li><b>AI自動応答のON/OFFと1日の送信上限</b>（新規） — アカウントごとに個別設定できる。送信実績（本日／直近7日）も同じ場所で確認できる</li>
+            <li>テスト送信先の設定、「既存友だちのワンタイム移行」、並び替えモード</li>
+          </ul>
+          <div class="callout callout-info"><svg><use href="#ic-info"/></svg><span>認証情報（トークン・シークレット）の更新はオーナー限定。それ以外（名前・国・役割・有効無効・AI設定）は管理者も操作可能。既存友だち移行は一度きりのジョブで、途中から再開できる。</span></div>
+        </div>
+      </article>
+
+      <article class="screen" id="pools">
+        <div class="screen-head"><h3>プール管理</h3></div>
+        <p class="screen-purpose">複数のLINEアカウントへの流入先を振り分けるグループの管理。1アカウントのみの場合は自動的に「メインプール」になる。</p>
+        <div class="screen-body">
+          <ul>
+            <li>新規プール作成、アカウント追加/削除、公開URLコピー、削除</li>
+          </ul>
+          <div class="callout callout-caution"><svg><use href="#ic-caution"/></svg><span>この画面の操作にロール制限は無く、ログインしていれば誰でも操作できる。「main」プールだけは削除不可。main以外を削除すると割り当てられていたリンクが失効する可能性がある。</span></div>
+        </div>
+      </article>
+
+      <article class="screen" id="measurements">
+        <div class="screen-head"><h3>計測データ</h3></div>
+        <p class="screen-purpose">LP経由のクリック数・LINE追加数・追加率・アンケート完了率などをアカウント別に確認する<b>閲覧専用</b>画面。「更新」ボタンで再取得するのみ。</p>
+      </article>
+
+      <article class="screen" id="users">
+        <div class="screen-head"><h3>ユーザー一覧</h3></div>
+        <p class="screen-purpose">複数アカウントにまたがる「同一人物」を名寄せしてまとめて表示する統合ユーザー一覧。</p>
+        <div class="screen-body">
+          <ul>
+            <li>キーワード検索、「重複のみ表示」フィルタ、アカウント絞り込み</li>
+            <li>行展開でアカウントごとの詳細、フォーム回答由来のメール・電話番号も確認</li>
+            <li>「再計算」ボタンで強制再集計</li>
+          </ul>
+          <div class="callout callout-info"><svg><use href="#ic-info"/></svg><span>集計はキャッシュされている。無効化されたアカウントの友だちは集計対象から外れる。</span></div>
+        </div>
+      </article>
+
+      <article class="screen" id="health">
+        <div class="screen-head"><h3>BAN検知</h3></div>
+        <p class="screen-purpose">各LINEアカウントの通信エラー状況からBAN（凍結）リスクを監視する画面。</p>
+        <div class="screen-body">
+          <ul>
+            <li>カード展開でエラーログ（エラーコード・件数・期間・リスク「正常/警告/危険」）</li>
+            <li>「危険」アカウントには「友だちを移行する」ボタン、過去の移行履歴も表示</li>
+          </ul>
+          <div class="callout callout-info"><svg><use href="#ic-info"/></svg><span>「移行」は友だちレコードの参照先を切り替える処理で、LINE側の友だち関係を直接移すものではない。この画面の操作にもロール制限は無い。</span></div>
+        </div>
+      </article>
+
+      <article class="screen" id="updates">
+        <div class="screen-head"><h3>アップデート履歴</h3></div>
+        <p class="screen-purpose">システム自動アップデートの実行履歴を見る画面。CLIツールでセットアップした環境専用。</p>
+        <div class="screen-body">
+          <div class="callout callout-info"><svg><use href="#ic-info"/></svg><span>管理者APIキー未設定の環境では「この環境では構成されていません」と表示されるだけ。ロールバックボタンは未実装（CLIを使うよう案内が出るのみ）。</span></div>
+        </div>
+      </article>
+
+      <article class="screen" id="emergency">
+        <div class="screen-head">
+          <h3>緊急コントロール</h3>
+          <div class="screen-badges"><span class="badge badge-danger">危険操作</span></div>
+        </div>
+        <p class="screen-purpose">大量配信を即座に止めるための「非常停止ボタン」画面。</p>
+        <div class="screen-body">
+          <ul>
+            <li>「全配信停止」（予約配信中の一斉配信を全て未送信に戻す）</li>
+            <li>「シナリオ一括停止」（有効な自動配信シナリオを全て無効化）</li>
+            <li>各ボタンは1回目クリックで確認、2回目で実行する2段階方式</li>
+          </ul>
+          <div class="callout callout-danger"><svg><use href="#ic-danger"/></svg><span><b>配信停止・シナリオ停止の操作にはロール制限が一切無い。</b>スタッフ権限のアカウントでもボタン一つで会社の配信を全停止できてしまう。一部が失敗しても他は実行されたまま「完了」と表示され、個別の失敗はUI上に出ない。<b>取り消し機能は無い</b>ため、誤操作時は該当の配信・シナリオを手動で個別に再設定するしかない。</span></div>
+          <div class="flow"><span class="flow-step">炎上の兆候に気づく</span><span class="flow-arrow">→</span><span class="flow-step">緊急停止</span><span class="flow-arrow">→</span><span class="flow-step">原因調査</span><span class="flow-arrow">→</span><span class="flow-step">個別に再開</span></div>
+        </div>
+      </article>
+
+    </div>
+  </main>
+</div>
+
+<script>
+(function () {
+  var filterInput = document.getElementById('navFilter');
+  var links = Array.prototype.slice.call(document.querySelectorAll('#navList .nav-link'));
+  var groupLabels = Array.prototype.slice.call(document.querySelectorAll('#navList .nav-group-label'));
+  var empty = document.getElementById('navEmpty');
+
+  filterInput.addEventListener('input', function () {
+    var q = filterInput.value.trim().toLowerCase();
+    var anyVisible = false;
+    links.forEach(function (a) {
+      var label = (a.getAttribute('data-label') || a.textContent).toLowerCase();
+      var match = q === '' || label.indexOf(q) !== -1;
+      a.style.display = match ? '' : 'none';
+      if (match) anyVisible = true;
+    });
+    groupLabels.forEach(function (g) {
+      var next = g.nextElementSibling;
+      var hasVisible = false;
+      while (next && next.classList && next.classList.contains('nav-link')) {
+        if (next.style.display !== 'none') hasVisible = true;
+        next = next.nextElementSibling;
+      }
+      g.style.display = (q === '' || hasVisible) ? '' : 'none';
+    });
+    empty.style.display = (q !== '' && !anyVisible) ? '' : 'none';
+  });
+
+  var toggle = document.getElementById('navToggle');
+  var sidebar = document.getElementById('sidebar');
+  var scrim = document.getElementById('scrim');
+  function closeNav() { sidebar.classList.remove('open'); scrim.classList.remove('open'); }
+  function openNav() { sidebar.classList.add('open'); scrim.classList.add('open'); }
+  toggle.addEventListener('click', function () {
+    sidebar.classList.contains('open') ? closeNav() : openNav();
+  });
+  scrim.addEventListener('click', closeNav);
+  links.forEach(function (a) { a.addEventListener('click', closeNav); });
+
+  var sections = Array.prototype.slice.call(document.querySelectorAll('main [id]'));
+  var byId = {};
+  links.forEach(function (a) { byId[a.getAttribute('href').slice(1)] = a; });
+  if ('IntersectionObserver' in window) {
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        var link = byId[entry.target.id];
+        if (!link) return;
+        if (entry.isIntersecting) {
+          links.forEach(function (a) { a.classList.remove('active'); });
+          link.classList.add('active');
+        }
+      });
+    }, { rootMargin: '-15% 0px -70% 0px' });
+    sections.forEach(function (s) { observer.observe(s); });
+  }
+})();
+</script>
