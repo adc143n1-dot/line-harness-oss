@@ -91,6 +91,25 @@ export type AuthenticatedStaff = {
 };
 
 /**
+ * Synthetic staff id used when the caller authenticated with the env API_KEY
+ * (or the legacy rotation key) rather than a staff_members row. It has no
+ * matching row, so it must never be written to a column that references
+ * staff_members — use persistableStaffId() before persisting.
+ */
+export const ENV_OWNER_STAFF_ID = 'env-owner';
+
+/**
+ * The staff id to persist as an attribution, or null when the caller has no
+ * real staff_members row behind them (env key auth, or unauthenticated paths
+ * such as automated sends).
+ */
+export function persistableStaffId(staff: AuthenticatedStaff | undefined | null): string | null {
+  if (!staff) return null;
+  if (staff.id === ENV_OWNER_STAFF_ID) return null;
+  return staff.id;
+}
+
+/**
  * Resolve a token (from a Bearer header or the session cookie) to a staff
  * identity. Shared by the auth middleware and the /api/auth/login endpoint so
  * cookie and Bearer auth accept exactly the same credentials.
@@ -108,7 +127,7 @@ export async function authenticateApiToken(
 
   // Fallback: env API_KEY acts as owner (current rotation slot)
   if (token === c.env.API_KEY) {
-    return { id: 'env-owner', name: 'Owner', role: 'owner' };
+    return { id: ENV_OWNER_STAFF_ID, name: 'Owner', role: 'owner' };
   }
 
   // Legacy fallback: LEGACY_API_KEY accepted during rotation grace period.
@@ -122,7 +141,7 @@ export async function authenticateApiToken(
     token === c.env.LEGACY_API_KEY
   ) {
     console.log('[auth] accept_via=LEGACY_API_KEY');
-    return { id: 'env-owner', name: 'Owner', role: 'owner' };
+    return { id: ENV_OWNER_STAFF_ID, name: 'Owner', role: 'owner' };
   }
 
   return null;

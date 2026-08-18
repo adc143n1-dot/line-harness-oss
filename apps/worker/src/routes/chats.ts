@@ -15,6 +15,7 @@ import {
   jstNow,
 } from '@line-crm/db';
 import type { Env } from '../index.js';
+import { persistableStaffId } from '../middleware/auth.js';
 
 const chats = new Hono<Env>();
 
@@ -583,11 +584,14 @@ chats.post('/api/chats/:id/send', async (c) => {
       );
     }
 
-    // メッセージログに記録
+    // メッセージログに記録。
+    // sent_by_staff_id は staff_members を参照するため、env API_KEY 認証の合成
+    // ID (ENV_OWNER_STAFF_ID) では NULL を入れる。自動送信も NULL のまま。
     const logId = crypto.randomUUID();
+    const sentByStaffId = persistableStaffId(c.get('staff'));
     await c.env.DB
-      .prepare(`INSERT INTO messages_log (id, friend_id, direction, message_type, content, source, created_at) VALUES (?, ?, 'outgoing', ?, ?, 'manual', ?)`)
-      .bind(logId, friend.id, messageType, body.content, jstNow())
+      .prepare(`INSERT INTO messages_log (id, friend_id, direction, message_type, content, source, sent_by_staff_id, created_at) VALUES (?, ?, 'outgoing', ?, ?, 'manual', ?, ?)`)
+      .bind(logId, friend.id, messageType, body.content, sentByStaffId, jstNow())
       .run();
 
     // チャットの最終メッセージ日時を更新（chat.id を直接使う — friend_id で呼ばれても resolveOrCreateChat 済み）
