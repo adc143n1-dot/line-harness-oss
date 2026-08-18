@@ -251,6 +251,13 @@ CREATE TABLE chats (
   status        TEXT NOT NULL DEFAULT 'unread' CHECK (status IN ('unread', 'in_progress', 'resolved')),
   notes         TEXT,
   last_message_at TEXT,
+  -- 070_chat_multi_staff: 複数スタッフ運用向けの計測列 / 楽観ロック
+  assigned_at       TEXT,
+  first_response_at TEXT,
+  resolved_at       TEXT,
+  last_activity_at  TEXT,
+  last_replied_by   TEXT CHECK (last_replied_by IN ('operator', 'user')),
+  version           INTEGER NOT NULL DEFAULT 0,
   created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
   updated_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
 , line_account_id TEXT);
@@ -639,6 +646,8 @@ CREATE TABLE messages_log (
   template_id_at_send TEXT,
   delivery_type    TEXT CHECK (delivery_type IN ('push', 'reply', 'test')),
   source           TEXT,
+  -- 070_chat_multi_staff: 手動送信を行ったスタッフ (自動送信は NULL)
+  sent_by_staff_id TEXT REFERENCES staff_members (id) ON DELETE SET NULL,
   line_account_id  TEXT,
   created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
 );
@@ -1192,6 +1201,8 @@ CREATE INDEX idx_calendar_bookings_start ON calendar_bookings (start_at);
 
 CREATE UNIQUE INDEX idx_chats_friend_unique ON chats (friend_id);
 
+CREATE INDEX idx_chats_last_activity ON chats(last_activity_at);
+
 CREATE INDEX idx_chats_operator ON chats (operator_id);
 
 CREATE INDEX idx_chats_status ON chats (status);
@@ -1302,6 +1313,8 @@ CREATE INDEX idx_messages_log_friend_direction_created ON messages_log (friend_i
 CREATE INDEX idx_messages_log_friend_id ON messages_log (friend_id);
 
 CREATE INDEX idx_messages_log_friend_source ON messages_log (friend_id, source);
+
+CREATE INDEX idx_messages_log_sent_by_staff ON messages_log(sent_by_staff_id);
 
 CREATE INDEX idx_mileage_event_queue_due
   ON mileage_event_queue(status, available_at, created_at);
