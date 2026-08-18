@@ -259,7 +259,7 @@ CREATE TABLE "chats" (
   version           INTEGER NOT NULL DEFAULT 0,
   created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
   updated_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
-);
+, outcome TEXT CHECK (outcome IN ('converted', 'lost')));
 
 CREATE TABLE conversion_events (
   id                   TEXT PRIMARY KEY,
@@ -491,6 +491,12 @@ CREATE TABLE friends (
   last_followed_at TEXT,
   last_unfollowed_at TEXT,
   unfollow_count   INTEGER NOT NULL DEFAULT 0,
+  -- 072: 友だち追加 URL の `?lp=xxx` から採取する流入元 (初回のみ記録)。
+  -- 事前登録が要る entry_routes / ref_code とは別系統の軽量な導線ラベル。
+  source           TEXT,
+  -- 072: LINE↔Telegram 同一人物紐付け
+  telegram_user_id TEXT,
+  tg_verified_at   TEXT,
   created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
   updated_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
 , ref_code TEXT, metadata TEXT NOT NULL DEFAULT '{}', line_account_id TEXT REFERENCES line_accounts(id), first_tracked_link_id TEXT REFERENCES tracked_links (id) ON DELETE SET NULL);
@@ -960,6 +966,15 @@ CREATE TABLE templates (
   updated_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
 );
 
+CREATE TABLE tg_invite_tokens (
+  token      TEXT PRIMARY KEY,
+  friend_id  TEXT NOT NULL REFERENCES friends (id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  expires_at TEXT NOT NULL,
+  used_at    TEXT,
+  revoked_at TEXT
+);
+
 CREATE TABLE tracked_links (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
@@ -1262,6 +1277,11 @@ CREATE INDEX idx_friends_ig_igsid ON friends (ig_igsid);
 
 CREATE INDEX idx_friends_line_user_id ON friends (line_user_id);
 
+CREATE INDEX idx_friends_source ON friends (source);
+
+CREATE UNIQUE INDEX idx_friends_telegram_user_id
+  ON friends (telegram_user_id) WHERE telegram_user_id IS NOT NULL;
+
 CREATE INDEX idx_friends_user_id ON friends (user_id);
 
 CREATE INDEX idx_google_calendar_connections_staff
@@ -1367,6 +1387,8 @@ CREATE INDEX idx_stripe_events_friend ON stripe_events (friend_id);
 CREATE INDEX idx_stripe_events_type ON stripe_events (event_type);
 
 CREATE INDEX idx_templates_category ON templates (category);
+
+CREATE INDEX idx_tg_invite_tokens_friend_id ON tg_invite_tokens (friend_id);
 
 CREATE UNIQUE INDEX idx_tracked_links_dedup_key
   ON tracked_links (dedup_key) WHERE dedup_key IS NOT NULL;

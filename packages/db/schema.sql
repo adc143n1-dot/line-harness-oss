@@ -21,6 +21,12 @@ CREATE TABLE IF NOT EXISTS friends (
   last_followed_at TEXT,
   last_unfollowed_at TEXT,
   unfollow_count   INTEGER NOT NULL DEFAULT 0,
+  -- 072: 友だち追加 URL の `?lp=xxx` から採取する流入元 (初回のみ記録)。
+  -- 事前登録が要る entry_routes / ref_code とは別系統の軽量な導線ラベル。
+  source           TEXT,
+  -- 072: LINE↔Telegram 同一人物紐付け
+  telegram_user_id TEXT,
+  tg_verified_at   TEXT,
   created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
   updated_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
 );
@@ -29,6 +35,9 @@ CREATE INDEX IF NOT EXISTS idx_friends_line_user_id ON friends (line_user_id);
 CREATE INDEX IF NOT EXISTS idx_friends_user_id ON friends (user_id);
 CREATE INDEX IF NOT EXISTS idx_friends_ig_igsid ON friends (ig_igsid);
 CREATE INDEX IF NOT EXISTS idx_friends_follow_tenure ON friends(is_following, current_follow_started_at);
+CREATE INDEX IF NOT EXISTS idx_friends_source ON friends (source);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_friends_telegram_user_id
+  ON friends (telegram_user_id) WHERE telegram_user_id IS NOT NULL;
 
 -- ============================================================
 -- Tags
@@ -727,6 +736,8 @@ CREATE TABLE IF NOT EXISTS chats (
   resolved_at       TEXT,
   last_activity_at  TEXT,
   last_replied_by   TEXT CHECK (last_replied_by IN ('operator', 'user')),
+  -- 072: 進行状態 (status) とは独立した成果。VIP は顧客属性なのでタグへ。
+  outcome           TEXT CHECK (outcome IN ('converted', 'lost')),
   version           INTEGER NOT NULL DEFAULT 0,
   created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
   updated_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
@@ -1141,3 +1152,15 @@ CREATE TABLE IF NOT EXISTS rich_menu_areas (
 CREATE INDEX IF NOT EXISTS idx_rich_menu_pages_group    ON rich_menu_pages(group_id, order_index);
 CREATE INDEX IF NOT EXISTS idx_rich_menu_areas_page     ON rich_menu_areas(page_id);
 CREATE INDEX IF NOT EXISTS idx_rich_menu_groups_account ON rich_menu_groups(account_id, status);
+
+-- 072: LINE↔Telegram 紐付けの招待トークン (ワンタイム・期限付き)
+CREATE TABLE IF NOT EXISTS tg_invite_tokens (
+  token      TEXT PRIMARY KEY,
+  friend_id  TEXT NOT NULL REFERENCES friends (id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  expires_at TEXT NOT NULL,
+  used_at    TEXT,
+  revoked_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_tg_invite_tokens_friend_id ON tg_invite_tokens (friend_id);
