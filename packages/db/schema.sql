@@ -190,6 +190,8 @@ CREATE TABLE IF NOT EXISTS messages_log (
   template_id_at_send TEXT,
   delivery_type    TEXT CHECK (delivery_type IN ('push', 'reply', 'test')),
   source           TEXT,
+  -- 070_chat_multi_staff: 手動送信を行ったスタッフ (自動送信は NULL)
+  sent_by_staff_id TEXT REFERENCES staff_members (id) ON DELETE SET NULL,
   line_account_id  TEXT,
   created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
 );
@@ -707,6 +709,13 @@ CREATE TABLE IF NOT EXISTS chats (
   status        TEXT NOT NULL DEFAULT 'unread' CHECK (status IN ('unread', 'in_progress', 'resolved')),
   notes         TEXT,
   last_message_at TEXT,
+  -- 070_chat_multi_staff: 複数スタッフ運用向けの計測列 / 楽観ロック
+  assigned_at       TEXT,
+  first_response_at TEXT,
+  resolved_at       TEXT,
+  last_activity_at  TEXT,
+  last_replied_by   TEXT CHECK (last_replied_by IN ('operator', 'user')),
+  version           INTEGER NOT NULL DEFAULT 0,
   created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
   updated_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
 );
