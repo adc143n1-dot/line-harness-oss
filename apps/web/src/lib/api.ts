@@ -347,6 +347,14 @@ export const api = {
     delete: (id: string) =>
       fetchApi<ApiResponse<null>>(`/api/tags/${id}`, { method: 'DELETE' }),
   },
+  emergency: {
+    /** 予約配信中の一斉配信を全て下書きに戻す (owner/admin 限定) */
+    stopBroadcasts: () =>
+      fetchApi<ApiResponse<{ stopped: number }>>('/api/emergency/stop-broadcasts', { method: 'POST' }),
+    /** 有効な自動配信シナリオを全て無効化する (owner/admin 限定) */
+    stopScenarios: () =>
+      fetchApi<ApiResponse<{ stopped: number }>>('/api/emergency/stop-scenarios', { method: 'POST' }),
+  },
   scenarios: {
     list: (params?: { accountId?: string }) => {
       const query = params?.accountId ? '?lineAccountId=' + params.accountId : ''

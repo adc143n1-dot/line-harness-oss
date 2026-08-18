@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { api } from '@/lib/api'
+import { api, ApiError } from '@/lib/api'
 import Header from '@/components/layout/header'
 import CcPromptButton from '@/components/cc-prompt-button'
 
@@ -76,28 +76,23 @@ export default function EmergencyPage() {
 
       try {
         if (id === 'stop-broadcasts') {
-          const res = await api.broadcasts.list()
-          if (res.success) {
-            const scheduled = res.data.filter((b) => b.status === 'scheduled')
-            await Promise.allSettled(
-              scheduled.map((b) => api.broadcasts.update(b.id, { scheduledAt: null }))
-            )
-          }
+          // サーバー側で一括 UPDATE する専用エンドポイント (owner/admin 限定)。
+          // 個別編集用の PUT には権限制限が無いため、そちらをループで叩く
+          // 実装だと staff 権限でも全配信を止められてしまっていた。
+          await api.emergency.stopBroadcasts()
         } else if (id === 'stop-scenarios') {
-          const res = await api.scenarios.list()
-          if (res.success) {
-            const active = res.data.filter((s) => s.isActive)
-            await Promise.allSettled(
-              active.map((s) => api.scenarios.update(s.id, { isActive: false }))
-            )
-          }
+          await api.emergency.stopScenarios()
         } else if (id === 'switch-account') {
           window.location.href = '/health'
           return
         }
         updateAction(id, { status: 'done' })
-      } catch {
-        updateAction(id, { status: 'error', errorMessage: '実行に失敗しました。再度お試しください。' })
+      } catch (err) {
+        const message =
+          err instanceof ApiError && err.status === 403
+            ? 'この操作には管理者以上の権限が必要です。'
+            : '実行に失敗しました。再度お試しください。'
+        updateAction(id, { status: 'error', errorMessage: message })
       }
     }
   }

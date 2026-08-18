@@ -32,6 +32,7 @@ import { authMiddleware } from './middleware/auth.js';
 import { rateLimitMiddleware } from './middleware/rate-limit.js';
 import { webhook } from './routes/webhook.js';
 import { telegram } from './routes/telegram.js';
+import { emergency } from './routes/emergency.js';
 import { friends } from './routes/friends.js';
 import { tags } from './routes/tags.js';
 import { scenarios } from './routes/scenarios.js';
@@ -199,6 +200,7 @@ app.use('*', authMiddleware);
 // Mount route groups — MVP & Round 2
 app.route('/', webhook);
 app.route('/', telegram);
+app.route('/', emergency);
 app.route('/', friends);
 app.route('/', tags);
 app.route('/', scenarios);
