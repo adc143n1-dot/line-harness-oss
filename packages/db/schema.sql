@@ -231,6 +231,19 @@ CREATE INDEX IF NOT EXISTS idx_messages_log_friend_source ON messages_log (frien
 CREATE INDEX IF NOT EXISTS idx_messages_log_friend_direction_created ON messages_log (friend_id, direction, created_at);
 CREATE INDEX IF NOT EXISTS idx_messages_log_sent_by_staff ON messages_log(sent_by_staff_id);
 
+-- 074: メッセージ本文の全文検索。独立FTS5テーブルに複製する方式
+-- (外部コンテンツ方式は messages_log.id が TEXT 主キーのためリスクが高い)。
+-- trigram トークナイザを使用 (unicode61 は日本語を1文全体で1トークン扱いに
+-- してしまい部分一致検索が機能しない、実機検証済み)。3文字未満のクエリは
+-- ヒットしないため、検索APIで弾く。
+-- 同期は cron による追いつき (messages-fts-sync.ts)、トリガーは使わない。
+CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
+  id UNINDEXED,
+  friend_id UNINDEXED,
+  content,
+  tokenize = 'trigram'
+);
+
 -- ============================================================
 -- Auto Replies
 -- ============================================================

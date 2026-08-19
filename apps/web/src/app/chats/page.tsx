@@ -51,6 +51,17 @@ interface ChatMessage {
   createdAt: string
 }
 
+interface SearchHit {
+  id: string
+  friendId: string
+  friendName: string
+  friendPictureUrl: string | null
+  direction: 'incoming' | 'outgoing'
+  messageType: string
+  content: string
+  createdAt: string
+}
+
 interface ChatDetail extends Chat {
   friendName: string
   friendPictureUrl: string | null
@@ -340,6 +351,20 @@ export default function ChatsPage() {
   // 「自分の担当」ビュー。myStaffId が判明するまでは無効のまま (共有 API キー
   // 運用ではトグル自体を出さない)。既定は「全員が全件を眺める状態が一番詰まる」
   // という判断から ON。ユーザーが変更したら localStorage に覚える。
+  // 全チャット横断検索。ON の間は一覧を検索結果に差し替える。
+  const [globalSearchMode, setGlobalSearchMode] = useState(false)
+  const [globalSearchQuery, setGlobalSearchQuery] = useState('')
+  const [globalSearchResults, setGlobalSearchResults] = useState<SearchHit[]>([])
+  const [globalSearching, setGlobalSearching] = useState(false)
+  const [globalSearchError, setGlobalSearchError] = useState('')
+
+  // 会話内検索。開いているチャットの中だけを検索する。
+  const [chatSearchOpen, setChatSearchOpen] = useState(false)
+  const [chatSearchQuery, setChatSearchQuery] = useState('')
+  const [chatSearchResults, setChatSearchResults] = useState<SearchHit[]>([])
+  const [chatSearching, setChatSearching] = useState(false)
+  const [chatSearchError, setChatSearchError] = useState('')
+
   const [myChatsOnly, setMyChatsOnly] = useState(() => {
     if (typeof window === 'undefined') return false
     const stored = window.localStorage.getItem('lh_chat_my_view')
@@ -819,6 +844,76 @@ export default function ChatsPage() {
   // 共有 API キー運用 (myStaffId=null) では担当の概念が無いのでロックしない。
   const composerLocked = Boolean(myStaffId) && chatDetail?.operatorId === null
 
+  // 3文字未満は trigram インデックスの制約でヒットしないため (Worker 側も
+  // 同じ基準で 400 を返す)、クライアント側でも同じ閾値でフェッチを止める。
+  const MIN_SEARCH_LENGTH = 3
+
+  useEffect(() => {
+    if (!globalSearchMode) return
+    const q = globalSearchQuery.trim()
+    if (q.length < MIN_SEARCH_LENGTH) {
+      setGlobalSearchResults([])
+      setGlobalSearchError('')
+      return
+    }
+    let cancelled = false
+    setGlobalSearching(true)
+    const timer = setTimeout(async () => {
+      try {
+        const res = await api.messages.search(q, { limit: 50 })
+        if (cancelled) return
+        if (res.success) {
+          setGlobalSearchResults(res.data)
+          setGlobalSearchError('')
+        } else {
+          setGlobalSearchResults([])
+          setGlobalSearchError((res as { error?: string }).error ?? '検索に失敗しました')
+        }
+      } catch {
+        if (!cancelled) {
+          setGlobalSearchResults([])
+          setGlobalSearchError('検索に失敗しました')
+        }
+      } finally {
+        if (!cancelled) setGlobalSearching(false)
+      }
+    }, 300)
+    return () => { cancelled = true; clearTimeout(timer) }
+  }, [globalSearchMode, globalSearchQuery])
+
+  useEffect(() => {
+    if (!chatSearchOpen || !selectedChatId) return
+    const q = chatSearchQuery.trim()
+    if (q.length < MIN_SEARCH_LENGTH) {
+      setChatSearchResults([])
+      setChatSearchError('')
+      return
+    }
+    let cancelled = false
+    setChatSearching(true)
+    const timer = setTimeout(async () => {
+      try {
+        const res = await api.messages.search(q, { friendId: selectedChatId, limit: 50 })
+        if (cancelled) return
+        if (res.success) {
+          setChatSearchResults(res.data)
+          setChatSearchError('')
+        } else {
+          setChatSearchResults([])
+          setChatSearchError((res as { error?: string }).error ?? '検索に失敗しました')
+        }
+      } catch {
+        if (!cancelled) {
+          setChatSearchResults([])
+          setChatSearchError('検索に失敗しました')
+        }
+      } finally {
+        if (!cancelled) setChatSearching(false)
+      }
+    }, 300)
+    return () => { cancelled = true; clearTimeout(timer) }
+  }, [chatSearchOpen, chatSearchQuery, selectedChatId])
+
   const handleClaim = async (force = false) => {
     if (!selectedChatId) return
     if (force && !confirm('他のスタッフが担当中です。引き取りますか？')) return
@@ -922,6 +1017,32 @@ export default function ChatsPage() {
         <div className={`w-full lg:w-96 lg:flex-shrink-0 bg-white rounded-lg shadow-sm border border-gray-200 flex-col overflow-hidden ${selectedChatId ? 'hidden lg:flex' : 'flex'}`}>
           {/* タブ (全て / 未読 / 対応中 / 解決済) は意図的に削除。直近メッセージが見やすい LINE 風一覧を優先。 */}
 
+          {/* 全チャット横断検索。ON の間は下の一覧を検索結果に差し替える。 */}
+          <div className="px-3 pt-2 flex items-center gap-2">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={globalSearchQuery}
+                onChange={(e) => {
+                  setGlobalSearchQuery(e.target.value)
+                  if (!globalSearchMode) setGlobalSearchMode(true)
+                }}
+                onFocus={() => setGlobalSearchMode(true)}
+                placeholder="🔍 全チャットからメッセージを検索 (3文字以上)"
+                className="w-full text-xs border border-gray-200 rounded-lg pl-3 pr-7 py-1.5 focus:outline-none focus:ring-1 focus:ring-green-500"
+              />
+              {globalSearchMode && (
+                <button
+                  onClick={() => { setGlobalSearchMode(false); setGlobalSearchQuery(''); setGlobalSearchResults([]) }}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  aria-label="検索を閉じる"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* Filter row */}
           <div className="px-3 py-2 border-b border-gray-100 flex flex-wrap items-center gap-2">
             {statusFilters.map((f) => (
@@ -963,7 +1084,41 @@ export default function ChatsPage() {
 
           {/* Chat List */}
           <div className="flex-1 overflow-y-auto">
-            {loading ? (
+            {globalSearchMode ? (
+              globalSearchQuery.trim().length < MIN_SEARCH_LENGTH ? (
+                <div className="px-4 py-8 text-center text-xs text-gray-400">
+                  {MIN_SEARCH_LENGTH}文字以上入力すると検索します
+                </div>
+              ) : globalSearching ? (
+                <div className="px-4 py-8 text-center text-xs text-gray-400">検索中...</div>
+              ) : globalSearchError ? (
+                <div className="px-4 py-8 text-center text-xs text-red-500">{globalSearchError}</div>
+              ) : globalSearchResults.length === 0 ? (
+                <div className="px-4 py-8 text-center text-xs text-gray-400">一致するメッセージがありません</div>
+              ) : (
+                globalSearchResults.map((hit) => (
+                  <button
+                    key={hit.id}
+                    onClick={() => {
+                      setGlobalSearchMode(false)
+                      setGlobalSearchQuery('')
+                      setSelectedFriendId(null)
+                      handleSelectChat(hit.friendId)
+                    }}
+                    className="w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-gray-50"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-medium text-gray-900 truncate">{hit.friendName}</p>
+                      <span className="text-[10px] text-gray-400 flex-shrink-0">{formatDatetime(hit.createdAt)}</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">
+                      {hit.direction === 'outgoing' && <span className="text-gray-400 mr-1">↪</span>}
+                      {hit.content}
+                    </p>
+                  </button>
+                ))
+              )
+            ) : loading ? (
               <div>
                 {[...Array(5)].map((_, i) => (
                   <div key={i} className="px-4 py-3 border-b border-gray-100 animate-pulse">
@@ -1132,6 +1287,18 @@ export default function ChatsPage() {
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setChatSearchOpen((v) => !v)
+                      if (chatSearchOpen) { setChatSearchQuery(''); setChatSearchResults([]) }
+                    }}
+                    className={`px-2 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium rounded-md transition-colors ${
+                      chatSearchOpen ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                    title="この会話の中を検索"
+                  >
+                    🔍 検索
+                  </button>
                   {unansweredOnly && chats.length > 1 && (
                     <button
                       type="button"
@@ -1222,6 +1389,43 @@ export default function ChatsPage() {
                   )}
                 </div>
               </div>
+
+              {/* 会話内検索パネル。過去の全履歴 (画面に表示されている直近分に限らない)
+                  を対象に、本文の全文検索結果をプレビュー表示する。トランスクリプトへの
+                  ジャンプは行わない (表示中の履歴を超えた古いメッセージもヒットし得るため)。 */}
+              {chatSearchOpen && (
+                <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                  <input
+                    type="text"
+                    autoFocus
+                    value={chatSearchQuery}
+                    onChange={(e) => setChatSearchQuery(e.target.value)}
+                    placeholder={`この会話の中を検索 (${MIN_SEARCH_LENGTH}文字以上)`}
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-green-500"
+                  />
+                  {chatSearchQuery.trim().length >= MIN_SEARCH_LENGTH && (
+                    <div className="mt-2 max-h-48 overflow-y-auto space-y-1.5">
+                      {chatSearching ? (
+                        <p className="text-xs text-gray-400">検索中...</p>
+                      ) : chatSearchError ? (
+                        <p className="text-xs text-red-500">{chatSearchError}</p>
+                      ) : chatSearchResults.length === 0 ? (
+                        <p className="text-xs text-gray-400">一致するメッセージがありません</p>
+                      ) : (
+                        chatSearchResults.map((hit) => (
+                          <div key={hit.id} className="text-xs bg-white border border-gray-200 rounded-md px-2.5 py-1.5">
+                            <span className="text-gray-400">{formatDatetime(hit.createdAt)}</span>
+                            <p className="text-gray-800 mt-0.5">
+                              {hit.direction === 'outgoing' && <span className="text-gray-400 mr-1">↪</span>}
+                              {hit.content}
+                            </p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Messages — LINE-style chat bubbles */}
               <div ref={messagesScrollRef} className="flex-1 overflow-y-auto p-4 space-y-2" style={{ backgroundColor: '#7494C0' }}>

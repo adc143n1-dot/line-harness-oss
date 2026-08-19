@@ -18,6 +18,7 @@ import { processStepDeliveries } from './services/step-delivery.js';
 import { processScheduledBroadcasts, processQueuedBroadcasts } from './services/broadcast.js';
 import { processReminderDeliveries } from './services/reminder-delivery.js';
 import { checkAccountHealth } from './services/ban-monitor.js';
+import { syncMessagesFts } from './services/messages-fts-sync.js';
 import { refreshLineAccessTokens } from './services/token-refresh.js';
 import { processInsightFetch } from './services/insight-fetcher.js';
 import { processDueReminders } from './services/booking-reminders.js';
@@ -33,6 +34,7 @@ import { rateLimitMiddleware } from './middleware/rate-limit.js';
 import { webhook } from './routes/webhook.js';
 import { telegram } from './routes/telegram.js';
 import { emergency } from './routes/emergency.js';
+import { messages } from './routes/messages.js';
 import { friends } from './routes/friends.js';
 import { tags } from './routes/tags.js';
 import { scenarios } from './routes/scenarios.js';
@@ -201,6 +203,7 @@ app.use('*', authMiddleware);
 app.route('/', webhook);
 app.route('/', telegram);
 app.route('/', emergency);
+app.route('/', messages);
 app.route('/', friends);
 app.route('/', tags);
 app.route('/', scenarios);
@@ -1069,6 +1072,15 @@ async function scheduled(
       }),
     );
   }
+
+  // メッセージ全文検索インデックスの追いつき同期。同じ理由 (D1 負荷を平らに保つ)
+  // で mileage と同じ毎分cronに相乗りさせるが、こちらは間引かず毎分実行する
+  // (検索結果の鮮度は放置時間ほど許容できないため)。
+  jobs.push(
+    syncMessagesFts(env.DB).then((count) => {
+      if (count > 0) console.log(`[messages-fts-sync] indexed=${count}`);
+    }).catch((e) => console.error('messages-fts-sync error:', e)),
+  );
 
   await Promise.allSettled(jobs);
 

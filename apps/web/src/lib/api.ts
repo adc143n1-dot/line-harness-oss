@@ -347,6 +347,24 @@ export const api = {
     delete: (id: string) =>
       fetchApi<ApiResponse<null>>(`/api/tags/${id}`, { method: 'DELETE' }),
   },
+  messages: {
+    /** メッセージ本文の全文検索。friendId 省略で全チャット横断検索 */
+    search: (q: string, opts?: { friendId?: string; limit?: number }) => {
+      const params = new URLSearchParams({ q })
+      if (opts?.friendId) params.set('friendId', opts.friendId)
+      if (opts?.limit) params.set('limit', String(opts.limit))
+      return fetchApi<ApiResponse<Array<{
+        id: string
+        friendId: string
+        friendName: string
+        friendPictureUrl: string | null
+        direction: 'incoming' | 'outgoing'
+        messageType: string
+        content: string
+        createdAt: string
+      }>>>('/api/messages/search?' + params.toString())
+    },
+  },
   emergency: {
     /** 予約配信中の一斉配信を全て下書きに戻す (owner/admin 限定) */
     stopBroadcasts: () =>

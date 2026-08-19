@@ -100,7 +100,7 @@ function buildBootstrapSql() {
       applyMigrationFile(db, file);
     }
 
-    const rows = db
+    const allRows = db
       .prepare(
         `
           SELECT type, name, sql
@@ -119,6 +119,27 @@ function buildBootstrapSql() {
         `,
       )
       .all();
+
+    // FTS5 (および将来の他の仮想テーブル) は、実体を持つ「シャドウテーブル」
+    // (<name>_data / _idx / _docsize / _config / _content / _content_rowid) を
+    // sqlite_master に自動登録する。これらは仮想テーブル自身の
+    // CREATE VIRTUAL TABLE 文が実行されたときにのみ暗黙生成される「予約名」で、
+    // 明示的に CREATE TABLE すると "object name reserved for internal use" で
+    // 失敗する。仮想テーブル本体 (type='table', sql が CREATE VIRTUAL TABLE)
+    // は複製してよいが、そのシャドウテーブル行は bootstrap から除外する。
+    const virtualTableNames = new Set(
+      allRows
+        .filter((row) => /^CREATE VIRTUAL TABLE/i.test(row.sql.trim()))
+        .map((row) => row.name),
+    );
+    const shadowSuffixes = ["_data", "_idx", "_docsize", "_config", "_content", "_content_rowid"];
+    const isFts5Shadow = (row) =>
+      row.type === "table" &&
+      shadowSuffixes.some((suffix) =>
+        [...virtualTableNames].some((vt) => row.name === `${vt}${suffix}`),
+      );
+
+    const rows = allRows.filter((row) => !isFts5Shadow(row));
 
     const header = [
       "-- Generated from schema.sql + migrations by scripts/generate-bootstrap.mjs.",

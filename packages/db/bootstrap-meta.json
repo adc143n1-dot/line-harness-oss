@@ -77,7 +77,8 @@
     "070_chat_multi_staff.sql",
     "071_merge_operators_into_staff.sql",
     "072_source_status_telegram.sql",
-    "073_chat_notes.sql"
+    "073_chat_notes.sql",
+    "074_messages_fts.sql"
   ],
-  "migrationCount": 78
+  "migrationCount": 79
 }

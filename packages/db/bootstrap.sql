@@ -648,6 +648,13 @@ CREATE TABLE message_templates (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE VIRTUAL TABLE messages_fts USING fts5(
+  id UNINDEXED,
+  friend_id UNINDEXED,
+  content,
+  tokenize = 'trigram'
+);
+
 CREATE TABLE messages_log (
   id               TEXT PRIMARY KEY,
   friend_id        TEXT NOT NULL REFERENCES friends (id) ON DELETE CASCADE,
