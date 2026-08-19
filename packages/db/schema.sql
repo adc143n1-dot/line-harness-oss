@@ -27,6 +27,14 @@ CREATE TABLE IF NOT EXISTS friends (
   -- 072: LINE↔Telegram 同一人物紐付け
   telegram_user_id TEXT,
   tg_verified_at   TEXT,
+  -- 075: 副業マッチング自動化 (Phase A)。本人確認書類関連の列は追加しない
+  -- (要件確定前に個人情報を集める列だけ先に用意しない方針)。
+  q1_answer         TEXT,
+  q2_answer         TEXT,
+  lead_score        INTEGER,
+  lead_temperature  TEXT CHECK (lead_temperature IN ('hot', 'warm', 'cold')),
+  job_matching_conversation_state TEXT
+    CHECK (job_matching_conversation_state IN ('awaiting_q1', 'awaiting_q2', 'diagnosed')),
   created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
   updated_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
 );
@@ -38,6 +46,7 @@ CREATE INDEX IF NOT EXISTS idx_friends_follow_tenure ON friends(is_following, cu
 CREATE INDEX IF NOT EXISTS idx_friends_source ON friends (source);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_friends_telegram_user_id
   ON friends (telegram_user_id) WHERE telegram_user_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_friends_lead_temperature ON friends (lead_temperature);
 
 -- ============================================================
 -- Tags

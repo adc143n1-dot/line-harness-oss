@@ -17,7 +17,13 @@ import {
 import type { EntryRoute, Friend } from '@line-crm/db';
 import { fireEvent } from '../services/event-bus.js';
 import { matchAndReply } from '../services/auto-reply.js';
-import { maybeSendAiReply, type AiReplyEnv } from '../services/ai-reply/index.js';
+import { maybeSendAiReply, buildProvider, type AiReplyEnv } from '../services/ai-reply/index.js';
+import {
+  isJobMatchingReferral,
+  beginJobMatchingConversation,
+  handleJobMatchingPostback,
+} from '../services/job-matching/conversation.js';
+import type { JobMatchingEnv } from '../services/job-matching/discord-notify.js';
 import { buildMessage } from '../services/step-delivery.js';
 import { pushImmediateFirstStep } from '../services/immediate-first-step.js';
 import type { Env } from '../index.js';
@@ -200,7 +206,7 @@ async function handleEvent(
   liffUrl?: string,
   r2?: R2Bucket,
   proxyDispatch?: HarnessProxyDispatch,
-  aiReplyEnv?: AiReplyEnv,
+  aiReplyEnv?: AiReplyEnv & JobMatchingEnv,
 ): Promise<void> {
   if (event.type === 'follow') {
     const userId =
@@ -272,12 +278,14 @@ async function handleEvent(
     // otherwise override mode and intro pushes silently fall back to the
     // account default whenever the webhook wins the race.
     const { getFriendById } = await import('@line-crm/db');
-    let friendRefCode = (friend as { ref_code?: string | null }).ref_code ?? null;
+    // last_ref_code is written by /auth/callback (OAuth path) via
+    // recordRefTracking(); the field on the Friend row itself.
+    let friendRefCode = (friend as { last_ref_code?: string | null }).last_ref_code ?? null;
     if (!friendRefCode) {
       for (let attempt = 0; attempt < 5; attempt++) {
         await new Promise((resolve) => setTimeout(resolve, 200));
         const refreshed = await getFriendById(db, friend.id);
-        const refreshedRef = (refreshed as { ref_code?: string | null } | null)?.ref_code ?? null;
+        const refreshedRef = (refreshed as { last_ref_code?: string | null } | null)?.last_ref_code ?? null;
         if (refreshedRef) {
           friendRefCode = refreshedRef;
           break;
@@ -287,6 +295,18 @@ async function handleEvent(
     const referralRoute: EntryRoute | null = friendRefCode
       ? await getEntryRouteByRefCode(db, friendRefCode)
       : null;
+
+    // 副業マッチング (Phase A): jobmatch- プレフィックスの ref_code からの
+    // 友だち追加は、通常の friend_add シナリオではなく専用の Q1/Q2 診断会話を
+    // 開始する。entry_routes 側の設定 (シナリオ・intro push) とは独立した経路。
+    if (isJobMatchingReferral(friendRefCode)) {
+      try {
+        await beginJobMatchingConversation(db, lineClient, friend);
+      } catch (err) {
+        console.error('[follow] job-matching conversation start failed', err);
+      }
+    }
+
     const runAccountScenarios =
       !referralRoute || referralRoute.run_account_friend_add_scenarios !== 0;
 
@@ -409,6 +429,30 @@ async function handleEvent(
         .run();
     } catch (err) {
       console.error('Failed to log incoming postback', err);
+    }
+
+    // 副業マッチング (Phase A) の Q1/Q2 postback はここで先取りする。
+    // 会話状態と postback data の両方が一致したときだけ handled:true が返るので、
+    // 無関係な postback (リッチメニュー等) は下の通常フローに素通りする。
+    try {
+      const jobMatchingResult = await handleJobMatchingPostback(
+        db,
+        lineClient,
+        friend,
+        postbackData,
+        aiReplyEnv ? buildProvider(aiReplyEnv) : null,
+        aiReplyEnv ?? {},
+      );
+      if (jobMatchingResult.handled) {
+        await fireEvent(db, 'postback_received', {
+          friendId: friend.id,
+          eventData: { text: postbackData, matched: true },
+          replyToken: event.replyToken,
+        }, lineAccessToken, lineAccountId);
+        return;
+      }
+    } catch (err) {
+      console.error('[postback] job-matching handling failed', err);
     }
 
     // postback data を auto_replies にマッチさせて返信 (テキスト経路と共通)。

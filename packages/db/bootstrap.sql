@@ -505,6 +505,14 @@ CREATE TABLE friends (
   -- 072: LINE↔Telegram 同一人物紐付け
   telegram_user_id TEXT,
   tg_verified_at   TEXT,
+  -- 075: 副業マッチング自動化 (Phase A)。本人確認書類関連の列は追加しない
+  -- (要件確定前に個人情報を集める列だけ先に用意しない方針)。
+  q1_answer         TEXT,
+  q2_answer         TEXT,
+  lead_score        INTEGER,
+  lead_temperature  TEXT CHECK (lead_temperature IN ('hot', 'warm', 'cold')),
+  job_matching_conversation_state TEXT
+    CHECK (job_matching_conversation_state IN ('awaiting_q1', 'awaiting_q2', 'diagnosed')),
   created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
   updated_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
 , ref_code TEXT, metadata TEXT NOT NULL DEFAULT '{}', line_account_id TEXT REFERENCES line_accounts(id), first_tracked_link_id TEXT REFERENCES tracked_links (id) ON DELETE SET NULL);
@@ -1291,6 +1299,8 @@ CREATE INDEX idx_friend_tags_tag_id ON friend_tags (tag_id);
 CREATE INDEX idx_friends_follow_tenure ON friends(is_following, current_follow_started_at);
 
 CREATE INDEX idx_friends_ig_igsid ON friends (ig_igsid);
+
+CREATE INDEX idx_friends_lead_temperature ON friends (lead_temperature);
 
 CREATE INDEX idx_friends_line_user_id ON friends (line_user_id);
 

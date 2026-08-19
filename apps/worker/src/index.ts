@@ -120,6 +120,8 @@ export type Env = {
     ANTHROPIC_API_KEY?: string;        // secret: wrangler secret put ANTHROPIC_API_KEY
     AI_REPLY_MODEL?: string;           // var: 既定 claude-haiku-4-5-20251001
     AI_REPLY_SYSTEM_PROMPT?: string;   // var: 既定プロンプトを上書きしたい場合のみ
+    // 副業マッチング (Phase A) — リード確定時の Discord 通知
+    DISCORD_LEADS_WEBHOOK_URL?: string; // secret: wrangler secret put DISCORD_LEADS_WEBHOOK_URL
     LIFF_URL: string;
     LINE_CHANNEL_ID: string;
     LINE_LOGIN_CHANNEL_ID: string;

@@ -26,7 +26,7 @@ const DEFAULT_SYSTEM_PROMPT =
 
 const HISTORY_LIMIT = 10;
 
-function buildProvider(env: AiReplyEnv): AiReplyProvider | null {
+export function buildProvider(env: AiReplyEnv): AiReplyProvider | null {
   const providerName = env.AI_PROVIDER ?? 'anthropic';
   if (providerName === 'anthropic') {
     if (!env.ANTHROPIC_API_KEY) return null;
