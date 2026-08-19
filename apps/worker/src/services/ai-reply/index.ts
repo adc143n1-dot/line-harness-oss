@@ -1,6 +1,7 @@
 import type { LineClient } from '@line-crm/line-sdk';
 import type { Friend } from '@line-crm/db';
-import { logOutgoingMessage } from '../event-bus.js';
+import { getAccountSetting, setAccountSetting } from '@line-crm/db';
+import { logOutgoingMessage, fireEvent } from '../event-bus.js';
 import type { AiReplyMessage, AiReplyProvider } from './provider.js';
 import { AnthropicProvider } from './anthropic-provider.js';
 
@@ -62,24 +63,30 @@ async function isAccountOptedOut(db: D1Database, lineAccountId: string | null): 
   return row?.value === 'false';
 }
 
+interface DailyLimitCheck {
+  reached: boolean;
+  limit: number;
+  count: number;
+}
+
 /**
  * 日次上限を messages_log の実測でチェックする。専用のカウンターテーブルは
  * 持たない (二重管理・書き込み競合を避けるため)。境界付近での多少の超過は
  * 許容する — 会計上の厳密なガードではなく運用コストの抑制が目的。
  */
-async function isDailyLimitReached(
+async function checkDailyLimit(
   db: D1Database,
   lineAccountId: string | null,
   todayPrefix: string,
-): Promise<boolean> {
-  if (!lineAccountId) return false;
+): Promise<DailyLimitCheck | null> {
+  if (!lineAccountId) return null;
   const limitRow = await db
     .prepare(`SELECT value FROM account_settings WHERE line_account_id = ? AND key = 'ai_reply_daily_limit'`)
     .bind(lineAccountId)
     .first<{ value: string }>();
-  if (!limitRow) return false;
+  if (!limitRow) return null;
   const limit = Number(limitRow.value);
-  if (!Number.isFinite(limit)) return false;
+  if (!Number.isFinite(limit)) return null;
 
   const countRow = await db
     .prepare(
@@ -87,7 +94,37 @@ async function isDailyLimitReached(
     )
     .bind(lineAccountId, `${todayPrefix}%`)
     .first<{ n: number }>();
-  return (countRow?.n ?? 0) >= limit;
+  const count = countRow?.n ?? 0;
+  return { reached: count >= limit, limit, count };
+}
+
+const LIMIT_ALERT_DATE_KEY = 'ai_reply_limit_alert_sent_date';
+
+/**
+ * 日次上限到達を、運営者が /webhooks で設定済みの送信Webhook (Slack等) へ
+ * 通知する。上限自体は前回のセッションで実装済みだが、到達しても誰も気づけ
+ * ないまま無応答が続く状態だったため、これを埋める。
+ *
+ * 通知チャネルは新規に作らない。fireEvent() は既存の送信Webhook配信基盤
+ * (event-bus.ts) をそのまま使う — event_types に 'ai_reply_daily_limit_reached'
+ * (または '*') を登録した送信Webhookへ自動的に届く。
+ *
+ * 同日中に何度も届いても意味が無い (最初の1件で運営者は気づける) ので、
+ * account_settings に当日の送信済みフラグを立てて同日の再送を防ぐ。
+ */
+async function alertDailyLimitReachedOnce(
+  db: D1Database,
+  lineAccountId: string,
+  check: DailyLimitCheck,
+  todayPrefix: string,
+): Promise<void> {
+  const alreadySent = await getAccountSetting(db, lineAccountId, LIMIT_ALERT_DATE_KEY);
+  if (alreadySent === todayPrefix) return;
+
+  await setAccountSetting(db, lineAccountId, LIMIT_ALERT_DATE_KEY, todayPrefix);
+  await fireEvent(db, 'ai_reply_daily_limit_reached', {
+    eventData: { lineAccountId, limit: check.limit, count: check.count, date: todayPrefix },
+  });
 }
 
 /**
@@ -118,7 +155,11 @@ export async function maybeSendAiReply(
   if (await isAccountOptedOut(db, lineAccountId)) return { sent: false, reason: 'account_disabled' };
 
   const todayPrefix = new Date(Date.now() + 9 * 60 * 60_000).toISOString().slice(0, 10);
-  if (await isDailyLimitReached(db, lineAccountId, todayPrefix)) {
+  const limitCheck = await checkDailyLimit(db, lineAccountId, todayPrefix);
+  if (limitCheck?.reached) {
+    // lineAccountId は checkDailyLimit が null を返さなかった時点で必ず string
+    // (checkDailyLimit は lineAccountId が null なら常に null を返す)。
+    await alertDailyLimitReachedOnce(db, lineAccountId as string, limitCheck, todayPrefix);
     return { sent: false, reason: 'daily_limit_reached' };
   }
 

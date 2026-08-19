@@ -1,8 +1,8 @@
 import { describe, expect, test, vi, beforeEach } from 'vitest';
 
-vi.mock('../event-bus.js', () => ({ logOutgoingMessage: vi.fn() }));
+vi.mock('../event-bus.js', () => ({ logOutgoingMessage: vi.fn(), fireEvent: vi.fn() }));
 
-import { logOutgoingMessage } from '../event-bus.js';
+import { logOutgoingMessage, fireEvent } from '../event-bus.js';
 import { maybeSendAiReply } from './index.js';
 import type { AiReplyProvider } from './provider.js';
 
@@ -49,8 +49,11 @@ function fakeAccountAwareDb(opts: {
           if (sql.includes('COUNT(*) AS n')) {
             return Promise.resolve({ n: opts.aiReplyCountToday ?? 0 });
           }
+          // 上限アラート済みフラグ (ai_reply_limit_alert_sent_date) はデフォルトで
+          // 未送信 (null) 扱いにする — テストごとに明示指定しない限りアラートが発火する。
           return Promise.resolve(null);
         }),
+        run: vi.fn().mockResolvedValue({ success: true }),
       })),
     })),
   } as unknown as D1Database;
@@ -298,6 +301,89 @@ describe('maybeSendAiReply — アカウント別トグルと日次上限', () =
     );
 
     expect(result).toEqual({ sent: true });
+    vi.unstubAllGlobals();
+  });
+});
+
+describe('maybeSendAiReply — 日次上限到達アラート', () => {
+  const env = { AI_REPLY_ENABLED: 'true', ANTHROPIC_API_KEY: 'sk-test' };
+
+  function fakeDbWithAlertState(opts: {
+    dailyLimitValue: string;
+    aiReplyCountToday: number;
+    alertAlreadySentDate?: string;
+  }) {
+    const runCalls: Array<{ sql: string; params: unknown[] }> = [];
+    const db = {
+      prepare: vi.fn((sql: string) => {
+        const stmt = {
+          params: [] as unknown[],
+          bind: vi.fn((...p: unknown[]) => { stmt.params = p; return stmt; }),
+          first: vi.fn(async () => {
+            if (sql.includes("key = 'ai_reply_daily_limit'")) return { value: opts.dailyLimitValue };
+            if (sql.includes('COUNT(*) AS n')) return { n: opts.aiReplyCountToday };
+            // getAccountSetting() は汎用ヘルパーで、key をリテラルではなく
+            // バインドパラメータ (`key = ?`) として渡す。SQL 文字列にキー名は
+            // 現れないため、params 側で判定する。
+            if (sql.includes('account_settings') && sql.includes('key = ?')) {
+              const key = stmt.params[1];
+              if (key === 'ai_reply_limit_alert_sent_date') {
+                return opts.alertAlreadySentDate ? { value: opts.alertAlreadySentDate } : null;
+              }
+            }
+            return null;
+          }),
+          all: vi.fn(async () => ({ results: [] })),
+          run: vi.fn(async () => { runCalls.push({ sql, params: stmt.params }); return { success: true }; }),
+        };
+        return stmt;
+      }),
+    };
+    return { db: db as unknown as D1Database, runCalls };
+  }
+
+  test('上限到達時、初回は fireEvent でアラートを送る', async () => {
+    vi.mocked(fireEvent).mockClear();
+    const { db } = fakeDbWithAlertState({ dailyLimitValue: '5', aiReplyCountToday: 5 });
+
+    const result = await maybeSendAiReply(
+      db, fakeLineClient(), fakeFriend(), { operator_id: null }, 'こんにちは', env, { lineAccountId: 'acct-1' },
+    );
+
+    expect(result).toEqual({ sent: false, reason: 'daily_limit_reached' });
+    expect(fireEvent).toHaveBeenCalledTimes(1);
+    const [, eventType, payload] = vi.mocked(fireEvent).mock.calls[0];
+    expect(eventType).toBe('ai_reply_daily_limit_reached');
+    expect(payload).toMatchObject({ eventData: { lineAccountId: 'acct-1', limit: 5, count: 5 } });
+  });
+
+  test('同日中に2回目到達しても再送しない', async () => {
+    vi.mocked(fireEvent).mockClear();
+    const today = new Date(Date.now() + 9 * 60 * 60_000).toISOString().slice(0, 10);
+    const { db } = fakeDbWithAlertState({
+      dailyLimitValue: '5', aiReplyCountToday: 7, alertAlreadySentDate: today,
+    });
+
+    await maybeSendAiReply(
+      db, fakeLineClient(), fakeFriend(), { operator_id: null }, 'こんにちは', env, { lineAccountId: 'acct-1' },
+    );
+
+    expect(fireEvent).not.toHaveBeenCalled();
+  });
+
+  test('上限未到達なら fireEvent を呼ばない', async () => {
+    vi.mocked(fireEvent).mockClear();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ content: [{ type: 'text', text: 'ok' }] }), { status: 200 })),
+    );
+    const { db } = fakeDbWithAlertState({ dailyLimitValue: '5', aiReplyCountToday: 2 });
+
+    await maybeSendAiReply(
+      db, fakeLineClient(), fakeFriend(), { operator_id: null }, 'こんにちは', env, { lineAccountId: 'acct-1' },
+    );
+
+    expect(fireEvent).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
   });
 });
