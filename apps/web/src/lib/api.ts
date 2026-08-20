@@ -284,7 +284,38 @@ export type FriendListItem = FriendWithTags & Partial<{
   handled: boolean
 }>
 
+export type JobMatchingLeadParams = {
+  offset?: string
+  limit?: string | number
+  temperature?: 'hot' | 'warm' | 'cold'
+  search?: string
+}
+export type JobMatchingLeadItem = {
+  id: string
+  displayName: string | null
+  pictureUrl: string | null
+  q1Answer: string | null
+  q2Answer: string | null
+  leadScore: number | null
+  leadTemperature: 'hot' | 'warm' | 'cold' | null
+  conversationState: 'awaiting_q1' | 'awaiting_q2' | 'diagnosed' | null
+  createdAt: string
+  updatedAt: string
+}
+
 export const api = {
+  jobMatchingLeads: {
+    list: (params?: JobMatchingLeadParams) => {
+      const query: Record<string, string> = {}
+      if (params?.offset) query.offset = String(params.offset)
+      if (params?.limit) query.limit = String(params.limit)
+      if (params?.temperature) query.temperature = params.temperature
+      if (params?.search) query.search = params.search
+      return fetchApi<ApiResponse<PaginatedResponse<JobMatchingLeadItem>>>(
+        '/api/job-matching/leads?' + new URLSearchParams(query)
+      )
+    },
+  },
   friends: {
     list: (params?: FriendListParams) => {
       const query: Record<string, string> = {}

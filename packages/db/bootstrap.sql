@@ -1300,6 +1300,8 @@ CREATE INDEX idx_friends_follow_tenure ON friends(is_following, current_follow_s
 
 CREATE INDEX idx_friends_ig_igsid ON friends (ig_igsid);
 
+CREATE INDEX idx_friends_job_matching_state ON friends (job_matching_conversation_state);
+
 CREATE INDEX idx_friends_lead_temperature ON friends (lead_temperature);
 
 CREATE INDEX idx_friends_line_user_id ON friends (line_user_id);

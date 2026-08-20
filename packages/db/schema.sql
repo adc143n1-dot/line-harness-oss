@@ -47,6 +47,8 @@ CREATE INDEX IF NOT EXISTS idx_friends_source ON friends (source);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_friends_telegram_user_id
   ON friends (telegram_user_id) WHERE telegram_user_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_friends_lead_temperature ON friends (lead_temperature);
+-- 076: リード一覧画面の絞り込み高速化
+CREATE INDEX IF NOT EXISTS idx_friends_job_matching_state ON friends (job_matching_conversation_state);
 
 -- ============================================================
 -- Tags
