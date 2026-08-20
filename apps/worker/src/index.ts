@@ -34,6 +34,7 @@ import { authMiddleware } from './middleware/auth.js';
 import { rateLimitMiddleware } from './middleware/rate-limit.js';
 import { webhook } from './routes/webhook.js';
 import { telegram } from './routes/telegram.js';
+import { discordLink } from './routes/discord-link.js';
 import { emergency } from './routes/emergency.js';
 import { messages } from './routes/messages.js';
 import { friends } from './routes/friends.js';
@@ -115,6 +116,11 @@ export type Env = {
     TELEGRAM_BOT_TOKEN?: string;      // secret: wrangler secret put TELEGRAM_BOT_TOKEN
     TELEGRAM_BOT_USERNAME?: string;   // var: @ を除いた Bot ユーザー名
     TELEGRAM_WEBHOOK_SECRET?: string; // secret: setWebhook の secret_token と同値
+    // LINE↔Discord 紐付け (副業マッチング Phase C)。redirect_uri は
+    // `${WORKER_URL}/discord/callback` 固定 (Discord Developer Portal 側の
+    // OAuth2 Redirects に完全一致で登録する必要がある)。
+    DISCORD_OAUTH_CLIENT_ID?: string;     // var: Discord Developer Portal の Client ID
+    DISCORD_OAUTH_CLIENT_SECRET?: string; // secret: wrangler secret put DISCORD_OAUTH_CLIENT_SECRET
     // AI 自動応答 (キーワード未一致・担当者未割当のときのみ発動)
     AI_REPLY_ENABLED?: string;         // var: 'true' のときだけ動作 (フェイルセーフ)
     AI_PROVIDER?: string;              // var: 現状 'anthropic' のみ
@@ -209,6 +215,7 @@ app.use('*', authMiddleware);
 // Mount route groups — MVP & Round 2
 app.route('/', webhook);
 app.route('/', telegram);
+app.route('/', discordLink);
 app.route('/', emergency);
 app.route('/', messages);
 app.route('/', friends);

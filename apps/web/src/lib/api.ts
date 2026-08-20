@@ -1073,6 +1073,12 @@ export const api = {
         `/api/chats/${id}/invite-telegram`,
         { method: 'POST' },
       ),
+    /** Discord 誘導リンク (OAuth2認可URL) を LINE で送る。24 時間で失効する専用トークンを発行する */
+    inviteDiscord: (id: string) =>
+      fetchApi<ApiResponse<{ inviteUrl: string; expiresAt: string }>>(
+        `/api/chats/${id}/invite-discord`,
+        { method: 'POST' },
+      ),
     /** 自分に引き取る。他のスタッフが担当中なら 409 (force で引き取り) */
     claim: (id: string, opts?: { force?: boolean }) =>
       fetchApi<ApiResponse<{ operatorId: string | null; status: Chat['status']; version: number }>>(

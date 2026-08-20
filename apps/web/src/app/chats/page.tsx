@@ -32,6 +32,8 @@ interface Chat {
   source: string | null
   /** 紐付け済みの Telegram ユーザー ID (未連携なら null) */
   telegramUserId: string | null
+  /** 紐付け済みの Discord ユーザー ID (未連携なら null) */
+  discordUserId: string | null
   /** 楽観ロック用。更新のたびに +1 される */
   version: number
   notes: string | null
@@ -66,6 +68,7 @@ interface ChatDetail extends Chat {
   friendName: string
   friendPictureUrl: string | null
   tgVerifiedAt?: string | null
+  discordVerifiedAt?: string | null
   messages?: ChatMessage[]
 }
 
@@ -404,6 +407,7 @@ export default function ChatsPage() {
   const [newNoteContent, setNewNoteContent] = useState('')
   const [addingNote, setAddingNote] = useState(false)
   const [invitingTelegram, setInvitingTelegram] = useState(false)
+  const [invitingDiscord, setInvitingDiscord] = useState(false)
   const [myStaffId, setMyStaffId] = useState<string | null>(null)
   const [claiming, setClaiming] = useState(false)
 
@@ -625,6 +629,7 @@ export default function ChatsPage() {
         outcome: chatDetail.outcome ?? null,
         source: chatDetail.source ?? null,
         telegramUserId: chatDetail.telegramUserId ?? null,
+        discordUserId: chatDetail.discordUserId ?? null,
         version: chatDetail.version ?? 0,
         notes: chatDetail.notes ?? null,
         lastMessageAt: chatDetail.lastMessageAt ?? lastMsg?.createdAt ?? null,
@@ -969,6 +974,26 @@ export default function ChatsPage() {
       )
     } finally {
       setInvitingTelegram(false)
+    }
+  }
+
+  const handleInviteDiscord = async () => {
+    if (!selectedChatId) return
+    if (!confirm('このユーザーに Discord 誘導リンクを LINE で送りますか？')) return
+    setInvitingDiscord(true)
+    try {
+      await api.chats.inviteDiscord(selectedChatId)
+      loadChatDetail(selectedChatId)
+      loadChats()
+    } catch (err) {
+      const status = err instanceof ApiError ? err.status : 0
+      setError(
+        status === 400
+          ? 'この友だちは既に Discord と連携済みです。'
+          : `Discord 誘導リンクの送信に失敗しました (HTTP ${status || '不明'})。`,
+      )
+    } finally {
+      setInvitingDiscord(false)
     }
   }
 
@@ -1385,6 +1410,23 @@ export default function ChatsPage() {
                       title="Telegram 誘導リンクを LINE で送る (24時間で失効)"
                     >
                       {invitingTelegram ? '送信中…' : '📨 Telegramに誘導する'}
+                    </button>
+                  )}
+                  {chatDetail.discordUserId ? (
+                    <span
+                      className="px-2 py-1 text-xs font-medium text-indigo-700 bg-indigo-50 rounded-md"
+                      title={chatDetail.discordVerifiedAt ? `連携日時: ${chatDetail.discordVerifiedAt}` : undefined}
+                    >
+                      ✅ Discord連携済
+                    </span>
+                  ) : (
+                    <button
+                      onClick={handleInviteDiscord}
+                      disabled={invitingDiscord}
+                      className="px-3 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-md transition-colors disabled:opacity-50"
+                      title="Discord 誘導リンクを LINE で送る (24時間で失効)"
+                    >
+                      {invitingDiscord ? '送信中…' : '💬 Discordに誘導する'}
                     </button>
                   )}
                 </div>

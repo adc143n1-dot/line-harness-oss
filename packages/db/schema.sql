@@ -35,6 +35,9 @@ CREATE TABLE IF NOT EXISTS friends (
   lead_temperature  TEXT CHECK (lead_temperature IN ('hot', 'warm', 'cold')),
   job_matching_conversation_state TEXT
     CHECK (job_matching_conversation_state IN ('awaiting_q1', 'awaiting_q2', 'diagnosed')),
+  -- 077: LINE↔Discord 同一人物紐付け (副業マッチング Phase C)
+  discord_user_id     TEXT,
+  discord_verified_at TEXT,
   created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
   updated_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
 );
@@ -49,6 +52,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_friends_telegram_user_id
 CREATE INDEX IF NOT EXISTS idx_friends_lead_temperature ON friends (lead_temperature);
 -- 076: リード一覧画面の絞り込み高速化
 CREATE INDEX IF NOT EXISTS idx_friends_job_matching_state ON friends (job_matching_conversation_state);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_friends_discord_user_id
+  ON friends (discord_user_id) WHERE discord_user_id IS NOT NULL;
 
 -- ============================================================
 -- Tags
@@ -1200,3 +1205,15 @@ CREATE TABLE IF NOT EXISTS tg_invite_tokens (
 );
 
 CREATE INDEX IF NOT EXISTS idx_tg_invite_tokens_friend_id ON tg_invite_tokens (friend_id);
+
+-- 077: LINE↔Discord 紐付けの招待トークン (Telegramと同じ設計。OAuth2のstateとしても使う)
+CREATE TABLE IF NOT EXISTS discord_invite_tokens (
+  token      TEXT PRIMARY KEY,
+  friend_id  TEXT NOT NULL REFERENCES friends (id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  expires_at TEXT NOT NULL,
+  used_at    TEXT,
+  revoked_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_discord_invite_tokens_friend_id ON discord_invite_tokens (friend_id);

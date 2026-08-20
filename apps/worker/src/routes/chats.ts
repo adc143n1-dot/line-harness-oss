@@ -14,6 +14,7 @@ import {
 } from '@line-crm/db';
 import type { Env } from '../index.js';
 import { persistableStaffId } from '../middleware/auth.js';
+import { discordOAuthConfigured, buildDiscordAuthorizeUrl } from '../services/discord-oauth.js';
 
 const chats = new Hono<Env>();
 
@@ -270,6 +271,7 @@ chats.get('/api/chats', async (c) => {
         f.line_account_id,
         f.source,
         f.telegram_user_id,
+        f.discord_user_id,
         c.operator_id,
         COALESCE(c.status, 'resolved') AS status,
         c.outcome,
@@ -311,6 +313,7 @@ chats.get('/api/chats', async (c) => {
       version: ch.version ?? 0,
       source: ch.source ?? null,
       telegramUserId: ch.telegram_user_id ?? null,
+      discordUserId: ch.discord_user_id ?? null,
       notes: ch.notes,
       lastMessageAt: ch.last_message_at,
       lastMessageContent: ch.last_message_content || null,
@@ -383,7 +386,8 @@ chats.get('/api/chats/:id', async (c) => {
 
     const friend = await c.env.DB
       .prepare(
-        `SELECT display_name, picture_url, line_user_id, source, telegram_user_id, tg_verified_at
+        `SELECT display_name, picture_url, line_user_id, source, telegram_user_id, tg_verified_at,
+                discord_user_id, discord_verified_at
          FROM friends WHERE id = ?`,
       )
       .bind(resolvedFriendId)
@@ -394,6 +398,8 @@ chats.get('/api/chats/:id', async (c) => {
         source: string | null;
         telegram_user_id: string | null;
         tg_verified_at: string | null;
+        discord_user_id: string | null;
+        discord_verified_at: string | null;
       }>();
 
     // 新しい1000件を取って昇順に戻す。LIMIT 200 ASC だと古い200件だけで broadcast/scenario 等の
@@ -424,6 +430,8 @@ chats.get('/api/chats/:id', async (c) => {
         source: friend?.source ?? null,
         telegramUserId: friend?.telegram_user_id ?? null,
         tgVerifiedAt: friend?.tg_verified_at ?? null,
+        discordUserId: friend?.discord_user_id ?? null,
+        discordVerifiedAt: friend?.discord_verified_at ?? null,
         notes,
         lastMessageAt,
         createdAt,
@@ -689,6 +697,83 @@ chats.post('/api/chats/:id/invite-telegram', async (c) => {
     return c.json({ success: true, data: { inviteUrl, expiresAt } });
   } catch (err) {
     console.error('POST /api/chats/:id/invite-telegram error:', err);
+    return c.json({ success: false, error: 'Internal server error' }, 500);
+  }
+});
+
+// Discord 誘導リンクを LINE で送る (副業マッチング Phase C)。
+// invite-telegram と全く同じ設計: トークンは24時間で失効し、再発行すると
+// 未使用の旧トークンは失効する。ここでの「トークン」はそのまま Discord
+// OAuth2 の state パラメータとしても使われる (discord-link.ts の callback で
+// 消費される)。
+chats.post('/api/chats/:id/invite-discord', async (c) => {
+  try {
+    const chat = await resolveOrCreateChat(c.env.DB, c.req.param('id'));
+    if (!chat) return c.json({ success: false, error: 'Chat not found' }, 404);
+
+    const creds = {
+      clientId: c.env.DISCORD_OAUTH_CLIENT_ID,
+      clientSecret: c.env.DISCORD_OAUTH_CLIENT_SECRET,
+      redirectUri: `${c.env.WORKER_URL || new URL(c.req.url).origin}/discord/callback`,
+    };
+    if (!discordOAuthConfigured(creds)) {
+      return c.json({ success: false, error: 'Discord OAuth is not configured' }, 500);
+    }
+
+    const { friend, accessToken } = await resolveFriendAndAccessToken(
+      c.env.DB,
+      chat.friend_id,
+      c.env.LINE_CHANNEL_ACCESS_TOKEN,
+    );
+    if (!friend) return c.json({ success: false, error: 'Friend not found' }, 404);
+    if ((friend as { discord_user_id?: string | null }).discord_user_id) {
+      return c.json({ success: false, error: 'Already linked' }, 400);
+    }
+
+    const now = jstNow();
+    const expiresAt = toJstString(new Date(Date.now() + 24 * 60 * 60 * 1000));
+
+    await c.env.DB
+      .prepare(
+        `UPDATE discord_invite_tokens SET revoked_at = ?
+          WHERE friend_id = ? AND used_at IS NULL AND revoked_at IS NULL`,
+      )
+      .bind(now, friend.id)
+      .run();
+
+    const token = crypto.randomUUID().replace(/-/g, '').slice(0, 24);
+    await c.env.DB
+      .prepare(
+        `INSERT INTO discord_invite_tokens (token, friend_id, created_at, expires_at) VALUES (?, ?, ?, ?)`,
+      )
+      .bind(token, friend.id, now, expiresAt)
+      .run();
+
+    const inviteUrl = buildDiscordAuthorizeUrl(creds, token);
+    const message = `詳しい案内はこちらの Discord から↓\n${inviteUrl}\n（このリンクはあなた専用です。24時間で無効になります）`;
+
+    const { LineClient } = await import('@line-crm/line-sdk');
+    await new LineClient(accessToken).pushTextMessage(friend.line_user_id, message);
+
+    const sentByStaffId = persistableStaffId(c.get('staff'));
+    await c.env.DB
+      .prepare(
+        `INSERT INTO messages_log (id, friend_id, direction, message_type, content, source, sent_by_staff_id, created_at) VALUES (?, ?, 'outgoing', 'text', ?, 'manual', ?, ?)`,
+      )
+      .bind(crypto.randomUUID(), friend.id, message, sentByStaffId, now)
+      .run();
+
+    await updateChat(c.env.DB, chat.id, {
+      status: 'in_progress',
+      lastMessageAt: now,
+      lastActivityAt: now,
+      lastRepliedBy: 'operator',
+      ...(chat.first_response_at ? {} : { firstResponseAt: now }),
+    });
+
+    return c.json({ success: true, data: { inviteUrl, expiresAt } });
+  } catch (err) {
+    console.error('POST /api/chats/:id/invite-discord error:', err);
     return c.json({ success: false, error: 'Internal server error' }, 500);
   }
 });

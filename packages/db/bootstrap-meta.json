@@ -80,7 +80,8 @@
     "073_chat_notes.sql",
     "074_messages_fts.sql",
     "075_job_matching_leads.sql",
-    "076_job_matching_conversation_state_index.sql"
+    "076_job_matching_conversation_state_index.sql",
+    "077_discord_link.sql"
   ],
-  "migrationCount": 81
+  "migrationCount": 82
 }

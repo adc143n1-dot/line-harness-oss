@@ -291,6 +291,15 @@ CREATE TABLE conversion_points (
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
 );
 
+CREATE TABLE discord_invite_tokens (
+  token      TEXT PRIMARY KEY,
+  friend_id  TEXT NOT NULL REFERENCES friends (id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  expires_at TEXT NOT NULL,
+  used_at    TEXT,
+  revoked_at TEXT
+);
+
 CREATE TABLE engagement_events (
   id                TEXT PRIMARY KEY,
   program_id        TEXT NOT NULL REFERENCES mileage_programs(id),
@@ -513,6 +522,9 @@ CREATE TABLE friends (
   lead_temperature  TEXT CHECK (lead_temperature IN ('hot', 'warm', 'cold')),
   job_matching_conversation_state TEXT
     CHECK (job_matching_conversation_state IN ('awaiting_q1', 'awaiting_q2', 'diagnosed')),
+  -- 077: LINE↔Discord 同一人物紐付け (副業マッチング Phase C)
+  discord_user_id     TEXT,
+  discord_verified_at TEXT,
   created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
   updated_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
 , ref_code TEXT, metadata TEXT NOT NULL DEFAULT '{}', line_account_id TEXT REFERENCES line_accounts(id), first_tracked_link_id TEXT REFERENCES tracked_links (id) ON DELETE SET NULL);
@@ -1242,6 +1254,8 @@ CREATE INDEX idx_conversion_events_friend ON conversion_events (friend_id);
 
 CREATE INDEX idx_conversion_events_point ON conversion_events (conversion_point_id);
 
+CREATE INDEX idx_discord_invite_tokens_friend_id ON discord_invite_tokens (friend_id);
+
 CREATE INDEX idx_engagement_events_actor_friend
   ON engagement_events(program_id, actor_friend_id, occurred_at DESC);
 
@@ -1295,6 +1309,9 @@ CREATE INDEX idx_friend_scores_created ON friend_scores (created_at);
 CREATE INDEX idx_friend_scores_friend ON friend_scores (friend_id);
 
 CREATE INDEX idx_friend_tags_tag_id ON friend_tags (tag_id);
+
+CREATE UNIQUE INDEX idx_friends_discord_user_id
+  ON friends (discord_user_id) WHERE discord_user_id IS NOT NULL;
 
 CREATE INDEX idx_friends_follow_tenure ON friends(is_following, current_follow_started_at);
 
