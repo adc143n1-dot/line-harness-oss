@@ -5,6 +5,7 @@ const dbMocks = vi.hoisted(() => ({
   startJobMatchingConversation: vi.fn(),
   recordQ1Answer: vi.fn(),
   recordQ2AnswerAndScore: vi.fn(),
+  jstNow: vi.fn(() => '2026-08-20T10:00:00.000+09:00'),
 }));
 vi.mock('@line-crm/db', () => dbMocks);
 
@@ -17,6 +18,11 @@ const discordMocks = vi.hoisted(() => ({
   notifyDiscordOfLead: vi.fn(),
 }));
 vi.mock('./discord-notify.js', () => discordMocks);
+
+const sheetsMocks = vi.hoisted(() => ({
+  notifySheetsOfLead: vi.fn(),
+}));
+vi.mock('./sheets-notify.js', () => sheetsMocks);
 
 import {
   isJobMatchingReferral,
@@ -125,6 +131,7 @@ describe('handleJobMatchingPostback', () => {
     expect(dbMocks.recordQ1Answer).toHaveBeenCalledWith(db, FRIEND.id, 'fulltime');
     expect(lineClient.pushMessage).toHaveBeenCalledTimes(1);
     expect(discordMocks.notifyDiscordOfLead).not.toHaveBeenCalled();
+    expect(sheetsMocks.notifySheetsOfLead).not.toHaveBeenCalled();
   });
 
   it('状態が awaiting_q1 でないときは Q1 postback を無視する (handled:false)', async () => {
@@ -145,7 +152,7 @@ describe('handleJobMatchingPostback', () => {
     expect(lineClient.pushMessage).not.toHaveBeenCalled();
   });
 
-  it('awaiting_q2 中に Q2 postback を受けるとスコアリング・診断メッセージ送信・Discord通知まで行う', async () => {
+  it('awaiting_q2 中に Q2 postback を受けるとスコアリング・診断メッセージ送信・Discord/Sheets通知まで行う', async () => {
     dbMocks.getJobMatchingLeadState.mockResolvedValue({
       job_matching_conversation_state: 'awaiting_q2',
       q1_answer: 'fulltime',
@@ -155,7 +162,10 @@ describe('handleJobMatchingPostback', () => {
     });
     const db = fakeDb();
     const lineClient = fakeLineClient();
-    const env = { DISCORD_LEADS_WEBHOOK_URL: 'https://discord.example/webhook' };
+    const env = {
+      DISCORD_LEADS_WEBHOOK_URL: 'https://discord.example/webhook',
+      GOOGLE_SHEETS_WEBHOOK_URL: 'https://script.google.com/macros/s/xxx/exec',
+    };
 
     const result = await handleJobMatchingPostback(
       db,
@@ -173,6 +183,10 @@ describe('handleJobMatchingPostback', () => {
     expect(discordMocks.notifyDiscordOfLead).toHaveBeenCalledWith(
       env,
       expect.objectContaining({ score: 70, temperature: 'hot' }),
+    );
+    expect(sheetsMocks.notifySheetsOfLead).toHaveBeenCalledWith(
+      env,
+      expect.objectContaining({ friendId: FRIEND.id, score: 70, temperature: 'hot', occurredAt: '2026-08-20T10:00:00.000+09:00' }),
     );
   });
 

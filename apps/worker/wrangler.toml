@@ -23,6 +23,7 @@ run_worker_first = true
 binding = "DB"
 database_name = "line-harness"
 database_id = "YOUR_DEV_D1_DATABASE_ID"
+migrations_dir = "../../packages/db/migrations"
 
 [[r2_buckets]]
 binding = "IMAGES"

@@ -24,6 +24,7 @@ import {
   handleJobMatchingPostback,
 } from '../services/job-matching/conversation.js';
 import type { JobMatchingEnv } from '../services/job-matching/discord-notify.js';
+import type { SheetsEnv } from '../services/job-matching/sheets-notify.js';
 import { buildMessage } from '../services/step-delivery.js';
 import { pushImmediateFirstStep } from '../services/immediate-first-step.js';
 import type { Env } from '../index.js';
@@ -206,7 +207,7 @@ async function handleEvent(
   liffUrl?: string,
   r2?: R2Bucket,
   proxyDispatch?: HarnessProxyDispatch,
-  aiReplyEnv?: AiReplyEnv & JobMatchingEnv,
+  aiReplyEnv?: AiReplyEnv & JobMatchingEnv & SheetsEnv,
 ): Promise<void> {
   if (event.type === 'follow') {
     const userId =

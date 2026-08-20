@@ -123,6 +123,9 @@ export type Env = {
     AI_REPLY_SYSTEM_PROMPT?: string;   // var: 既定プロンプトを上書きしたい場合のみ
     // 副業マッチング (Phase A) — リード確定時の Discord 通知
     DISCORD_LEADS_WEBHOOK_URL?: string; // secret: wrangler secret put DISCORD_LEADS_WEBHOOK_URL
+    // 副業マッチング (Phase B) — リード確定時の Google Sheets CRM 連携
+    // (docs/google-apps-script/job-matching-crm.gs を GAS Web App としてデプロイしたURL)
+    GOOGLE_SHEETS_WEBHOOK_URL?: string; // secret: wrangler secret put GOOGLE_SHEETS_WEBHOOK_URL
     LIFF_URL: string;
     LINE_CHANNEL_ID: string;
     LINE_LOGIN_CHANNEL_ID: string;

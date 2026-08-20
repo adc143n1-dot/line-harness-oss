@@ -6,12 +6,15 @@ import {
   startJobMatchingConversation,
   recordQ1Answer,
   recordQ2AnswerAndScore,
+  jstNow,
 } from '@line-crm/db';
 import { logOutgoingMessage } from '../event-bus.js';
 import { scoreLead, Q1_LABELS, Q2_LABELS } from './scoring.js';
 import type { Q1Answer, Q2Answer } from './scoring.js';
 import { notifyDiscordOfLead } from './discord-notify.js';
 import type { JobMatchingEnv } from './discord-notify.js';
+import { notifySheetsOfLead } from './sheets-notify.js';
+import type { SheetsEnv } from './sheets-notify.js';
 import type { AiReplyProvider } from '../ai-reply/index.js';
 
 // 副業マッチング会話ステートマシン (Phase A)。
@@ -97,7 +100,7 @@ export async function handleJobMatchingPostback(
   friend: Friend,
   postbackData: string,
   aiProvider: AiReplyProvider | null,
-  env: JobMatchingEnv,
+  env: JobMatchingEnv & SheetsEnv,
 ): Promise<HandlePostbackResult> {
   if (postbackData.startsWith(Q1_POSTBACK_PREFIX)) {
     const state = await getJobMatchingLeadState(db, friend.id);
@@ -142,6 +145,16 @@ export async function handleJobMatchingPostback(
       q2Label: Q2_LABELS[q2],
       score,
       temperature,
+    });
+
+    await notifySheetsOfLead(env, {
+      friendId: friend.id,
+      friendName: friend.display_name || '名前なし',
+      q1Label: Q1_LABELS[q1],
+      q2Label: Q2_LABELS[q2],
+      score,
+      temperature,
+      occurredAt: jstNow(),
     });
 
     return { handled: true };
