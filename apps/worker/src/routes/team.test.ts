@@ -4,6 +4,8 @@ import type { Env } from '../index.js';
 
 vi.mock('@line-crm/db', () => ({
   jstNow: vi.fn(() => '2026-08-22T15:00:00.000+09:00'),
+  getAccountSetting: vi.fn(async () => null),
+  setAccountSetting: vi.fn(),
 }));
 
 const inboxMocks = vi.hoisted(() => ({

@@ -315,18 +315,51 @@ export type TeamOverview = {
     waitingReply: number
     resolvedToday: number
     avgFirstResponseMinutes: number | null
+    resolved30d: number
+    converted30d: number
   }>
   global: {
     totalUnanswered: number
     unassignedBacklog: number
     hotUnassigned: number
   }
+  /** 直近14日の日別解決数 (day='YYYY-MM-DD') */
+  trend: Array<{ day: string; cnt: number }>
+  /** SLA目標 (未設定は null) */
+  targets: {
+    firstResponseMinutes: number | null
+    dailyResolved: number | null
+  }
+}
+
+export type AdvisorReport = {
+  generatedAt: string
+  trigger: 'manual' | 'weekly'
+  content: string
+}
+
+export type AutomationCandidate = {
+  type: 'repeated_manual_reply' | 'frequent_incoming'
+  content: string
+  count: number
 }
 
 export const api = {
   team: {
     /** チーム全体の担当状況 (スタッフ別の未完了内訳・本日解決・平均初動、未割当バックログ等) */
     overview: () => fetchApi<ApiResponse<TeamOverview>>('/api/team/overview'),
+    /** SLA目標の設定 (admin/owner のみ)。null で解除 */
+    setTargets: (data: { firstResponseMinutes?: number | null; dailyResolved?: number | null }) =>
+      fetchApi<ApiResponse<null>>('/api/team/targets', { method: 'PUT', body: JSON.stringify(data) }),
+  },
+  advisor: {
+    /** キャッシュ済みの最新AI所見 (未実行なら null) */
+    report: () => fetchApi<ApiResponse<AdvisorReport | null>>('/api/advisor/report'),
+    /** AI分析を今すぐ実行 (Anthropic APIを1回呼ぶ = 課金発生) */
+    analyze: () => fetchApi<ApiResponse<AdvisorReport>>('/api/advisor/analyze', { method: 'POST' }),
+    /** ルールベースの自動化候補 (無料) */
+    automationCandidates: () =>
+      fetchApi<ApiResponse<AutomationCandidate[]>>('/api/advisor/automation-candidates'),
   },
   jobMatchingLeads: {
     list: (params?: JobMatchingLeadParams) => {

@@ -41,6 +41,9 @@ import { messages } from './routes/messages.js';
 import { friends } from './routes/friends.js';
 import { jobMatchingLeads } from './routes/job-matching-leads.js';
 import { team } from './routes/team.js';
+import { advisor } from './routes/advisor.js';
+import { maybeRunWeeklyAdvisor } from './services/advisor.js';
+import { fireEvent } from './services/event-bus.js';
 import { tags } from './routes/tags.js';
 import { scenarios } from './routes/scenarios.js';
 import { broadcasts } from './routes/broadcasts.js';
@@ -223,6 +226,7 @@ app.route('/', messages);
 app.route('/', friends);
 app.route('/', jobMatchingLeads);
 app.route('/', team);
+app.route('/', advisor);
 app.route('/', tags);
 app.route('/', scenarios);
 app.route('/', broadcasts);
@@ -1166,6 +1170,31 @@ async function scheduled(
       );
     } catch (e) {
       console.error('booking-expirer error:', e);
+    }
+  }
+
+  // 週次AIアドバイザー分析 — 6時間おき cron のうち月曜 00:00 UTC (= JST 月曜9時)
+  // の1回だけ試行する。advisor_weekly_enabled='true' の明示的オプトイン時のみ
+  // 実行され、maybeRunWeeklyAdvisor 側の「6日以内実行済みならスキップ」で
+  // 多重発火も防ぐ。結果は advisor_weekly_report イベントとして送信Webhookへ。
+  if (event.cron === '0 */6 * * *') {
+    const at = new Date(event.scheduledTime);
+    if (at.getUTCDay() === 1 && at.getUTCHours() === 0) {
+      try {
+        const report = await maybeRunWeeklyAdvisor(env.DB, env);
+        if (report) {
+          console.log('[advisor-weekly] report generated');
+          await fireEvent(env.DB, 'advisor_weekly_report', {
+            eventData: {
+              generatedAt: report.generatedAt,
+              // Webhook 側のペイロード肥大を防ぐため 3000 文字で打ち切る
+              content: report.content.slice(0, 3000),
+            },
+          });
+        }
+      } catch (e) {
+        console.error('advisor-weekly error:', e);
+      }
     }
   }
 
