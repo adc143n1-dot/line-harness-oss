@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Header from '@/components/layout/header'
 import InboxFilters from '@/components/inbox/inbox-filters'
 import InboxList from '@/components/inbox/inbox-list'
@@ -33,6 +34,10 @@ export default function InboxPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [accountOptions, setAccountOptions] = useState<AccountOption[]>([])
+  const [staffRoster, setStaffRoster] = useState<{ id: string; name: string; isActive: boolean }[]>([])
+  const [myStaffId, setMyStaffId] = useState<string | null>(null)
+  const [claimingNext, setClaimingNext] = useState(false)
+  const router = useRouter()
 
   // 重複 polling で古いレスポンスが新しいデータを上書きしないように世代管理
   // (Codex Round 1 指摘: race condition)。
@@ -55,7 +60,39 @@ export default function InboxPage() {
         )
       }
     })
+    // 担当バッジの名前解決用名簿と、「次の未対応を担当」ボタンの表示判定
+    api.staff.roster().then((res) => {
+      if (res.success) setStaffRoster(res.data)
+    }).catch(() => {})
+    api.staff.me().then((res) => {
+      setMyStaffId(res.success ? res.data.id : null)
+    }).catch(() => setMyStaffId(null))
   }, [])
+
+  const operatorNameOf = useCallback(
+    (id: string) => staffRoster.find((s) => s.id === id)?.name ?? '不明なスタッフ',
+    [staffRoster],
+  )
+
+  // プル型分配: 未割当の未対応 (HOTリード優先・古い順) から次の1件を取って開く
+  const handleClaimNext = useCallback(async () => {
+    setClaimingNext(true)
+    setError('')
+    try {
+      const res = await api.chats.claimNext()
+      if (res.success) {
+        if (res.data) {
+          router.push(`/chats?friend=${encodeURIComponent(res.data.friendId)}`)
+        } else {
+          setError('未割当の未対応チャットはありません 🎉')
+        }
+      }
+    } catch {
+      setError('次の未対応の取得に失敗しました')
+    } finally {
+      setClaimingNext(false)
+    }
+  }, [router])
 
   const loadAll = useCallback(async () => {
     const seq = ++requestSeqRef.current
@@ -138,6 +175,19 @@ export default function InboxPage() {
       <Header
         title="未対応インボックス"
         description="人間が返事してない LINE 会話の triage。auto_reply は人間の返事に数えない。"
+        action={
+          myStaffId ? (
+            <button
+              onClick={() => { void handleClaimNext() }}
+              disabled={claimingNext}
+              className="px-4 py-2 min-h-[44px] rounded-lg text-white text-sm font-medium disabled:opacity-50"
+              style={{ backgroundColor: '#06C755' }}
+              title="未割当の未対応 (HOTリード優先・古い順) から次の1件を自分の担当にして開く"
+            >
+              {claimingNext ? '取得中…' : '▶ 次の未対応を担当する'}
+            </button>
+          ) : undefined
+        }
       />
 
       <InboxSummaryBar
@@ -177,6 +227,7 @@ export default function InboxPage() {
         pageSize={PAGE_SIZE}
         loading={loading}
         onPageChange={setPage}
+        operatorNameOf={staffRoster.length > 0 ? operatorNameOf : undefined}
       />
     </div>
   )

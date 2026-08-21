@@ -93,7 +93,7 @@ const CANDIDATES_SQL = `
   latest_chat AS (
     -- friend ごとの最新 chats 行の status (bare-column + 単一 MAX の argmax)。
     -- 相関サブクエリだと候補 friend 数ぶん個別 seek になるため一括 GROUP BY で取る。
-    SELECT friend_id, status, MAX(created_at) AS created_at
+    SELECT friend_id, status, operator_id, MAX(created_at) AS created_at
     FROM chats
     GROUP BY friend_id
   )
@@ -103,6 +103,7 @@ const CANDIDATES_SQL = `
     f.picture_url,
     f.line_account_id,
     COALESCE(la.name, '(未分類)') AS account_name,
+    lc.operator_id,
     agg.last_incoming,
     agg.last_manual,
     agg.last_machine
@@ -168,6 +169,8 @@ export interface UnansweredRow {
   pictureUrl: string | null;
   accountId: string;
   accountName: string;
+  /** 担当スタッフID。null なら未割当 (「誰も持っていない」と「担当済みだが遅い」の区別用) */
+  operatorId: string | null;
   lastIncomingAt: string;
   lastManualAt: string | null;
   lastMachineAt: string | null;
@@ -202,6 +205,7 @@ interface RawCandidateRow {
   picture_url: string | null;
   line_account_id: string;
   account_name: string;
+  operator_id: string | null;
   last_incoming: string;
   last_manual: string | null;
   last_machine: string | null;
@@ -300,6 +304,7 @@ async function getAllUnansweredRows(db: D1Database): Promise<UnansweredRow[]> {
       pictureUrl: c.picture_url,
       accountId: c.line_account_id,
       accountName: c.account_name,
+      operatorId: c.operator_id ?? null,
       lastIncomingAt: nonMatching.created_at,
       lastManualAt: c.last_manual,
       lastMachineAt: c.last_machine,

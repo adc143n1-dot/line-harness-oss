@@ -11,6 +11,8 @@ interface Props {
   pageSize: number
   loading: boolean
   onPageChange: (page: number) => void
+  /** 担当者ID→名前の解決。未指定なら行の担当バッジ非表示 */
+  operatorNameOf?: (id: string) => string
 }
 
 export default function InboxList({
@@ -20,6 +22,7 @@ export default function InboxList({
   pageSize,
   loading,
   onPageChange,
+  operatorNameOf,
 }: Props) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
   const start = total === 0 ? 0 : (page - 1) * pageSize + 1
@@ -34,7 +37,7 @@ export default function InboxList({
       ) : (
         <div>
           {rows.map((row) => (
-            <InboxRow key={row.friendId} row={row} />
+            <InboxRow key={row.friendId} row={row} operatorNameOf={operatorNameOf} />
           ))}
         </div>
       )}

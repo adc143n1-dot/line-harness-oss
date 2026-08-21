@@ -409,7 +409,9 @@ export default function ChatsPage() {
   const [invitingTelegram, setInvitingTelegram] = useState(false)
   const [invitingDiscord, setInvitingDiscord] = useState(false)
   const [myStaffId, setMyStaffId] = useState<string | null>(null)
+  const [myRole, setMyRole] = useState<string | null>(null)
   const [claiming, setClaiming] = useState(false)
+  const [claimingNext, setClaimingNext] = useState(false)
   // 担当者ID→名前の解決用名簿 (全ロールで呼べる /api/staff/roster)。
   // 一覧の担当バッジ・詳細の「◯◯が担当」表示・担当者フィルタに使う。
   const [staffRoster, setStaffRoster] = useState<{ id: string; name: string; isActive: boolean }[]>([])
@@ -431,10 +433,16 @@ export default function ChatsPage() {
     api.staff
       .me()
       .then((res) => {
-        if (!cancelled) setMyStaffId(res.success ? res.data.id : null)
+        if (!cancelled) {
+          setMyStaffId(res.success ? res.data.id : null)
+          setMyRole(res.success ? res.data.role : null)
+        }
       })
       .catch(() => {
-        if (!cancelled) setMyStaffId(null)
+        if (!cancelled) {
+          setMyStaffId(null)
+          setMyRole(null)
+        }
       })
     api.staff
       .roster()
@@ -980,6 +988,76 @@ export default function ChatsPage() {
     }
   }
 
+  // プル型分配: 未対応キューの先頭 (hot優先→最古) を原子的に自分の担当にして開く
+  const handleClaimNext = async () => {
+    setClaimingNext(true)
+    setError('')
+    try {
+      const res = await api.chats.claimNext()
+      if (res.success) {
+        if (res.data) {
+          await loadChats()
+          handleSelectChat(res.data.friendId)
+          window.dispatchEvent(new Event(UNANSWERED_REFRESH_EVENT))
+        } else {
+          setError('未割当の未対応チャットはありません 🎉')
+        }
+      }
+    } catch (err) {
+      const status = err instanceof ApiError ? err.status : 0
+      setError(
+        status === 400
+          ? '共有 API キーでは担当者になれません。スタッフとしてログインしてください。'
+          : `次の未対応の取得に失敗しました (HTTP ${status || '不明'})。`,
+      )
+    } finally {
+      setClaimingNext(false)
+    }
+  }
+
+  const handleRelease = async () => {
+    if (!selectedChatId) return
+    if (!confirm('担当を外して未割当に戻しますか？')) return
+    setClaiming(true)
+    try {
+      await api.chats.release(selectedChatId)
+      loadChatDetail(selectedChatId)
+      loadChats()
+      window.dispatchEvent(new Event(UNANSWERED_REFRESH_EVENT))
+    } catch (err) {
+      const status = err instanceof ApiError ? err.status : 0
+      setError(
+        status === 403
+          ? '他のスタッフの担当は外せません (admin/owner のみ可能です)。'
+          : status === 409
+            ? '他のスタッフが先に更新しました。画面を更新してください。'
+            : `担当の解除に失敗しました (HTTP ${status || '不明'})。`,
+      )
+    } finally {
+      setClaiming(false)
+    }
+  }
+
+  const handleAssign = async (staffId: string) => {
+    if (!selectedChatId || !staffId) return
+    setClaiming(true)
+    try {
+      await api.chats.assign(selectedChatId, staffId)
+      loadChatDetail(selectedChatId)
+      loadChats()
+      window.dispatchEvent(new Event(UNANSWERED_REFRESH_EVENT))
+    } catch (err) {
+      const status = err instanceof ApiError ? err.status : 0
+      setError(
+        status === 403
+          ? '担当の割り当ては admin/owner のみ可能です。'
+          : `担当の割り当てに失敗しました (HTTP ${status || '不明'})。`,
+      )
+    } finally {
+      setClaiming(false)
+    }
+  }
+
   const handleInviteTelegram = async () => {
     if (!selectedChatId) return
     if (!confirm('このユーザーに Telegram 誘導リンクを LINE で送りますか？')) return
@@ -1145,6 +1223,18 @@ export default function ChatsPage() {
               />
               🔥 未対応のみ
             </label>
+            {/* プル型分配: 未割当の未対応から次の1件を取る。同時に押しても
+                原子的claimにより別々のチャットが割り当たる */}
+            {myStaffId && (
+              <button
+                onClick={() => { void handleClaimNext() }}
+                disabled={claimingNext}
+                className="px-2.5 py-1 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-md transition-colors disabled:opacity-50 whitespace-nowrap"
+                title="未割当の未対応 (HOTリード優先・古い順) から次の1件を自分の担当にして開く"
+              >
+                {claimingNext ? '取得中…' : '▶ 次の未対応を担当'}
+              </button>
+            )}
           </div>
 
           {/* Chat List */}
@@ -1440,8 +1530,16 @@ export default function ChatsPage() {
                     </button>
                   )}
                   {myStaffId && chatDetail.operatorId === myStaffId && (
-                    <span className="px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 rounded-md">
+                    <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 rounded-md">
                       🙋 自分が担当
+                      <button
+                        onClick={() => { void handleRelease() }}
+                        disabled={claiming}
+                        className="ml-0.5 text-emerald-600 hover:text-emerald-900 underline disabled:opacity-50"
+                        title="担当を外して未割当に戻す"
+                      >
+                        外す
+                      </button>
                     </span>
                   )}
                   {myStaffId && chatDetail.operatorId !== null && chatDetail.operatorId !== myStaffId && (
@@ -1455,6 +1553,21 @@ export default function ChatsPage() {
                         ? '設定中…'
                         : `⚠️ ${staffNameOf(chatDetail.operatorId) ?? '他スタッフ'}が担当 — 引き取る`}
                     </button>
+                  )}
+                  {/* admin/owner は任意のスタッフへ割り当て(再割当)できる */}
+                  {(myRole === 'owner' || myRole === 'admin') && staffRoster.length > 0 && (
+                    <select
+                      value=""
+                      onChange={(e) => { if (e.target.value) void handleAssign(e.target.value) }}
+                      disabled={claiming}
+                      className="text-xs border border-gray-200 rounded-md px-1.5 py-1 bg-white disabled:opacity-50"
+                      title="このチャットをスタッフに割り当てる (admin/owner のみ)"
+                    >
+                      <option value="">担当を変更…</option>
+                      {staffRoster.filter((s) => s.isActive).map((s) => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
                   )}
                   {chatDetail.telegramUserId ? (
                     <span

@@ -1045,7 +1045,8 @@ export const api = {
     update: (
       id: string,
       data: {
-        operatorId?: string | null
+        // 担当の変更は claim / release / assign の専用APIに一本化 (PUT に
+        // operatorId を渡すとサーバが 400 を返す)
         status?: Chat['status']
         outcome?: Chat['outcome']
         notes?: string | null
@@ -1057,6 +1058,24 @@ export const api = {
         method: 'PUT',
         body: JSON.stringify(data),
       }),
+    /** 未対応キューから次の1件を原子的に自分の担当にする。キューが空なら data:null */
+    claimNext: () =>
+      fetchApi<ApiResponse<{ id: string; friendId: string; operatorId: string } | null>>(
+        '/api/chats/claim-next',
+        { method: 'POST' },
+      ),
+    /** 担当を外して未割当に戻す (自分の担当は誰でも / 他人のは admin・owner のみ) */
+    release: (id: string) =>
+      fetchApi<ApiResponse<{ id: string; friendId: string; operatorId: null }>>(
+        `/api/chats/${id}/release`,
+        { method: 'POST' },
+      ),
+    /** 任意のスタッフへ割り当てる (admin・owner のみ) */
+    assign: (id: string, staffId: string) =>
+      fetchApi<ApiResponse<{ id: string; friendId: string; operatorId: string }>>(
+        `/api/chats/${id}/assign`,
+        { method: 'POST', body: JSON.stringify({ staffId }) },
+      ),
     /** 時系列の内部メモ (追記専用)。誰が・いつ・何を書いたかを残す */
     listNotes: (id: string) =>
       fetchApi<ApiResponse<{ id: string; content: string; createdAt: string; staffId: string | null; staffName: string | null }[]>>(
@@ -1343,6 +1362,8 @@ export const api = {
             pictureUrl: string | null;
             accountId: string;
             accountName: string;
+            /** 担当スタッフID (null=未割当) */
+            operatorId: string | null;
             lastIncomingAt: string;
             lastManualAt: string | null;
             lastMachineAt: string | null;

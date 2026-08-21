@@ -8,12 +8,15 @@ import {
   createChat,
   getFriendById,
   getLineAccountById,
+  getStaffById,
   updateChat,
   jstNow,
   toJstString,
 } from '@line-crm/db';
 import type { Env } from '../index.js';
 import { persistableStaffId } from '../middleware/auth.js';
+import { requireRole } from '../middleware/role-guard.js';
+import { fireEvent } from '../services/event-bus.js';
 import { discordOAuthConfigured, buildDiscordAuthorizeUrl } from '../services/discord-oauth.js';
 
 const chats = new Hono<Env>();
@@ -484,16 +487,19 @@ chats.put('/api/chats/:id', async (c) => {
       outcome?: 'converted' | 'lost' | null;
       expectedVersion?: number;
     }>();
+    // 担当の変更は claim / release / assign の専用エンドポイントに一本化した。
+    // ここで受けると「任意のスタッフが誰の担当でもロールガード無しに書き換え
+    // られる」穴になるため、黙って無視ではなく明示的に 400 で拒否する。
+    if (body.operatorId !== undefined) {
+      return c.json(
+        { success: false, error: '担当の変更は /claim /release /assign を使ってください' },
+        400,
+      );
+    }
     // 計測列 (assigned_at / resolved_at 等) はサーバ側でのみ導出する。body を
     // そのまま渡すと KPI をクライアントから書き換えられるため、明示的に絞る。
     const now = jstNow();
     const updates: Parameters<typeof updateChat>[2] = {};
-    if (body.operatorId !== undefined) {
-      updates.operatorId = body.operatorId;
-      if (body.operatorId !== resolved.operator_id) {
-        updates.assignedAt = body.operatorId === null ? null : now;
-      }
-    }
     if (body.status !== undefined) {
       updates.status = body.status;
       if (body.status !== resolved.status) {
@@ -844,6 +850,174 @@ chats.post('/api/chats/:id/claim', async (c) => {
     });
   } catch (err) {
     console.error('POST /api/chats/:id/claim error:', err);
+    return c.json({ success: false, error: 'Internal server error' }, 500);
+  }
+});
+
+// 未対応キューから「次の1件」を原子的に自分の担当にする (プル型分配)。
+// 毎日200登録×スタッフ10名の規模では、一覧から目視で選んで claim する方式だと
+// 選んでいる間に他のスタッフと衝突する。ここでは候補を上位数件取り、
+// 楽観ロック付き UPDATE を先頭から順に試すことで、同時に押した2人が
+// 別々のチャットを取れるようにする (自動ラウンドロビンは在席管理が必要に
+// なるため採用しない — 在席者しか取らないプル型が構造的に安全)。
+// 優先順: lead_temperature (hot→warm→cold→なし) → 最古の未返信 incoming。
+chats.post('/api/chats/claim-next', async (c) => {
+  try {
+    const staffId = persistableStaffId(c.get('staff'));
+    if (!staffId) {
+      return c.json(
+        { success: false, error: 'スタッフとしてログインしてください (共有 API キーでは担当者になれません)' },
+        400,
+      );
+    }
+
+    // unanswered-inbox.ts の CANDIDATES_SQL と同じ「未返信 incoming がある」判定に
+    // 「未割当 (chats 行が無い場合も含む)」を重ねた専用クエリ。bind 変数ゼロ。
+    const candidates = await c.env.DB
+      .prepare(
+        `WITH agg AS (
+           SELECT friend_id,
+             MAX(CASE WHEN direction='incoming' AND (source IS NULL OR source != 'postback') THEN created_at END) AS last_incoming,
+             MAX(CASE WHEN direction='outgoing' AND source='manual' THEN created_at END) AS last_manual
+           FROM messages_log
+           GROUP BY friend_id
+         ),
+         latest_chat AS (
+           SELECT friend_id, id AS chat_id, status, operator_id, version, MAX(created_at) AS created_at
+           FROM chats
+           GROUP BY friend_id
+         )
+         SELECT f.id AS friend_id
+         FROM friends f
+         JOIN agg ON agg.friend_id = f.id
+         LEFT JOIN latest_chat lc ON lc.friend_id = f.id
+         LEFT JOIN line_accounts la ON la.id = f.line_account_id
+         WHERE f.is_following = 1
+           AND (la.id IS NULL OR la.is_active = 1)
+           AND agg.last_incoming IS NOT NULL
+           AND (agg.last_manual IS NULL OR agg.last_manual < agg.last_incoming)
+           AND COALESCE(lc.status, 'unread') != 'resolved'
+           AND lc.operator_id IS NULL
+         ORDER BY
+           CASE f.lead_temperature WHEN 'hot' THEN 0 WHEN 'warm' THEN 1 WHEN 'cold' THEN 2 ELSE 3 END,
+           agg.last_incoming ASC
+         LIMIT 5`,
+      )
+      .all<{ friend_id: string }>();
+
+    const now = jstNow();
+    for (const candidate of candidates.results) {
+      // chats 行が無い友だちはここで遅延作成される
+      const chat = await resolveOrCreateChat(c.env.DB, candidate.friend_id);
+      if (!chat || chat.operator_id !== null) continue; // 直前に他のスタッフが取った
+
+      const applied = await updateChat(
+        c.env.DB,
+        chat.id,
+        {
+          operatorId: staffId,
+          assignedAt: now,
+          ...(chat.status === 'unread' ? { status: 'in_progress' } : {}),
+        },
+        { expectedVersion: chat.version },
+      );
+      if (!applied) continue; // version 競合 → 次候補へ (同時押しのもう一人が勝った)
+
+      return c.json({
+        success: true,
+        data: { id: chat.friend_id, friendId: chat.friend_id, operatorId: staffId },
+      });
+    }
+
+    // キューが空 (未割当の未対応が無い)
+    return c.json({ success: true, data: null });
+  } catch (err) {
+    console.error('POST /api/chats/claim-next error:', err);
+    return c.json({ success: false, error: 'Internal server error' }, 500);
+  }
+});
+
+// 担当を外して未割当に戻す。自分の担当は誰でも外せる。他人の担当を外せるのは
+// admin/owner のみ (現場スタッフが誤って他人の担当を剥がす事故を防ぐ)。
+chats.post('/api/chats/:id/release', async (c) => {
+  try {
+    const current = c.get('staff');
+    const staffId = persistableStaffId(current);
+    const chat = await resolveOrCreateChat(c.env.DB, c.req.param('id'));
+    if (!chat) return c.json({ success: false, error: 'Chat not found' }, 404);
+    if (chat.operator_id === null) {
+      return c.json({ success: false, error: 'Not assigned' }, 400);
+    }
+
+    const isPrivileged = current?.role === 'owner' || current?.role === 'admin';
+    if (chat.operator_id !== staffId && !isPrivileged) {
+      return c.json({ success: false, error: '他のスタッフの担当は外せません' }, 403);
+    }
+
+    const applied = await updateChat(
+      c.env.DB,
+      chat.id,
+      {
+        operatorId: null,
+        assignedAt: null,
+        // 対応中のまま未割当に戻すとキューから見えなくなるため未読へ戻す
+        ...(chat.status === 'in_progress' ? { status: 'unread' } : {}),
+      },
+      { expectedVersion: chat.version },
+    );
+    if (!applied) return c.json({ success: false, error: 'Version conflict' }, 409);
+
+    return c.json({ success: true, data: { id: chat.friend_id, friendId: chat.friend_id, operatorId: null } });
+  } catch (err) {
+    console.error('POST /api/chats/:id/release error:', err);
+    return c.json({ success: false, error: 'Internal server error' }, 500);
+  }
+});
+
+// 任意のスタッフへ割り当てる (再割当含む)。担当の押し付けになるため
+// admin/owner 限定。割当先は実在かつ有効なスタッフのみ。
+chats.post('/api/chats/:id/assign', requireRole('owner', 'admin'), async (c) => {
+  try {
+    const body = await c.req.json<{ staffId?: string }>().catch(() => ({}) as { staffId?: string });
+    const targetStaffId = typeof body.staffId === 'string' ? body.staffId.trim() : '';
+    if (!targetStaffId) return c.json({ success: false, error: 'staffId is required' }, 400);
+
+    const target = await getStaffById(c.env.DB, targetStaffId);
+    if (!target || !target.is_active) {
+      return c.json({ success: false, error: '割当先のスタッフが見つからないか無効です' }, 404);
+    }
+
+    const chat = await resolveOrCreateChat(c.env.DB, c.req.param('id')!);
+    if (!chat) return c.json({ success: false, error: 'Chat not found' }, 404);
+
+    const now = jstNow();
+    const applied = await updateChat(
+      c.env.DB,
+      chat.id,
+      {
+        operatorId: targetStaffId,
+        assignedAt: now,
+        ...(chat.status === 'unread' ? { status: 'in_progress' } : {}),
+      },
+      { expectedVersion: chat.version },
+    );
+    if (!applied) return c.json({ success: false, error: 'Version conflict' }, 409);
+
+    // 送信 Webhook / 自動化から「担当が付いた」ことを購読できるようにする
+    await fireEvent(
+      c.env.DB,
+      'chat_assigned',
+      { friendId: chat.friend_id, eventData: { operatorId: targetStaffId, operatorName: target.name } },
+      c.env.LINE_CHANNEL_ACCESS_TOKEN,
+      null,
+    );
+
+    return c.json({
+      success: true,
+      data: { id: chat.friend_id, friendId: chat.friend_id, operatorId: targetStaffId },
+    });
+  } catch (err) {
+    console.error('POST /api/chats/:id/assign error:', err);
     return c.json({ success: false, error: 'Internal server error' }, 500);
   }
 });

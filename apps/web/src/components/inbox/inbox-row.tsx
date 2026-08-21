@@ -8,6 +8,8 @@ export interface InboxRowData {
   pictureUrl: string | null
   accountId: string
   accountName: string
+  /** 担当スタッフID (null=未割当)。「誰も持っていない」と「担当済みだが遅い」を区別する */
+  operatorId?: string | null
   lastIncomingAt: string
   lastManualAt: string | null
   lastMachineAt: string | null
@@ -70,9 +72,11 @@ function ImageThumb({ raw }: { raw: string }) {
 
 interface Props {
   row: InboxRowData
+  /** 担当者ID→名前の解決 (roster から)。未指定なら担当バッジ非表示 */
+  operatorNameOf?: (id: string) => string
 }
 
-export default function InboxRow({ row }: Props) {
+export default function InboxRow({ row, operatorNameOf }: Props) {
   const machineAfterIncoming =
     row.lastMachineAt &&
     new Date(row.lastMachineAt).getTime() > new Date(row.lastIncomingAt).getTime()
@@ -107,6 +111,18 @@ export default function InboxRow({ row }: Props) {
             <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-medium text-sky-700">
               auto 返答済
             </span>
+          )}
+          {/* 未割当(誰も持っていない)と担当あり(担当済みだが返信が遅い)を色分け */}
+          {operatorNameOf && (
+            row.operatorId ? (
+              <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-700">
+                🙋 {operatorNameOf(row.operatorId)}
+              </span>
+            ) : (
+              <span className="rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-medium text-gray-600">
+                未割当
+              </span>
+            )
           )}
         </div>
         {row.lastIncomingType === 'image' ? (

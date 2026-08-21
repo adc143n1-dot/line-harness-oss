@@ -87,7 +87,7 @@ describe('getActivityDigest', () => {
       pageSize: 2000,
       rows: [{
         friendId: 'friend-1', displayName: '田中', pictureUrl: null,
-        accountId: 'account-1', accountName: '本店',
+        accountId: 'account-1', accountName: '本店', operatorId: null,
         lastIncomingAt: '2026-08-05T17:45:00.000+09:00',
         lastManualAt: null, lastMachineAt: null, lastIncomingType: 'text',
         lastIncomingContent: '予約したいです',
