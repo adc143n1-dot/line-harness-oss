@@ -57,6 +57,10 @@ function fakeLineClient() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // 原子的claimの既定はtrue (=競合なく状態遷移できた) にしておく。
+  // 競合(claim失敗)のケースは専用のテストで明示的に false を返す。
+  dbMocks.recordQ1Answer.mockResolvedValue(true);
+  dbMocks.recordQ2AnswerAndScore.mockResolvedValue(true);
 });
 
 describe('isJobMatchingReferral', () => {
@@ -225,5 +229,39 @@ describe('handleJobMatchingPostback', () => {
 
     expect(result.handled).toBe(false);
     expect(dbMocks.getJobMatchingLeadState).not.toHaveBeenCalled();
+  });
+
+  describe('原子的claimによる二重処理防止 (LINEの再送・連打対策)', () => {
+    it('Q1: recordQ1Answer が競合 (claim失敗) を返したら、Q2案内を再送せず handled:true を返す', async () => {
+      dbMocks.getJobMatchingLeadState.mockResolvedValue({
+        job_matching_conversation_state: 'awaiting_q1',
+        q1_answer: null, q2_answer: null, lead_score: null, lead_temperature: null,
+      });
+      dbMocks.recordQ1Answer.mockResolvedValue(false);
+      const db = fakeDb();
+      const lineClient = fakeLineClient();
+
+      const result = await handleJobMatchingPostback(db, lineClient, FRIEND, 'jobmatch_q1:fulltime', null, {});
+
+      expect(result.handled).toBe(true);
+      expect(lineClient.pushMessage).not.toHaveBeenCalled();
+    });
+
+    it('Q2: recordQ2AnswerAndScore が競合 (claim失敗) を返したら、診断メッセージ・通知を送らず handled:true を返す', async () => {
+      dbMocks.getJobMatchingLeadState.mockResolvedValue({
+        job_matching_conversation_state: 'awaiting_q2',
+        q1_answer: 'fulltime', q2_answer: null, lead_score: null, lead_temperature: null,
+      });
+      dbMocks.recordQ2AnswerAndScore.mockResolvedValue(false);
+      const db = fakeDb();
+      const lineClient = fakeLineClient();
+
+      const result = await handleJobMatchingPostback(db, lineClient, FRIEND, 'jobmatch_q2:high_value', null, {});
+
+      expect(result.handled).toBe(true);
+      expect(lineClient.pushMessage).not.toHaveBeenCalled();
+      expect(discordMocks.notifyDiscordOfLead).not.toHaveBeenCalled();
+      expect(sheetsMocks.notifySheetsOfLead).not.toHaveBeenCalled();
+    });
   });
 });

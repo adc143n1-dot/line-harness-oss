@@ -278,15 +278,25 @@ async function handleEvent(
     // delivers the event. Retry a few times (~1s total) before giving up,
     // otherwise override mode and intro pushes silently fall back to the
     // account default whenever the webhook wins the race.
+    // friends.ref_code is a real column (added by migration 003, never
+    // dropped) holding the first-touch referral code — written once by
+    // /auth/callback and never overwritten afterward. This is deliberately
+    // NOT friends.last_ref_code (written by recordRefTracking() on every
+    // ref-link visit): using the last-touch field here would let a stale,
+    // unrelated earlier click override the code relevant to this exact
+    // follow event, and would short-circuit the retry loop below for any
+    // friend who has ever clicked a different ref link before. Confirmed via
+    // code-review 2026-08-21 after a prior session mistakenly "fixed" this to
+    // last_ref_code based on the incomplete packages/db/schema.sql snapshot,
+    // which is missing several ALTER-added columns (see bootstrap.sql for the
+    // real, fully-migrated shape).
     const { getFriendById } = await import('@line-crm/db');
-    // last_ref_code is written by /auth/callback (OAuth path) via
-    // recordRefTracking(); the field on the Friend row itself.
-    let friendRefCode = (friend as { last_ref_code?: string | null }).last_ref_code ?? null;
+    let friendRefCode = (friend as { ref_code?: string | null }).ref_code ?? null;
     if (!friendRefCode) {
       for (let attempt = 0; attempt < 5; attempt++) {
         await new Promise((resolve) => setTimeout(resolve, 200));
         const refreshed = await getFriendById(db, friend.id);
-        const refreshedRef = (refreshed as { last_ref_code?: string | null } | null)?.last_ref_code ?? null;
+        const refreshedRef = (refreshed as { ref_code?: string | null } | null)?.ref_code ?? null;
         if (refreshedRef) {
           friendRefCode = refreshedRef;
           break;
@@ -436,12 +446,17 @@ async function handleEvent(
     // 会話状態と postback data の両方が一致したときだけ handled:true が返るので、
     // 無関係な postback (リッチメニュー等) は下の通常フローに素通りする。
     try {
+      // AI_REPLY_ENABLED は AIプロバイダ利用全体のマスタースイッチ
+      // (maybeSendAiReply と同じゲート)。無効時は診断メッセージ生成にも
+      // AIを使わせず、conversation.ts 側の固定文言フォールバックに任せる。
+      const jobMatchingAiProvider =
+        aiReplyEnv?.AI_REPLY_ENABLED === 'true' ? buildProvider(aiReplyEnv) : null;
       const jobMatchingResult = await handleJobMatchingPostback(
         db,
         lineClient,
         friend,
         postbackData,
-        aiReplyEnv ? buildProvider(aiReplyEnv) : null,
+        jobMatchingAiProvider,
         aiReplyEnv ?? {},
       );
       if (jobMatchingResult.handled) {

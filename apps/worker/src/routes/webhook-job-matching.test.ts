@@ -65,9 +65,16 @@ const autoReplyMocks = vi.hoisted(() => ({
 }));
 vi.mock('../services/auto-reply.js', () => autoReplyMocks);
 
+const aiReplyMocks = vi.hoisted(() => ({
+  maybeSendAiReply: vi.fn().mockResolvedValue({ sent: false }),
+  buildProvider: vi.fn(),
+}));
+vi.mock('../services/ai-reply/index.js', () => aiReplyMocks);
+
 import { upsertFriend, getEntryRouteByRefCode } from '@line-crm/db';
 import { fireEvent } from '../services/event-bus.js';
 import { webhook } from './webhook.js';
+import type { Env } from '../index.js';
 
 function setupApp() {
   const app = new Hono();
@@ -114,7 +121,7 @@ beforeEach(() => {
 });
 
 describe('POST /webhook — follow イベントでの副業マッチングトリガー', () => {
-  async function follow(lastRefCode: string | null, isJobMatching: boolean) {
+  async function follow(refCode: string | null, isJobMatching: boolean) {
     jobMatchingMocks.isJobMatchingReferral.mockReturnValue(isJobMatching);
     lineClientMocks.getProfile.mockResolvedValue({
       userId: 'U-follow',
@@ -122,9 +129,9 @@ describe('POST /webhook — follow イベントでの副業マッチングトリ
       pictureUrl: null,
       statusMessage: null,
     });
-    // last_ref_code を最初から埋めておくことで、webhook.ts 側のリトライ
-    // ループ (getFriendById を最大5回・200ms間隔で呼ぶ) を回避し、
-    // テストを高速に保つ。
+    // friends.ref_code (first-touch, written once by /auth/callback) を
+    // 最初から埋めておくことで、webhook.ts 側のリトライループ
+    // (getFriendById を最大5回・200ms間隔で呼ぶ) を回避し、テストを高速に保つ。
     vi.mocked(upsertFriend).mockResolvedValue({
       id: 'friend-1',
       line_user_id: 'U-follow',
@@ -136,7 +143,7 @@ describe('POST /webhook — follow イベントでの副業マッチングトリ
       line_account_id: null,
       metadata: '{}',
       first_tracked_link_id: null,
-      last_ref_code: lastRefCode,
+      ref_code: refCode,
       created_at: '2026-08-21T21:00:00.000+09:00',
       updated_at: '2026-08-21T21:00:00.000+09:00',
     } as unknown as Awaited<ReturnType<typeof upsertFriend>>);
@@ -196,7 +203,7 @@ describe('POST /webhook — follow イベントでの副業マッチングトリ
 });
 
 describe('POST /webhook — postback イベントでの副業マッチング優先処理', () => {
-  async function postback(data: string) {
+  async function postback(data: string, envOverride: Partial<Env['Bindings']> = {}) {
     const { db } = recordingDb();
     const executionCtx = makeExecutionCtx();
 
@@ -221,7 +228,7 @@ describe('POST /webhook — postback イベントでの副業マッチング優�
           ],
         }),
       },
-      { ...baseEnv, DB: db },
+      { ...baseEnv, DB: db, ...envOverride },
       executionCtx,
     );
 
@@ -265,5 +272,35 @@ describe('POST /webhook — postback イベントでの副業マッチング優�
     await postback('tag:premium');
 
     expect(autoReplyMocks.matchAndReply).toHaveBeenCalledTimes(1);
+  });
+
+  test('AI_REPLY_ENABLED=true かつ ANTHROPIC_API_KEY 設定時は buildProvider() を呼び、その結果を渡す', async () => {
+    jobMatchingMocks.handleJobMatchingPostback.mockResolvedValue({ handled: true });
+    const fakeProvider = { generateReply: vi.fn() };
+    aiReplyMocks.buildProvider.mockReturnValue(fakeProvider);
+
+    await postback('jobmatch_q2:high_value', { AI_REPLY_ENABLED: 'true', ANTHROPIC_API_KEY: 'key' });
+
+    expect(aiReplyMocks.buildProvider).toHaveBeenCalledTimes(1);
+    const [, , , , aiProviderArg] = jobMatchingMocks.handleJobMatchingPostback.mock.calls[0];
+    expect(aiProviderArg).toBe(fakeProvider);
+  });
+
+  test('AI_REPLY_ENABLED が未設定/false のときは buildProvider() を呼ばず null を渡す (マスタースイッチのバイパス防止)', async () => {
+    jobMatchingMocks.handleJobMatchingPostback.mockResolvedValue({ handled: true });
+
+    await postback('jobmatch_q2:high_value', { ANTHROPIC_API_KEY: 'key' });
+
+    expect(aiReplyMocks.buildProvider).not.toHaveBeenCalled();
+    const [, , , , aiProviderArg] = jobMatchingMocks.handleJobMatchingPostback.mock.calls[0];
+    expect(aiProviderArg).toBeNull();
+  });
+
+  test('AI_REPLY_ENABLED=false のときも buildProvider() を呼ばない', async () => {
+    jobMatchingMocks.handleJobMatchingPostback.mockResolvedValue({ handled: true });
+
+    await postback('jobmatch_q2:high_value', { AI_REPLY_ENABLED: 'false', ANTHROPIC_API_KEY: 'key' });
+
+    expect(aiReplyMocks.buildProvider).not.toHaveBeenCalled();
   });
 });

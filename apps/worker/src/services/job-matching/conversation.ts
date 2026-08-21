@@ -108,7 +108,12 @@ export async function handleJobMatchingPostback(
 
     const q1 = postbackData.slice(Q1_POSTBACK_PREFIX.length) as Q1Answer;
     if (!(q1 in Q1_LABELS)) return { handled: false };
-    await recordQ1Answer(db, friend.id, q1);
+    // 原子的な状態遷移。LINEの再送や連打で同時に呼ばれても、状態を実際に
+    // awaiting_q1→awaiting_q2 に進められたのは1回だけになる。2回目以降は
+    // false が返るので、Q2案内の再送・二重ログを避けて早期return する
+    // (postback自体はjob-matching向けなので handled:true のまま)。
+    const claimed = await recordQ1Answer(db, friend.id, q1);
+    if (!claimed) return { handled: true };
 
     const q2Msg = withQuickReply(
       { type: 'text' as const, text: 'ありがとうございます！\nQ2. どんなジャンルのお仕事にご興味がありますか？' },
@@ -130,7 +135,10 @@ export async function handleJobMatchingPostback(
 
     const q1 = state.q1_answer as Q1Answer;
     const { score, temperature } = scoreLead(q1, q2);
-    await recordQ2AnswerAndScore(db, friend.id, q2, score, temperature);
+    // recordQ1Answer と同じ原子的claim。false なら既に別の呼び出しが処理済み
+    // なので、AI診断の再生成・LINE再送・Discord/Sheetsへの二重通知を避ける。
+    const claimed = await recordQ2AnswerAndScore(db, friend.id, q2, score, temperature);
+    if (!claimed) return { handled: true };
 
     const diagnosisText = await generateDiagnosisMessage(aiProvider, friend, q1, q2);
     const diagnosisMsg = { type: 'text' as const, text: diagnosisText };
