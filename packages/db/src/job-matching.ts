@@ -11,6 +11,8 @@ export interface JobMatchingLeadState {
   job_matching_conversation_state: JobMatchingConversationState | null;
   q1_answer: string | null;
   q2_answer: string | null;
+  q3_answer: string | null;
+  q4_answer: string | null;
   lead_score: number | null;
   lead_temperature: LeadTemperature | null;
 }
@@ -21,7 +23,8 @@ export async function getJobMatchingLeadState(
 ): Promise<JobMatchingLeadState | null> {
   return db
     .prepare(
-      `SELECT job_matching_conversation_state, q1_answer, q2_answer, lead_score, lead_temperature
+      `SELECT job_matching_conversation_state, q1_answer, q2_answer, q3_answer, q4_answer,
+              lead_score, lead_temperature
          FROM friends WHERE id = ?`,
     )
     .bind(friendId)
@@ -90,6 +93,49 @@ export async function recordQ2AnswerAndScore(
         WHERE id = ? AND job_matching_conversation_state = 'awaiting_q2'`,
     )
     .bind(q2Answer, score, temperature, jstNow(), friendId)
+    .run();
+  return (result.meta?.changes ?? 0) > 0;
+}
+
+/**
+ * Q3 (稼働できる時間帯) の回答を保存。診断後の追加ヒアリングなので会話
+ * ステートは 'diagnosed' のまま変えず、「q3_answer が NULL」を条件にした
+ * 原子的 UPDATE で二重回答 (再送・連打) を防ぐ。
+ */
+export async function recordQ3Answer(db: D1Database, friendId: string, q3Answer: string): Promise<boolean> {
+  const result = await db
+    .prepare(
+      `UPDATE friends SET q3_answer = ?, updated_at = ?
+        WHERE id = ? AND job_matching_conversation_state = 'diagnosed' AND q3_answer IS NULL`,
+    )
+    .bind(q3Answer, jstNow(), friendId)
+    .run();
+  return (result.meta?.changes ?? 0) > 0;
+}
+
+/**
+ * Q4 (開始希望時期) の回答を保存。「今すぐ」は本気度の強いシグナルなので
+ * スコアを +5 し、閾値 (60/40) をまたいだ場合は温度も引き上げる。
+ * Q3 と同様に q4_answer IS NULL 条件の原子的 UPDATE。
+ */
+export async function recordQ4Answer(db: D1Database, friendId: string, q4Answer: string): Promise<boolean> {
+  const boost = q4Answer === 'now' ? 5 : 0;
+  const result = await db
+    .prepare(
+      `UPDATE friends
+          SET q4_answer = ?,
+              lead_score = CASE WHEN lead_score IS NULL THEN NULL ELSE lead_score + ? END,
+              lead_temperature = CASE
+                WHEN lead_score IS NULL THEN lead_temperature
+                WHEN lead_score + ? >= 60 THEN 'hot'
+                WHEN lead_score + ? >= 40 THEN 'warm'
+                ELSE 'cold'
+              END,
+              updated_at = ?
+        WHERE id = ? AND job_matching_conversation_state = 'diagnosed'
+          AND q3_answer IS NOT NULL AND q4_answer IS NULL`,
+    )
+    .bind(q4Answer, boost, boost, boost, jstNow(), friendId)
     .run();
   return (result.meta?.changes ?? 0) > 0;
 }

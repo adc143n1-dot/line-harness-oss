@@ -5,6 +5,8 @@ const dbMocks = vi.hoisted(() => ({
   startJobMatchingConversation: vi.fn(),
   recordQ1Answer: vi.fn(),
   recordQ2AnswerAndScore: vi.fn(),
+  recordQ3Answer: vi.fn(),
+  recordQ4Answer: vi.fn(),
   jstNow: vi.fn(() => '2026-08-20T10:00:00.000+09:00'),
 }));
 vi.mock('@line-crm/db', () => dbMocks);
@@ -61,6 +63,8 @@ beforeEach(() => {
   // 競合(claim失敗)のケースは専用のテストで明示的に false を返す。
   dbMocks.recordQ1Answer.mockResolvedValue(true);
   dbMocks.recordQ2AnswerAndScore.mockResolvedValue(true);
+  dbMocks.recordQ3Answer.mockResolvedValue(true);
+  dbMocks.recordQ4Answer.mockResolvedValue(true);
 });
 
 describe('isJobMatchingReferral', () => {
@@ -183,7 +187,8 @@ describe('handleJobMatchingPostback', () => {
     expect(result.handled).toBe(true);
     // fulltime(40) + high_value(30) = 70 → hot
     expect(dbMocks.recordQ2AnswerAndScore).toHaveBeenCalledWith(db, FRIEND.id, 'high_value', 70, 'hot');
-    expect(lineClient.pushMessage).toHaveBeenCalledTimes(1);
+    // 診断メッセージ + 追加ヒアリング (Q3) の2通
+    expect(lineClient.pushMessage).toHaveBeenCalledTimes(2);
     expect(discordMocks.notifyDiscordOfLead).toHaveBeenCalledWith(
       env,
       expect.objectContaining({ score: 70, temperature: 'hot' }),
@@ -216,7 +221,7 @@ describe('handleJobMatchingPostback', () => {
     );
 
     expect(result.handled).toBe(true);
-    expect(lineClient.pushMessage).toHaveBeenCalledTimes(1);
+    expect(lineClient.pushMessage).toHaveBeenCalledTimes(2);
     const [, messages] = (lineClient.pushMessage as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(messages[0].text).toContain('診断結果');
   });
@@ -229,6 +234,80 @@ describe('handleJobMatchingPostback', () => {
 
     expect(result.handled).toBe(false);
     expect(dbMocks.getJobMatchingLeadState).not.toHaveBeenCalled();
+  });
+
+  describe('Q3/Q4 追加ヒアリング', () => {
+    it('診断済み・Q3未回答で Q3 postback を受けると記録し Q4 を送る', async () => {
+      dbMocks.getJobMatchingLeadState.mockResolvedValue({
+        job_matching_conversation_state: 'diagnosed',
+        q1_answer: 'fulltime', q2_answer: 'high_value',
+        q3_answer: null, q4_answer: null,
+        lead_score: 70, lead_temperature: 'hot',
+      });
+      const db = fakeDb();
+      const lineClient = fakeLineClient();
+
+      const result = await handleJobMatchingPostback(db, lineClient, FRIEND, 'jobmatch_q3:weekday_night', null, {});
+
+      expect(result.handled).toBe(true);
+      expect(dbMocks.recordQ3Answer).toHaveBeenCalledWith(db, FRIEND.id, 'weekday_night');
+      expect(lineClient.pushMessage).toHaveBeenCalledTimes(1);
+      const [, messages] = (lineClient.pushMessage as ReturnType<typeof vi.fn>).mock.calls[0];
+      expect(messages[0].text).toContain('Q4');
+      expect(messages[0].quickReply.items.length).toBeGreaterThan(0);
+    });
+
+    it('Q4 postback を受けるとお礼メッセージを送り、通知は発火しない', async () => {
+      dbMocks.getJobMatchingLeadState.mockResolvedValue({
+        job_matching_conversation_state: 'diagnosed',
+        q1_answer: 'fulltime', q2_answer: 'high_value',
+        q3_answer: 'weekday_night', q4_answer: null,
+        lead_score: 70, lead_temperature: 'hot',
+      });
+      const db = fakeDb();
+      const lineClient = fakeLineClient();
+
+      const result = await handleJobMatchingPostback(db, lineClient, FRIEND, 'jobmatch_q4:now', null, {});
+
+      expect(result.handled).toBe(true);
+      expect(dbMocks.recordQ4Answer).toHaveBeenCalledWith(db, FRIEND.id, 'now');
+      expect(lineClient.pushMessage).toHaveBeenCalledTimes(1);
+      expect(discordMocks.notifyDiscordOfLead).not.toHaveBeenCalled();
+    });
+
+    it('Q3: claim失敗 (再送・連打) なら何も送らず handled:true', async () => {
+      dbMocks.getJobMatchingLeadState.mockResolvedValue({
+        job_matching_conversation_state: 'diagnosed',
+        q1_answer: 'fulltime', q2_answer: 'high_value',
+        q3_answer: null, q4_answer: null,
+        lead_score: 70, lead_temperature: 'hot',
+      });
+      dbMocks.recordQ3Answer.mockResolvedValue(false);
+      const db = fakeDb();
+      const lineClient = fakeLineClient();
+
+      const result = await handleJobMatchingPostback(db, lineClient, FRIEND, 'jobmatch_q3:anytime', null, {});
+
+      expect(result.handled).toBe(true);
+      expect(lineClient.pushMessage).not.toHaveBeenCalled();
+    });
+
+    it('Q4: claim失敗なら何も送らず handled:true', async () => {
+      dbMocks.getJobMatchingLeadState.mockResolvedValue({
+        job_matching_conversation_state: 'diagnosed',
+        q1_answer: 'fulltime', q2_answer: 'high_value',
+        q3_answer: 'anytime', q4_answer: null,
+        lead_score: 70, lead_temperature: 'hot',
+      });
+      dbMocks.recordQ4Answer.mockResolvedValue(false);
+      const db = fakeDb();
+      const lineClient = fakeLineClient();
+
+      const result = await handleJobMatchingPostback(db, lineClient, FRIEND, 'jobmatch_q4:now', null, {});
+
+      expect(result.handled).toBe(true);
+      expect(lineClient.pushMessage).not.toHaveBeenCalled();
+    });
   });
 
   describe('原子的claimによる二重処理防止 (LINEの再送・連打対策)', () => {

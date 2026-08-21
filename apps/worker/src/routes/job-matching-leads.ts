@@ -10,6 +10,8 @@ interface JobMatchingLeadRow {
   picture_url: string | null;
   q1_answer: string | null;
   q2_answer: string | null;
+  q3_answer: string | null;
+  q4_answer: string | null;
   lead_score: number | null;
   lead_temperature: 'hot' | 'warm' | 'cold' | null;
   job_matching_conversation_state: 'awaiting_q1' | 'awaiting_q2' | 'diagnosed' | null;
@@ -26,6 +28,8 @@ function serializeLead(row: JobMatchingLeadRow) {
     pictureUrl: row.picture_url,
     q1Answer: row.q1_answer,
     q2Answer: row.q2_answer,
+    q3Answer: row.q3_answer,
+    q4Answer: row.q4_answer,
     leadScore: row.lead_score,
     leadTemperature: row.lead_temperature,
     conversationState: row.job_matching_conversation_state,
@@ -71,6 +75,7 @@ jobMatchingLeads.get(
            FROM chats GROUP BY friend_id
          )
          SELECT f.id, f.display_name, f.picture_url, f.q1_answer, f.q2_answer,
+                f.q3_answer, f.q4_answer,
                 f.lead_score, f.lead_temperature, f.job_matching_conversation_state,
                 lc.operator_id, lc.status AS chat_status,
                 f.created_at, f.updated_at

@@ -6,11 +6,13 @@ import {
   startJobMatchingConversation,
   recordQ1Answer,
   recordQ2AnswerAndScore,
+  recordQ3Answer,
+  recordQ4Answer,
   jstNow,
 } from '@line-crm/db';
 import { logOutgoingMessage } from '../event-bus.js';
-import { scoreLead, Q1_LABELS, Q2_LABELS } from './scoring.js';
-import type { Q1Answer, Q2Answer } from './scoring.js';
+import { scoreLead, Q1_LABELS, Q2_LABELS, Q3_LABELS, Q4_LABELS } from './scoring.js';
+import type { Q1Answer, Q2Answer, Q3Answer, Q4Answer } from './scoring.js';
 import { notifyDiscordOfLead } from './discord-notify.js';
 import type { JobMatchingEnv } from './discord-notify.js';
 import { notifySheetsOfLead } from './sheets-notify.js';
@@ -27,6 +29,8 @@ export const JOB_MATCHING_REF_PREFIX = 'jobmatch-';
 
 const Q1_POSTBACK_PREFIX = 'jobmatch_q1:';
 const Q2_POSTBACK_PREFIX = 'jobmatch_q2:';
+const Q3_POSTBACK_PREFIX = 'jobmatch_q3:';
+const Q4_POSTBACK_PREFIX = 'jobmatch_q4:';
 
 // 診断結果メッセージの生成に使うプロンプト。PDFの仕様 (詐欺的勧誘表現・
 // 断定的収入表現・個人情報以外への誘導の禁止) をそのまま踏襲する。
@@ -51,6 +55,24 @@ function q2QuickReply() {
     (Object.entries(Q2_LABELS) as [Q2Answer, string][]).map(([key, label]) => ({
       type: 'action' as const,
       action: { type: 'postback' as const, label, data: `${Q2_POSTBACK_PREFIX}${key}`, displayText: label },
+    })),
+  );
+}
+
+function q3QuickReply() {
+  return quickReply(
+    (Object.entries(Q3_LABELS) as [Q3Answer, string][]).map(([key, label]) => ({
+      type: 'action' as const,
+      action: { type: 'postback' as const, label, data: `${Q3_POSTBACK_PREFIX}${key}`, displayText: label },
+    })),
+  );
+}
+
+function q4QuickReply() {
+  return quickReply(
+    (Object.entries(Q4_LABELS) as [Q4Answer, string][]).map(([key, label]) => ({
+      type: 'action' as const,
+      action: { type: 'postback' as const, label, data: `${Q4_POSTBACK_PREFIX}${key}`, displayText: label },
     })),
   );
 }
@@ -165,6 +187,54 @@ export async function handleJobMatchingPostback(
       occurredAt: jstNow(),
     });
 
+    // 追加ヒアリング (Q3: 稼働時間帯)。マッチング精度向上のための任意質問で、
+    // 答えなくても診断・通知は完了済み (ここで離脱しても実害はない)
+    const q3Msg = withQuickReply(
+      { type: 'text' as const, text: 'よろしければ、ご案内の精度を上げるためにあと2つだけ教えてください。\n\nQ3. お仕事に使える時間帯はいつですか？' },
+      q3QuickReply(),
+    );
+    await lineClient.pushMessage(friend.line_user_id, [q3Msg]);
+    await logOutgoingMessage(db, {
+      friendId: friend.id, messageType: 'text', content: q3Msg.text, deliveryType: 'push', source: 'job_matching',
+    });
+
+    return { handled: true };
+  }
+
+  // Q3 (稼働時間帯)。診断後の追加質問なので state は 'diagnosed' のまま、
+  // q3_answer IS NULL を条件にした原子的 UPDATE (recordQ3Answer) で二重処理を防ぐ
+  if (postbackData.startsWith(Q3_POSTBACK_PREFIX)) {
+    const q3 = postbackData.slice(Q3_POSTBACK_PREFIX.length) as Q3Answer;
+    if (!(q3 in Q3_LABELS)) return { handled: false };
+
+    const claimed = await recordQ3Answer(db, friend.id, q3);
+    if (!claimed) return { handled: true }; // 未診断/回答済み/再送 — 何もしない
+
+    const q4Msg = withQuickReply(
+      { type: 'text' as const, text: 'ありがとうございます！\nQ4. いつ頃から始めたいですか？' },
+      q4QuickReply(),
+    );
+    await lineClient.pushMessage(friend.line_user_id, [q4Msg]);
+    await logOutgoingMessage(db, {
+      friendId: friend.id, messageType: 'text', content: q4Msg.text, deliveryType: 'push', source: 'job_matching',
+    });
+    return { handled: true };
+  }
+
+  // Q4 (開始希望時期)。「今すぐ」はスコア+5と温度引き上げ (recordQ4Answer 内)
+  if (postbackData.startsWith(Q4_POSTBACK_PREFIX)) {
+    const q4 = postbackData.slice(Q4_POSTBACK_PREFIX.length) as Q4Answer;
+    if (!(q4 in Q4_LABELS)) return { handled: false };
+
+    const claimed = await recordQ4Answer(db, friend.id, q4);
+    if (!claimed) return { handled: true };
+
+    const thanksText =
+      'ご回答ありがとうございました！✨\nいただいた内容をもとに、あなたに合ったお仕事を担当よりご案内します。ご質問があればいつでもメッセージしてください。';
+    await lineClient.pushMessage(friend.line_user_id, [{ type: 'text' as const, text: thanksText }]);
+    await logOutgoingMessage(db, {
+      friendId: friend.id, messageType: 'text', content: thanksText, deliveryType: 'push', source: 'job_matching',
+    });
     return { handled: true };
   }
 

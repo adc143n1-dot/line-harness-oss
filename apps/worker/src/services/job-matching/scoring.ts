@@ -16,6 +16,22 @@ export const Q1_LABELS: Record<Q1Answer, string> = {
   consult_only: 'まずは相談だけ',
 };
 
+export type Q3Answer = 'weekday_day' | 'weekday_night' | 'weekend' | 'anytime';
+export type Q4Answer = 'now' | 'within_month' | 'researching';
+
+export const Q3_LABELS: Record<Q3Answer, string> = {
+  weekday_day: '平日の日中',
+  weekday_night: '平日の夜',
+  weekend: '週末のみ',
+  anytime: 'いつでも',
+};
+
+export const Q4_LABELS: Record<Q4Answer, string> = {
+  now: '今すぐ始めたい',
+  within_month: '1ヶ月以内',
+  researching: 'まずは情報収集',
+};
+
 export const Q2_LABELS: Record<Q2Answer, string> = {
   high_value: '高額案件',
   sns_management: 'SNS運用',

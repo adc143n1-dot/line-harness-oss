@@ -296,6 +296,8 @@ export type JobMatchingLeadItem = {
   pictureUrl: string | null
   q1Answer: string | null
   q2Answer: string | null
+  q3Answer: string | null
+  q4Answer: string | null
   leadScore: number | null
   leadTemperature: 'hot' | 'warm' | 'cold' | null
   conversationState: 'awaiting_q1' | 'awaiting_q2' | 'diagnosed' | null

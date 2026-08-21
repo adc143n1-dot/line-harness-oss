@@ -20,6 +20,17 @@ const Q2_LABELS: Record<string, string> = {
   single_gig: '単発案件',
   other: 'その他',
 }
+const Q3_LABELS: Record<string, string> = {
+  weekday_day: '平日の日中',
+  weekday_night: '平日の夜',
+  weekend: '週末のみ',
+  anytime: 'いつでも',
+}
+const Q4_LABELS: Record<string, string> = {
+  now: '今すぐ',
+  within_month: '1ヶ月以内',
+  researching: '情報収集中',
+}
 const STATE_LABELS: Record<string, string> = {
   awaiting_q1: 'Q1回答待ち',
   awaiting_q2: 'Q2回答待ち',
@@ -153,6 +164,8 @@ export default function JobMatchingLeadsPage() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">名前</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Q1</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Q2</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">時間帯</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">開始時期</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">スコア</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">状態</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">担当</th>
@@ -168,6 +181,14 @@ export default function JobMatchingLeadsPage() {
                     <td className="px-4 py-3 text-sm font-medium text-gray-900">{lead.displayName || '(名前なし)'}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{lead.q1Answer ? Q1_LABELS[lead.q1Answer] ?? lead.q1Answer : '-'}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{lead.q2Answer ? Q2_LABELS[lead.q2Answer] ?? lead.q2Answer : '-'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{lead.q3Answer ? Q3_LABELS[lead.q3Answer] ?? lead.q3Answer : '-'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {lead.q4Answer ? (
+                        lead.q4Answer === 'now'
+                          ? <span className="text-xs px-2 py-0.5 rounded-full bg-orange-50 text-orange-700 font-medium">🚀 今すぐ</span>
+                          : (Q4_LABELS[lead.q4Answer] ?? lead.q4Answer)
+                      ) : '-'}
+                    </td>
                     <td className="px-4 py-3">
                       {lead.leadScore !== null && temp ? (
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${temp.className}`}>

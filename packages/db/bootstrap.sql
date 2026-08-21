@@ -518,6 +518,9 @@ CREATE TABLE friends (
   -- (要件確定前に個人情報を集める列だけ先に用意しない方針)。
   q1_answer         TEXT,
   q2_answer         TEXT,
+  -- 080: 追加ヒアリング (Q3=稼働時間帯 / Q4=開始希望時期)。診断後に聞く
+  q3_answer         TEXT,
+  q4_answer         TEXT,
   lead_score        INTEGER,
   lead_temperature  TEXT CHECK (lead_temperature IN ('hot', 'warm', 'cold')),
   job_matching_conversation_state TEXT
