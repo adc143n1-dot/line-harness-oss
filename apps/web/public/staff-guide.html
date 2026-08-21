@@ -2,21 +2,24 @@
 <meta name="description" content="LINE Harness 管理画面の全40画面を、現場スタッフ向けに機能・操作・注意点でまとめた運用リファレンス。">
 
 <style>
+  /* 白+青ベースの単一テーマ。以前は緑アクセント + OSダークモード連動の
+     緑系ダークテーマがあったが、「黒と緑で見にくい」という運用者の要望で
+     ダークテーマを廃止し、OS設定に関わらず常にこの配色で表示する。 */
   :root {
-    --bg: #F6FAF7;
+    --bg: #F6F9FC;
     --surface: #FFFFFF;
-    --surface-alt: #EBF2ED;
-    --border: #DCE7DF;
-    --ink: #16231C;
-    --ink-muted: #55655C;
-    --ink-faint: #8AA095;
-    --accent: #06C755;
-    --accent-ink: #04693B;
-    --accent-tint: #E4F9EC;
+    --surface-alt: #ECF2F9;
+    --border: #DAE3EE;
+    --ink: #17212F;
+    --ink-muted: #53637A;
+    --ink-faint: #8695AC;
+    --accent: #2563EB;
+    --accent-ink: #1D4ED8;
+    --accent-tint: #E4EDFC;
     --owner-fg: #8A5A0A;
     --owner-bg: #FBF0D6;
-    --admin-fg: #1D4ED8;
-    --admin-bg: #E1EAFB;
+    --admin-fg: #6D28D9;
+    --admin-bg: #EFE9FB;
     --danger-fg: #B91C1C;
     --danger-bg: #FBE4E2;
     --danger-border: #F0B8B3;
@@ -25,60 +28,8 @@
     --caution-border: #EAD59B;
     --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Consolas, monospace;
     --sans: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", system-ui, -apple-system, sans-serif;
-    --shadow-sm: 0 1px 2px rgba(22, 35, 28, 0.06);
-    --shadow-md: 0 6px 20px rgba(22, 35, 28, 0.08);
-  }
-
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --bg: #0D1310;
-      --surface: #141F18;
-      --surface-alt: #1B2822;
-      --border: #263A2E;
-      --ink: #E9F3EC;
-      --ink-muted: #9FB4A7;
-      --ink-faint: #66796E;
-      --accent: #2FE07B;
-      --accent-ink: #7BF0AA;
-      --accent-tint: #17301F;
-      --owner-fg: #F0CE86;
-      --owner-bg: #3A2E10;
-      --admin-fg: #9CB8FA;
-      --admin-bg: #182644;
-      --danger-fg: #FCA5A1;
-      --danger-bg: #3A1512;
-      --danger-border: #5C231D;
-      --caution-fg: #F0CE86;
-      --caution-bg: #352708;
-      --caution-border: #5C4715;
-      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-      --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.4);
-    }
-  }
-
-  :root[data-theme="dark"] {
-    --bg: #0D1310;
-    --surface: #141F18;
-    --surface-alt: #1B2822;
-    --border: #263A2E;
-    --ink: #E9F3EC;
-    --ink-muted: #9FB4A7;
-    --ink-faint: #66796E;
-    --accent: #2FE07B;
-    --accent-ink: #7BF0AA;
-    --accent-tint: #17301F;
-    --owner-fg: #F0CE86;
-    --owner-bg: #3A2E10;
-    --admin-fg: #9CB8FA;
-    --admin-bg: #182644;
-    --danger-fg: #FCA5A1;
-    --danger-bg: #3A1512;
-    --danger-border: #5C231D;
-    --caution-fg: #F0CE86;
-    --caution-bg: #352708;
-    --caution-border: #5C4715;
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.4);
+    --shadow-sm: 0 1px 2px rgba(23, 33, 47, 0.06);
+    --shadow-md: 0 6px 20px rgba(23, 33, 47, 0.08);
   }
 
   * { box-sizing: border-box; }
