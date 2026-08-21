@@ -451,6 +451,7 @@
 
       <div class="nav-group-label">分析</div>
       <a class="nav-link" href="#inflow-links" data-label="リファラルリンク">リファラルリンク</a>
+      <a class="nav-link" href="#job-matching-leads" data-label="副業マッチングリード">副業マッチングリード <span class="tag-dot" title="新機能あり"></span></a>
       <a class="nav-link" href="#affiliates" data-label="アフィリエイト">アフィリエイト</a>
       <a class="nav-link" href="#conversions" data-label="CV計測">CV計測</a>
       <a class="nav-link" href="#scoring" data-label="マイル">マイル</a>
@@ -577,6 +578,7 @@
               <li><b>成果セレクタ</b>（新規）：―未設定／✅成約／❌離脱。<b>進行状態とは完全に独立</b>しているため「対応中のまま成約」のような状態も表現できる</li>
               <li><b>担当（Claim、新規）</b>：未割当のチャットには「🙋 担当する」ボタンが出る。<b>押すまで入力欄がロックされ、メッセージを送れない</b>。自分の担当なら表示のみ、他スタッフの担当なら「⚠️ 他スタッフ担当 — 引き取る」ボタン</li>
               <li><b>Telegram誘導</b>（新規）：未連携の相手には「📨 Telegramに誘導する」ボタン。押すとLINEに専用リンクを自動送信（24時間で失効）。連携済みなら「✅ TG連携済」に変わる</li>
+              <li><b>Discord誘導</b>（新規）：同様に「💬 Discordに誘導する」ボタン。LINEに送られるのはDiscordの認可画面へのリンクで、開いて連携すると「✅ Discord連携済」に変わる（要事前設定）</li>
               <li>メッセージ履歴：テキスト・画像・Flex・スタンプに対応。テンプレートの呼び出し、「CCプロンプトテンプレート」（Claude Code向け分析プロンプトのコピー）</li>
               <li><b>内部メモ</b>（新規・旧: 上書き式の1行メモ）：誰が・いつ・何を書いたかが時系列で残る<b>追記専用</b>。編集・削除は不可</li>
               <li>友だち情報サイドバー（プロフィール・タグ・マイル履歴など）</li>
@@ -705,6 +707,34 @@
             <li>行展開でref経由の友だち一覧、URLコピー、詳細ページでファネル（クリック→友だち追加→フォーム送信→CV）表示</li>
           </ul>
           <div class="callout callout-caution"><svg><use href="#ic-caution"/></svg><span>一覧には「正式登録」「Tracked Link（別管理）」「未登録」の3種類の行が混在するので混同しないこと。起動シナリオ・即時pushとも未設定で保存しようとすると「このリンクで友だち追加した人には何も届きません」と警告される。</span></div>
+        </div>
+      </article>
+
+      <article class="screen" id="job-matching-leads">
+        <div class="screen-head">
+          <h3>副業マッチングリード</h3>
+          <div class="screen-badges"><span class="badge badge-new"><svg style="width:11px;height:11px"><use href="#ic-sparkle"/></svg>NEW</span></div>
+        </div>
+        <p class="screen-purpose">LINE上でQ1/Q2の簡易診断を受けた友だち（副業マッチング経由のリード）を、スコアの高い順に確認する画面。</p>
+        <div class="screen-body">
+          <div>
+            <div class="block-label">導線の作り方</div>
+            <ul>
+              <li>「リファラルリンク」画面で ref_code が <code class="path">jobmatch-</code> から始まる新規リンクを作成する（例: <code class="path">jobmatch-x-post</code>）</li>
+              <li>そのリンク経由で友だち追加されると、通常のシナリオ配信とは別に専用の会話が自動で始まる — 自己紹介 → Q1（働き方の希望）→ Q2（興味のあるジャンル）をクイックリプライで質問し、回答完了後にAIが診断メッセージを生成して送る</li>
+              <li>Q1・Q2の回答の組み合わせから、その場で機械的にスコア（0〜70点）と温度（🔥HOT／🌤️WARM／❄️COLD）を算出する（AIではなく固定の点数表による決定的な計算）</li>
+            </ul>
+          </div>
+          <div>
+            <div class="block-label">この画面でできること</div>
+            <ul>
+              <li>名前検索、温度フィルタ（HOT／WARM／COLD）で絞り込み</li>
+              <li>一覧はスコアの高い順（HOTが上）に自動で並ぶ</li>
+              <li>各行でQ1/Q2の回答内容・スコア・進行状況（Q1回答待ち／Q2回答待ち／診断完了）・更新日時を確認</li>
+            </ul>
+          </div>
+          <div class="callout callout-info"><svg><use href="#ic-info"/></svg><span>診断完了と同時に、設定していればDiscordチャンネルとGoogle Sheetsへも自動でリード情報が通知される。どちらも未設定の間は何も送信されないだけで、エラーにはならない。</span></div>
+          <div class="callout callout-caution"><svg><use href="#ic-caution"/></svg><span>まだ診断を開始していない友だち（<code class="path">jobmatch-</code> リンクを踏んでいない、または未対応の）はこの一覧に出てこない。</span></div>
         </div>
       </article>
 
