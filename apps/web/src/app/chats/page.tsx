@@ -370,6 +370,9 @@ export default function ChatsPage() {
 
   const [myChatsOnly, setMyChatsOnly] = useState(() => {
     if (typeof window === 'undefined') return false
+    // ?operator= 付きで来た場合 (チーム状況からの遷移) は担当者フィルタを
+    // 効かせたいので「自分の担当」トグルは初期OFFにする
+    if (new URLSearchParams(window.location.search).get('operator')) return false
     const stored = window.localStorage.getItem('lh_chat_my_view')
     return stored === null ? true : stored === '1'
   })
@@ -415,8 +418,12 @@ export default function ChatsPage() {
   // 担当者ID→名前の解決用名簿 (全ロールで呼べる /api/staff/roster)。
   // 一覧の担当バッジ・詳細の「◯◯が担当」表示・担当者フィルタに使う。
   const [staffRoster, setStaffRoster] = useState<{ id: string; name: string; isActive: boolean }[]>([])
-  // '' = 全員 / 'none' = 未割当のみ / それ以外 = スタッフID
-  const [operatorFilter, setOperatorFilter] = useState<string>('')
+  // '' = 全員 / 'none' = 未割当のみ / それ以外 = スタッフID。
+  // チーム状況ページからの遷移 (?operator=<id|none>) を初期値として受ける。
+  const [operatorFilter, setOperatorFilter] = useState<string>(() => {
+    if (typeof window === 'undefined') return ''
+    return new URLSearchParams(window.location.search).get('operator') ?? ''
+  })
 
   const staffNameOf = useCallback(
     (id: string | null | undefined): string | null => {

@@ -299,11 +299,35 @@ export type JobMatchingLeadItem = {
   leadScore: number | null
   leadTemperature: 'hot' | 'warm' | 'cold' | null
   conversationState: 'awaiting_q1' | 'awaiting_q2' | 'diagnosed' | null
+  /** 担当スタッフID (null=未割当) */
+  operatorId: string | null
+  /** 対応状況 (chats.status。chats行が無ければ null) */
+  chatStatus: string | null
   createdAt: string
   updatedAt: string
 }
 
+export type TeamOverview = {
+  staff: Array<{
+    operatorId: string
+    unread: number
+    inProgress: number
+    waitingReply: number
+    resolvedToday: number
+    avgFirstResponseMinutes: number | null
+  }>
+  global: {
+    totalUnanswered: number
+    unassignedBacklog: number
+    hotUnassigned: number
+  }
+}
+
 export const api = {
+  team: {
+    /** チーム全体の担当状況 (スタッフ別の未完了内訳・本日解決・平均初動、未割当バックログ等) */
+    overview: () => fetchApi<ApiResponse<TeamOverview>>('/api/team/overview'),
+  },
   jobMatchingLeads: {
     list: (params?: JobMatchingLeadParams) => {
       const query: Record<string, string> = {}

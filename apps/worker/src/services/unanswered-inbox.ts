@@ -247,7 +247,7 @@ function applyFilters(rows: UnansweredRow[], opts: UnansweredInboxOptions): Unan
  * 4. JS で各 incoming を判定: 応答あり証拠 OR silent ルール match で「マッチ済」、
  *    マッチしない最新の incoming を preview として採用。全部マッチした thread のみ除外。
  */
-async function getAllUnansweredRows(db: D1Database): Promise<UnansweredRow[]> {
+export async function getAllUnansweredRows(db: D1Database): Promise<UnansweredRow[]> {
   const candidatesResult = await db.prepare(CANDIDATES_SQL).all<RawCandidateRow>();
   const candidates = candidatesResult.results ?? [];
   if (candidates.length === 0) return [];

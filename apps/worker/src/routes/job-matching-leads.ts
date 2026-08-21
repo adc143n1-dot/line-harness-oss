@@ -13,6 +13,8 @@ interface JobMatchingLeadRow {
   lead_score: number | null;
   lead_temperature: 'hot' | 'warm' | 'cold' | null;
   job_matching_conversation_state: 'awaiting_q1' | 'awaiting_q2' | 'diagnosed' | null;
+  operator_id: string | null;
+  chat_status: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -27,6 +29,9 @@ function serializeLead(row: JobMatchingLeadRow) {
     leadScore: row.lead_score,
     leadTemperature: row.lead_temperature,
     conversationState: row.job_matching_conversation_state,
+    // 担当スタッフと対応状況 (HOTリードに誰も付いていないことを一覧で見せる)
+    operatorId: row.operator_id,
+    chatStatus: row.chat_status,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -61,10 +66,17 @@ jobMatchingLeads.get(
       const total = (await countStmt.bind(...binds).first<{ count: number }>())?.count ?? 0;
 
       const listStmt = db.prepare(
-        `SELECT f.id, f.display_name, f.picture_url, f.q1_answer, f.q2_answer,
+        `WITH latest_chat AS (
+           SELECT friend_id, operator_id, status, MAX(created_at) AS created_at
+           FROM chats GROUP BY friend_id
+         )
+         SELECT f.id, f.display_name, f.picture_url, f.q1_answer, f.q2_answer,
                 f.lead_score, f.lead_temperature, f.job_matching_conversation_state,
+                lc.operator_id, lc.status AS chat_status,
                 f.created_at, f.updated_at
-         FROM friends f ${where}
+         FROM friends f
+         LEFT JOIN latest_chat lc ON lc.friend_id = f.id
+         ${where}
          ORDER BY f.lead_score DESC, f.updated_at DESC
          LIMIT ? OFFSET ?`,
       );

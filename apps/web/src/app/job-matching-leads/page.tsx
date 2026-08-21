@@ -31,15 +31,38 @@ const TEMPERATURE_STYLE: Record<string, { label: string; className: string }> = 
   cold: { label: '❄️ COLD', className: 'bg-blue-100 text-blue-700' },
 }
 
+const CHAT_STATUS_LABELS: Record<string, string> = {
+  unread: '未読',
+  in_progress: '対応中',
+  waiting_reply: '返信待ち',
+  resolved: '対応済み',
+}
+
 export default function JobMatchingLeadsPage() {
   const [items, setItems] = useState<JobMatchingLeadItem[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
-  const [temperature, setTemperature] = useState<'' | 'hot' | 'warm' | 'cold'>('')
+  // チーム状況ページの「HOT未割当」カードから ?temperature=hot で遷移してくる
+  const [temperature, setTemperature] = useState<'' | 'hot' | 'warm' | 'cold'>(() => {
+    if (typeof window === 'undefined') return ''
+    const t = new URLSearchParams(window.location.search).get('temperature')
+    return t === 'hot' || t === 'warm' || t === 'cold' ? t : ''
+  })
   const [searchInput, setSearchInput] = useState('')
   const [searchSubmitted, setSearchSubmitted] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // 担当列の名前解決用
+  const [staffRoster, setStaffRoster] = useState<{ id: string; name: string; isActive: boolean }[]>([])
+
+  useEffect(() => {
+    api.staff.roster().then((res) => {
+      if (res.success) setStaffRoster(res.data)
+    }).catch(() => {})
+  }, [])
+
+  const staffNameOf = (id: string | null) =>
+    id ? (staffRoster.find((s) => s.id === id)?.name ?? '不明なスタッフ') : null
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -132,6 +155,8 @@ export default function JobMatchingLeadsPage() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Q2</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">スコア</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">状態</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">担当</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">対応状況</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">更新日時</th>
               </tr>
             </thead>
@@ -154,6 +179,18 @@ export default function JobMatchingLeadsPage() {
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600">
                       {lead.conversationState ? STATE_LABELS[lead.conversationState] ?? lead.conversationState : '-'}
+                    </td>
+                    <td className="px-4 py-3">
+                      {lead.operatorId ? (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
+                          🙋 {staffNameOf(lead.operatorId)}
+                        </span>
+                      ) : (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">未割当</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {lead.chatStatus ? CHAT_STATUS_LABELS[lead.chatStatus] ?? lead.chatStatus : '-'}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-500">
                       {new Date(lead.updatedAt).toLocaleString('ja-JP')}
