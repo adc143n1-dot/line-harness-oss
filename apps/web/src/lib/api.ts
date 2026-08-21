@@ -1100,6 +1100,12 @@ export const api = {
         `/api/chats/${id}/assign`,
         { method: 'POST', body: JSON.stringify({ staffId }) },
       ),
+    /** 再連絡予約 (スヌーズ)。until (ISO) を設定すると期日に未対応として再浮上。null で解除 */
+    snooze: (id: string, until: string | null) =>
+      fetchApi<ApiResponse<{ id: string; friendId: string; snoozeUntil: string | null }>>(
+        `/api/chats/${id}/snooze`,
+        { method: 'POST', body: JSON.stringify({ until }) },
+      ),
     /** 時系列の内部メモ (追記専用)。誰が・いつ・何を書いたかを残す */
     listNotes: (id: string) =>
       fetchApi<ApiResponse<{ id: string; content: string; createdAt: string; staffId: string | null; staffName: string | null }[]>>(

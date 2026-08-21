@@ -41,6 +41,7 @@ vi.mock('@line-crm/db', () => ({
       if (opts?.expectedVersion !== undefined && row.version !== opts.expectedVersion) return false;
       if ('operatorId' in updates) row.operator_id = updates.operatorId;
       if ('status' in updates) row.status = updates.status;
+      if ('snoozeUntil' in updates) row.snooze_until = updates.snoozeUntil;
       row.version = (row.version as number) + 1;
       return true;
     },
@@ -250,6 +251,42 @@ describe('POST /api/chats/:id/assign — 再割当 (admin/owner のみ)', () => 
     chatRows.set('friend-1', makeChatRow('friend-1'));
     const res = await post('/api/chats/friend-1/assign', ADMIN, {});
     expect(res.status).toBe(400);
+  });
+});
+
+describe('POST /api/chats/:id/snooze — 再連絡予約', () => {
+  test('未来時刻を設定すると snooze_until と waiting_reply が書き込まれる', async () => {
+    chatRows.set('friend-1', makeChatRow('friend-1', { operator_id: 'staff-a', status: 'in_progress' }));
+    const until = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+
+    const res = await post('/api/chats/friend-1/snooze', STAFF_A, { until });
+
+    expect(res.status).toBe(200);
+    expect(chatRows.get('friend-1')!.snooze_until).toBe(until);
+    expect(chatRows.get('friend-1')!.status).toBe('waiting_reply');
+    // 担当は維持される
+    expect(chatRows.get('friend-1')!.operator_id).toBe('staff-a');
+  });
+
+  test('過去の時刻は 400', async () => {
+    chatRows.set('friend-1', makeChatRow('friend-1'));
+    const res = await post('/api/chats/friend-1/snooze', STAFF_A, { until: '2020-01-01T00:00:00.000+09:00' });
+    expect(res.status).toBe(400);
+  });
+
+  test('日時として不正な文字列は 400', async () => {
+    chatRows.set('friend-1', makeChatRow('friend-1'));
+    const res = await post('/api/chats/friend-1/snooze', STAFF_A, { until: 'あした' });
+    expect(res.status).toBe(400);
+  });
+
+  test('until: null でスヌーズ解除できる', async () => {
+    chatRows.set('friend-1', makeChatRow('friend-1', { snooze_until: '2026-08-23T09:00:00.000+09:00', status: 'waiting_reply' }));
+
+    const res = await post('/api/chats/friend-1/snooze', STAFF_A, { until: null });
+
+    expect(res.status).toBe(200);
+    expect(chatRows.get('friend-1')!.snooze_until).toBeNull();
   });
 });
 

@@ -767,6 +767,8 @@ CREATE TABLE IF NOT EXISTS chats (
   last_replied_by   TEXT CHECK (last_replied_by IN ('operator', 'user')),
   -- 072: 進行状態 (status) とは独立した成果。VIP は顧客属性なのでタグへ。
   outcome           TEXT CHECK (outcome IN ('converted', 'lost')),
+  -- 079: 再連絡予約。期限を過ぎると cron が unread に戻して再浮上させる
+  snooze_until      TEXT,
   version           INTEGER NOT NULL DEFAULT 0,
   created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
   updated_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
@@ -815,6 +817,8 @@ CREATE INDEX IF NOT EXISTS idx_chats_last_activity ON chats (last_activity_at);
 -- 078: 担当者別×状態別の集計 (チームダッシュボード) と本日解決数の集計用
 CREATE INDEX IF NOT EXISTS idx_chats_operator_status ON chats (operator_id, status);
 CREATE INDEX IF NOT EXISTS idx_chats_resolved_at ON chats (resolved_at) WHERE resolved_at IS NOT NULL;
+-- 079: スヌーズ解除 cron が期限到達行だけを拾う部分インデックス
+CREATE INDEX IF NOT EXISTS idx_chats_snooze_until ON chats (snooze_until) WHERE snooze_until IS NOT NULL;
 
 -- ============================================================
 -- Round 3: 通知機能

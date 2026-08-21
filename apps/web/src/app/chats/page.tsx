@@ -69,6 +69,8 @@ interface ChatDetail extends Chat {
   friendPictureUrl: string | null
   tgVerifiedAt?: string | null
   discordVerifiedAt?: string | null
+  /** 再連絡予約 (スヌーズ) の期日。設定中はこの時刻に未対応として再浮上する */
+  snoozeUntil?: string | null
   messages?: ChatMessage[]
 }
 
@@ -411,6 +413,26 @@ export default function ChatsPage() {
   const [addingNote, setAddingNote] = useState(false)
   const [invitingTelegram, setInvitingTelegram] = useState(false)
   const [invitingDiscord, setInvitingDiscord] = useState(false)
+  const [snoozing, setSnoozing] = useState(false)
+  // クイック返信チップ: text型テンプレートの新しい順5件をワンタップ挿入
+  const [quickReplies, setQuickReplies] = useState<{ id: string; name: string; content: string }[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    api.templates
+      .list()
+      .then((res) => {
+        if (cancelled || !res.success) return
+        setQuickReplies(
+          res.data
+            .filter((t) => t.messageType === 'text')
+            .slice(0, 5)
+            .map((t) => ({ id: t.id, name: t.name, content: t.messageContent })),
+        )
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
   const [myStaffId, setMyStaffId] = useState<string | null>(null)
   const [myRole, setMyRole] = useState<string | null>(null)
   const [claiming, setClaiming] = useState(false)
@@ -1045,6 +1067,32 @@ export default function ChatsPage() {
     }
   }
 
+  // スヌーズのプリセット。'clear' は解除
+  const handleSnooze = async (preset: string) => {
+    if (!selectedChatId || !preset) return
+    let until: string | null = null
+    const now = new Date()
+    if (preset === '1h') until = new Date(now.getTime() + 60 * 60 * 1000).toISOString()
+    else if (preset === 'tomorrow9') {
+      const d = new Date(now); d.setDate(d.getDate() + 1); d.setHours(9, 0, 0, 0)
+      until = d.toISOString()
+    } else if (preset === '3days9') {
+      const d = new Date(now); d.setDate(d.getDate() + 3); d.setHours(9, 0, 0, 0)
+      until = d.toISOString()
+    } else if (preset !== 'clear') return
+    setSnoozing(true)
+    try {
+      await api.chats.snooze(selectedChatId, until)
+      loadChatDetail(selectedChatId)
+      loadChats()
+    } catch (err) {
+      const status = err instanceof ApiError ? err.status : 0
+      setError(`再連絡予約に失敗しました (HTTP ${status || '不明'})。`)
+    } finally {
+      setSnoozing(false)
+    }
+  }
+
   const handleAssign = async (staffId: string) => {
     if (!selectedChatId || !staffId) return
     setClaiming(true)
@@ -1561,6 +1609,32 @@ export default function ChatsPage() {
                         : `⚠️ ${staffNameOf(chatDetail.operatorId) ?? '他スタッフ'}が担当 — 引き取る`}
                     </button>
                   )}
+                  {/* スヌーズ (再連絡予約)。期日に未対応として再浮上する */}
+                  {chatDetail.snoozeUntil ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-violet-700 bg-violet-50 rounded-md" title="この時刻に未対応として再浮上します">
+                      ⏰ {new Date(chatDetail.snoozeUntil).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} に再浮上
+                      <button
+                        onClick={() => { void handleSnooze('clear') }}
+                        disabled={snoozing}
+                        className="ml-0.5 text-violet-600 hover:text-violet-900 underline disabled:opacity-50"
+                      >
+                        解除
+                      </button>
+                    </span>
+                  ) : (
+                    <select
+                      value=""
+                      onChange={(e) => { void handleSnooze(e.target.value) }}
+                      disabled={snoozing}
+                      className="text-xs border border-gray-200 rounded-md px-1.5 py-1 bg-white disabled:opacity-50"
+                      title="指定した時刻に未対応として再浮上させる (返信待ちの放置防止)"
+                    >
+                      <option value="">⏰ 再連絡…</option>
+                      <option value="1h">1時間後</option>
+                      <option value="tomorrow9">明日 9:00</option>
+                      <option value="3days9">3日後 9:00</option>
+                    </select>
+                  )}
                   {/* admin/owner は任意のスタッフへ割り当て(再割当)できる */}
                   {(myRole === 'owner' || myRole === 'admin') && staffRoster.length > 0 && (
                     <select
@@ -1816,6 +1890,26 @@ export default function ChatsPage() {
                     label="画像を送る (任意)"
                   />
                 </div>
+                {/* クイック返信チップ: text型テンプレートの新しい順5件をワンタップ挿入。
+                    タップで本文に追記し、フォーカスを返信欄へ移す */}
+                {quickReplies.length > 0 && !composerLocked && (
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {quickReplies.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => {
+                          setMessageContent((prev) => (prev ? `${prev}\n${t.content}` : t.content))
+                          textareaRef.current?.focus()
+                        }}
+                        className="px-2.5 py-1 text-xs rounded-full border border-gray-200 bg-gray-50 text-gray-700 hover:bg-green-50 hover:border-green-300 transition-colors max-w-[180px] truncate"
+                        title={t.content}
+                      >
+                        ⚡ {t.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <div className="flex items-end gap-2">
                   <textarea
                     ref={textareaRef}

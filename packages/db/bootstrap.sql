@@ -267,7 +267,7 @@ CREATE TABLE "chats" (
   version           INTEGER NOT NULL DEFAULT 0,
   created_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
   updated_at    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
-, outcome TEXT CHECK (outcome IN ('converted', 'lost')));
+, outcome TEXT CHECK (outcome IN ('converted', 'lost')), snooze_until TEXT);
 
 CREATE TABLE conversion_events (
   id                   TEXT PRIMARY KEY,
@@ -1249,6 +1249,8 @@ CREATE INDEX idx_chats_operator ON chats (operator_id);
 CREATE INDEX idx_chats_operator_status ON chats (operator_id, status);
 
 CREATE INDEX idx_chats_resolved_at ON chats (resolved_at) WHERE resolved_at IS NOT NULL;
+
+CREATE INDEX idx_chats_snooze_until ON chats (snooze_until) WHERE snooze_until IS NOT NULL;
 
 CREATE INDEX idx_chats_status ON chats (status);
 

@@ -94,6 +94,7 @@ export async function updateChat(
     lastActivityAt: string | null;
     lastRepliedBy: ChatRepliedBy | null;
     outcome: ChatOutcome | null;
+    snoozeUntil: string | null;
   }>,
   opts: { expectedVersion?: number } = {},
 ): Promise<boolean> {
@@ -109,6 +110,7 @@ export async function updateChat(
   if (updates.lastActivityAt !== undefined) { sets.push('last_activity_at = ?'); values.push(updates.lastActivityAt); }
   if (updates.lastRepliedBy !== undefined) { sets.push('last_replied_by = ?'); values.push(updates.lastRepliedBy); }
   if (updates.outcome !== undefined) { sets.push('outcome = ?'); values.push(updates.outcome); }
+  if (updates.snoozeUntil !== undefined) { sets.push('snooze_until = ?'); values.push(updates.snoozeUntil); }
   if (sets.length === 0) return true;
   // 楽観ロックの基準。実際に列が変わる更新のたびに +1 する。
   sets.push('version = version + 1');

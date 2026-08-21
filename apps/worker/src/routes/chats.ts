@@ -434,6 +434,7 @@ chats.get('/api/chats/:id', async (c) => {
         status,
         outcome: chatRow?.outcome ?? null,
         version: chatRow?.version ?? 0,
+        snoozeUntil: (chatRow as (ChatLike & { snooze_until?: string | null }) | null)?.snooze_until ?? null,
         source: friend?.source ?? null,
         telegramUserId: friend?.telegram_user_id ?? null,
         tgVerifiedAt: friend?.tg_verified_at ?? null,
@@ -1018,6 +1019,51 @@ chats.post('/api/chats/:id/assign', requireRole('owner', 'admin'), async (c) => 
     });
   } catch (err) {
     console.error('POST /api/chats/:id/assign error:', err);
+    return c.json({ success: false, error: 'Internal server error' }, 500);
+  }
+});
+
+// スヌーズ (再連絡予約)。until を設定すると status='waiting_reply' になり、
+// 期限を過ぎると cron (index.ts の releaseExpiredSnoozes) が unread に戻して
+// 再浮上させる (担当は維持)。until: null で解除。
+chats.post('/api/chats/:id/snooze', async (c) => {
+  try {
+    const body = await c.req
+      .json<{ until?: string | null; expectedVersion?: number }>()
+      .catch(() => ({}) as { until?: string | null; expectedVersion?: number });
+
+    const chat = await resolveOrCreateChat(c.env.DB, c.req.param('id')!);
+    if (!chat) return c.json({ success: false, error: 'Chat not found' }, 404);
+
+    if (body.until === null) {
+      // スヌーズ解除。status は waiting_reply のまま残す (手動で変えられる)
+      const applied = await updateChat(c.env.DB, chat.id, { snoozeUntil: null }, {
+        expectedVersion: body.expectedVersion,
+      });
+      if (!applied) return c.json({ success: false, error: 'Version conflict' }, 409);
+      return c.json({ success: true, data: { id: chat.friend_id, friendId: chat.friend_id, snoozeUntil: null } });
+    }
+
+    const until = typeof body.until === 'string' ? body.until : '';
+    const untilMs = Date.parse(until);
+    if (!until || Number.isNaN(untilMs)) {
+      return c.json({ success: false, error: 'until must be an ISO 8601 datetime or null' }, 400);
+    }
+    if (untilMs <= Date.now()) {
+      return c.json({ success: false, error: 'until must be in the future' }, 400);
+    }
+
+    const applied = await updateChat(
+      c.env.DB,
+      chat.id,
+      { snoozeUntil: until, status: 'waiting_reply' },
+      { expectedVersion: body.expectedVersion },
+    );
+    if (!applied) return c.json({ success: false, error: 'Version conflict' }, 409);
+
+    return c.json({ success: true, data: { id: chat.friend_id, friendId: chat.friend_id, snoozeUntil: until } });
+  } catch (err) {
+    console.error('POST /api/chats/:id/snooze error:', err);
     return c.json({ success: false, error: 'Internal server error' }, 500);
   }
 });

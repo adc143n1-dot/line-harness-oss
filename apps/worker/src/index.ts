@@ -13,6 +13,7 @@ import {
   incrementAffiliateLinkClick,
   enqueueFollowingMileageMilestones,
   processPendingMileageEvents,
+  jstNow,
 } from '@line-crm/db';
 import { processStepDeliveries } from './services/step-delivery.js';
 import { processScheduledBroadcasts, processQueuedBroadcasts } from './services/broadcast.js';
@@ -1097,6 +1098,25 @@ async function scheduled(
     syncMessagesFts(env.DB).then((count) => {
       if (count > 0) console.log(`[messages-fts-sync] indexed=${count}`);
     }).catch((e) => console.error('messages-fts-sync error:', e)),
+  );
+
+  // スヌーズ (再連絡予約) の期限解除。期限を過ぎたチャットを unread に戻して
+  // 再浮上させる (担当は維持)。部分インデックス idx_chats_snooze_until が効く
+  // 1本のUPDATEなので毎分実行しても安価。version も +1 して楽観ロックと整合させる。
+  jobs.push(
+    env.DB
+      .prepare(
+        `UPDATE chats
+            SET status = 'unread', snooze_until = NULL,
+                version = version + 1, updated_at = ?
+          WHERE snooze_until IS NOT NULL AND snooze_until <= ?`,
+      )
+      .bind(jstNow(), jstNow())
+      .run()
+      .then((r) => {
+        if ((r.meta?.changes ?? 0) > 0) console.log(`[snooze-release] reawakened=${r.meta.changes}`);
+      })
+      .catch((e) => console.error('snooze-release error:', e)),
   );
 
   // 未対応バックログの異常増加検知 + チーム運用アラート (未割当バックログ /
