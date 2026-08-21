@@ -410,6 +410,19 @@ export default function ChatsPage() {
   const [invitingDiscord, setInvitingDiscord] = useState(false)
   const [myStaffId, setMyStaffId] = useState<string | null>(null)
   const [claiming, setClaiming] = useState(false)
+  // 担当者ID→名前の解決用名簿 (全ロールで呼べる /api/staff/roster)。
+  // 一覧の担当バッジ・詳細の「◯◯が担当」表示・担当者フィルタに使う。
+  const [staffRoster, setStaffRoster] = useState<{ id: string; name: string; isActive: boolean }[]>([])
+  // '' = 全員 / 'none' = 未割当のみ / それ以外 = スタッフID
+  const [operatorFilter, setOperatorFilter] = useState<string>('')
+
+  const staffNameOf = useCallback(
+    (id: string | null | undefined): string | null => {
+      if (!id) return null
+      return staffRoster.find((s) => s.id === id)?.name ?? '不明なスタッフ'
+    },
+    [staffRoster],
+  )
 
   // 「自分の担当か」の判定に使う。共有 API キーでログインしている場合は
   // staff_members 行が無いので null のままになり、担当ボタンは出さない。
@@ -422,6 +435,14 @@ export default function ChatsPage() {
       })
       .catch(() => {
         if (!cancelled) setMyStaffId(null)
+      })
+    api.staff
+      .roster()
+      .then((res) => {
+        if (!cancelled && res.success) setStaffRoster(res.data)
+      })
+      .catch(() => {
+        // 名簿が取れなくても致命的ではない (担当バッジがID非表示になるだけ)
       })
     return () => {
       cancelled = true
@@ -469,7 +490,10 @@ export default function ChatsPage() {
       limit?: number; beforeAt?: string; beforeId?: string;
     } = {}
     if (statusFilter !== 'all' && !unansweredOnly) params.status = statusFilter
+    // 「自分の担当」トグルが優先。OFF のときだけ担当者ドロップダウン
+    // ('none'=未割当 / スタッフID) が効く。
     if (myChatsOnly && myStaffId) params.operatorId = myStaffId
+    else if (operatorFilter) params.operatorId = operatorFilter
     if (selectedAccountId) params.accountId = selectedAccountId
     if (unansweredOnly) params.unansweredOnly = true
     else params.limit = CHAT_PAGE_SIZE
@@ -478,7 +502,7 @@ export default function ChatsPage() {
       params.beforeId = cursor.id
     }
     return params
-  }, [statusFilter, selectedAccountId, unansweredOnly, myChatsOnly, myStaffId])
+  }, [statusFilter, selectedAccountId, unansweredOnly, myChatsOnly, myStaffId, operatorFilter])
 
   const loadChats = useCallback(async () => {
     setLoading(true)
@@ -1096,6 +1120,22 @@ export default function ChatsPage() {
                 🙋 自分の担当
               </label>
             )}
+            {/* 担当者フィルタ。「自分の担当」ON中は競合するため無効化 */}
+            {staffRoster.length > 0 && (
+              <select
+                value={myChatsOnly ? '' : operatorFilter}
+                onChange={(e) => setOperatorFilter(e.target.value)}
+                disabled={myChatsOnly}
+                className={`text-xs border border-gray-200 rounded-md px-1.5 py-1 bg-white ${myChatsOnly ? 'opacity-40 cursor-not-allowed' : ''}`}
+                title="担当者で絞り込む"
+              >
+                <option value="">担当: 全員</option>
+                <option value="none">担当: 未割当のみ</option>
+                {staffRoster.filter((s) => s.isActive).map((s) => (
+                  <option key={s.id} value={s.id}>担当: {s.name}</option>
+                ))}
+              </select>
+            )}
             <label className="flex items-center gap-1.5 text-xs font-medium whitespace-nowrap ml-auto cursor-pointer select-none">
               <input
                 type="checkbox"
@@ -1218,8 +1258,27 @@ export default function ChatsPage() {
                             )}
                             {preview || <span className="italic text-gray-300">(まだメッセージなし)</span>}
                           </p>
-                          {(chat.source || chat.telegramUserId || chat.outcome) && (
+                          {(chat.source || chat.telegramUserId || chat.outcome || staffRoster.length > 0) && (
                             <div className="flex items-center gap-1 mt-1 flex-wrap">
+                              {/* 担当バッジ: 自分=緑 / 他スタッフ=青 (実名) / 未割当=グレー */}
+                              {staffRoster.length > 0 && (
+                                chat.operatorId ? (
+                                  <span
+                                    className={`px-1.5 py-0.5 text-[10px] rounded ${
+                                      chat.operatorId === myStaffId
+                                        ? 'bg-green-50 text-green-700'
+                                        : 'bg-blue-50 text-blue-700'
+                                    }`}
+                                    title={`担当: ${staffNameOf(chat.operatorId)}`}
+                                  >
+                                    🙋 {chat.operatorId === myStaffId ? '自分' : staffNameOf(chat.operatorId)}
+                                  </span>
+                                ) : (
+                                  <span className="px-1.5 py-0.5 text-[10px] rounded bg-gray-100 text-gray-500">
+                                    未割当
+                                  </span>
+                                )
+                              )}
                               {chat.source && (
                                 <span
                                   className="px-1.5 py-0.5 text-[10px] rounded bg-indigo-50 text-indigo-700"
@@ -1390,9 +1449,11 @@ export default function ChatsPage() {
                       onClick={() => handleClaim(true)}
                       disabled={claiming}
                       className="px-3 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-md transition-colors disabled:opacity-50"
-                      title="他のスタッフが担当中です"
+                      title={`${staffNameOf(chatDetail.operatorId) ?? '他のスタッフ'}が担当中です`}
                     >
-                      {claiming ? '設定中…' : '⚠️ 他スタッフ担当 — 引き取る'}
+                      {claiming
+                        ? '設定中…'
+                        : `⚠️ ${staffNameOf(chatDetail.operatorId) ?? '他スタッフ'}が担当 — 引き取る`}
                     </button>
                   )}
                   {chatDetail.telegramUserId ? (
@@ -1691,6 +1752,11 @@ export default function ChatsPage() {
                 chatDetail && chatDetail.id === (selectedFriendId || selectedChatId)
                   ? { status: chatDetail.status, notes: chatDetail.notes }
                   : undefined
+              }
+              operatorName={
+                chatDetail && chatDetail.id === (selectedFriendId || selectedChatId)
+                  ? staffNameOf(chatDetail.operatorId)
+                  : null
               }
             />
           </div>

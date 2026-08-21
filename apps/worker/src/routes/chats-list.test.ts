@@ -85,3 +85,38 @@ describe('GET /api/chats list preview', () => {
     expect(listSql).not.toContain("WHERE direction = 'incoming'");
   });
 });
+
+describe('GET /api/chats — 担当者フィルタ', () => {
+  async function request(query: string) {
+    const { db, queries } = fakeDb({
+      id: 'friend-1', friend_id: 'friend-1', display_name: 'kt', picture_url: null,
+      line_user_id: `U${'1'.repeat(32)}`, line_account_id: null, operator_id: null,
+      status: 'unread', notes: null, last_message_at: '2026-08-22T10:00:00.000+09:00',
+      last_message_content: null, last_message_direction: null, last_message_type: null,
+      created_at: '2026-08-22T10:00:00.000+09:00', updated_at: '2026-08-22T10:00:00.000+09:00',
+    });
+    const app = new Hono();
+    app.route('/', chats);
+    const res = await app.request(
+      new Request(`http://worker.test/api/chats${query}`),
+      {},
+      { DB: db } as never,
+    );
+    return { res, queries };
+  }
+
+  test('operatorId=none は operator_id IS NULL で絞り込む (未割当フィルタ)', async () => {
+    const { res, queries } = await request('?operatorId=none');
+    expect(res.status).toBe(200);
+    expect(queries[0].sql).toContain('c.operator_id IS NULL');
+    // 'none' がバインド値として渡らないこと
+    expect(queries[0].params).not.toContain('none');
+  });
+
+  test('operatorId=<id> は等価条件でバインドする', async () => {
+    const { res, queries } = await request('?operatorId=staff-7');
+    expect(res.status).toBe(200);
+    expect(queries[0].sql).toContain('c.operator_id = ?');
+    expect(queries[0].params).toContain('staff-7');
+  });
+});

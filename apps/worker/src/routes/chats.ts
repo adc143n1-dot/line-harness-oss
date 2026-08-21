@@ -196,7 +196,11 @@ chats.get('/api/chats', async (c) => {
       conditions.push(`COALESCE(c.status, 'resolved') = ?`);
       conditionBindings.push(status);
     }
-    if (operatorId) {
+    if (operatorId === 'none') {
+      // 「未割当のみ」フィルタ。chats 行が無い (未対応のまま誰も触っていない)
+      // 友だちも未割当として扱うため IS NULL 判定 (LEFT JOIN 前提)。
+      conditions.push('c.operator_id IS NULL');
+    } else if (operatorId) {
       conditions.push('c.operator_id = ?');
       conditionBindings.push(operatorId);
     }

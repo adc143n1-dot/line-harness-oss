@@ -69,6 +69,28 @@ staff.get('/api/staff/me', async (c) => {
   }
 });
 
+// GET /api/staff/roster — any authenticated user (MUST be before /:id).
+// 担当者ID→名前の解決だけを目的にした軽量な名簿。owner限定の GET /api/staff
+// (マスク済みAPIキー・メール等を含む) とは意図的に分離し、staff ロールでも
+// チャット一覧・チームビューで担当者名を表示できるようにする。
+// 返すのは id / name / isActive の3フィールドのみ。
+staff.get('/api/staff/roster', async (c) => {
+  try {
+    const members = await getStaffMembers(c.env.DB);
+    return c.json({
+      success: true,
+      data: members.map((m) => ({
+        id: m.id,
+        name: m.name,
+        isActive: Boolean(m.is_active),
+      })),
+    });
+  } catch (err) {
+    console.error('GET /api/staff/roster error:', err);
+    return c.json({ success: false, error: 'Internal server error' }, 500);
+  }
+});
+
 // GET /api/staff — owner only. List all staff with masked API keys.
 staff.get('/api/staff', requireRole('owner'), async (c) => {
   try {

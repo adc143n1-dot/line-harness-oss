@@ -1246,6 +1246,10 @@ CREATE INDEX idx_chats_last_activity ON chats (last_activity_at);
 
 CREATE INDEX idx_chats_operator ON chats (operator_id);
 
+CREATE INDEX idx_chats_operator_status ON chats (operator_id, status);
+
+CREATE INDEX idx_chats_resolved_at ON chats (resolved_at) WHERE resolved_at IS NOT NULL;
+
 CREATE INDEX idx_chats_status ON chats (status);
 
 CREATE INDEX idx_conversion_events_affiliate ON conversion_events (affiliate_code);

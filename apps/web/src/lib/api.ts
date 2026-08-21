@@ -1251,6 +1251,9 @@ export const api = {
   staff: {
     list: () =>
       fetchApi<ApiResponse<StaffMember[]>>('/api/staff'),
+    /** 担当者名の解決用の軽量名簿。owner限定の list と違い全ロールで呼べる */
+    roster: () =>
+      fetchApi<ApiResponse<{ id: string; name: string; isActive: boolean }[]>>('/api/staff/roster'),
     get: (id: string) =>
       fetchApi<ApiResponse<StaffMember>>(`/api/staff/${id}`),
     me: () =>

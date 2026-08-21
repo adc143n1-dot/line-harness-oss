@@ -812,6 +812,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_chats_friend_unique ON chats (friend_id);
 CREATE INDEX IF NOT EXISTS idx_chats_operator ON chats (operator_id);
 CREATE INDEX IF NOT EXISTS idx_chats_status ON chats (status);
 CREATE INDEX IF NOT EXISTS idx_chats_last_activity ON chats (last_activity_at);
+-- 078: 担当者別×状態別の集計 (チームダッシュボード) と本日解決数の集計用
+CREATE INDEX IF NOT EXISTS idx_chats_operator_status ON chats (operator_id, status);
+CREATE INDEX IF NOT EXISTS idx_chats_resolved_at ON chats (resolved_at) WHERE resolved_at IS NOT NULL;
 
 -- ============================================================
 -- Round 3: 通知機能
