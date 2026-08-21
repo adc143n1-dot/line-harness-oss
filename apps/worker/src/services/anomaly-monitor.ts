@@ -1,5 +1,5 @@
 import { getAccountSetting, setAccountSetting } from '@line-crm/db';
-import { countUnanswered } from './unanswered-inbox.js';
+import { countUnanswered, getAllUnansweredRows } from './unanswered-inbox.js';
 import { fireEvent } from './event-bus.js';
 
 // 異常検知モニター — ban-monitor.ts と同じ構造 (cronから定期実行、D1集計→
@@ -60,5 +60,80 @@ export async function checkUnansweredBacklogSpike(db: D1Database): Promise<void>
       threshold,
       oldestWaitMinutes: current.oldestWaitMinutes,
     },
+  });
+}
+
+// ─── チーム運用アラート (Phase 4) ───
+// プル型キュー運用の弱点は「全員が取り忘れると誰も気づかない」こと。
+// 未割当バックログと HOT リード未割当を毎時チェックし、閾値超過で
+// 送信 Webhook (fireEvent) へ流す。閾値は他の設定と同じ account_settings
+// の '__global__' KV パターン。0 を設定すれば「1件でも溜まったら通知」になる。
+
+const UNASSIGNED_THRESHOLD_KEY = 'team_unassigned_alert_threshold';
+const DEFAULT_UNASSIGNED_THRESHOLD = 10;
+const HOT_UNASSIGNED_THRESHOLD_KEY = 'team_hot_unassigned_alert_threshold';
+const DEFAULT_HOT_UNASSIGNED_THRESHOLD = 1;
+
+/**
+ * 「誰も担当していない未対応」が閾値以上溜まっていたらアラートする。
+ * spike 検知 (前回比) と違い絶対量で判定する — プル型キューでは
+ * 「取り手がいない」状態そのものが異常のため。閾値を超え続ける限り
+ * 毎時発火する (悪化の継続を毎回知らせる方針は spike と同じ)。
+ */
+export async function checkUnassignedBacklog(db: D1Database): Promise<void> {
+  const rows = await getAllUnansweredRows(db);
+  const unassigned = rows.filter((r) => r.operatorId === null);
+
+  const thresholdRaw = await getAccountSetting(db, GLOBAL_SCOPE, UNASSIGNED_THRESHOLD_KEY);
+  const threshold = thresholdRaw !== null && Number.isFinite(Number(thresholdRaw))
+    ? Number(thresholdRaw)
+    : DEFAULT_UNASSIGNED_THRESHOLD;
+
+  if (unassigned.length < threshold) return;
+
+  const oldest = unassigned.reduce<string | null>(
+    (min, r) => (min === null || r.lastIncomingAt < min ? r.lastIncomingAt : min),
+    null,
+  );
+  await fireEvent(db, 'team_unassigned_backlog', {
+    eventData: {
+      unassignedCount: unassigned.length,
+      totalUnanswered: rows.length,
+      threshold,
+      oldestIncomingAt: oldest,
+    },
+  });
+}
+
+/**
+ * HOT リード (副業マッチングで本気度最上位) が未割当のまま放置されていたら
+ * アラートする。既定は1件でも発火 — HOT は即日対応が前提のため。
+ */
+export async function checkHotLeadsUnassigned(db: D1Database): Promise<void> {
+  const row = await db
+    .prepare(
+      `WITH latest_chat AS (
+         SELECT friend_id, operator_id, MAX(created_at) AS created_at
+         FROM chats GROUP BY friend_id
+       )
+       SELECT COUNT(*) AS cnt
+         FROM friends f
+         LEFT JOIN latest_chat lc ON lc.friend_id = f.id
+        WHERE f.is_following = 1
+          AND f.lead_temperature = 'hot'
+          AND lc.operator_id IS NULL`,
+    )
+    .first<{ cnt: number }>();
+  const count = row?.cnt ?? 0;
+
+  const thresholdRaw = await getAccountSetting(db, GLOBAL_SCOPE, HOT_UNASSIGNED_THRESHOLD_KEY);
+  const threshold = thresholdRaw !== null && Number.isFinite(Number(thresholdRaw))
+    ? Number(thresholdRaw)
+    : DEFAULT_HOT_UNASSIGNED_THRESHOLD;
+
+  if (count < threshold) return;
+
+  await fireEvent(db, 'team_hot_leads_unassigned', {
+    eventData: { hotUnassignedCount: count, threshold },
   });
 }

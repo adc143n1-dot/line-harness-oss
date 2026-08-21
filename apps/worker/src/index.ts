@@ -19,7 +19,7 @@ import { processScheduledBroadcasts, processQueuedBroadcasts } from './services/
 import { processReminderDeliveries } from './services/reminder-delivery.js';
 import { checkAccountHealth } from './services/ban-monitor.js';
 import { syncMessagesFts } from './services/messages-fts-sync.js';
-import { checkUnansweredBacklogSpike } from './services/anomaly-monitor.js';
+import { checkUnansweredBacklogSpike, checkUnassignedBacklog, checkHotLeadsUnassigned } from './services/anomaly-monitor.js';
 import { refreshLineAccessTokens } from './services/token-refresh.js';
 import { processInsightFetch } from './services/insight-fetcher.js';
 import { processDueReminders } from './services/booking-reminders.js';
@@ -1099,14 +1099,16 @@ async function scheduled(
     }).catch((e) => console.error('messages-fts-sync error:', e)),
   );
 
-  // 未対応バックログの異常増加検知。毎時0分に実行 (mileage と同じ毎分cron
-  // への相乗り、間引き方式)。
+  // 未対応バックログの異常増加検知 + チーム運用アラート (未割当バックログ /
+  // HOTリード未割当)。毎時0分に実行 (mileage と同じ毎分cronへの相乗り、間引き方式)。
   if (
     event.cron === '* * * * *'
     && new Date(event.scheduledTime).getUTCMinutes() === 0
   ) {
     jobs.push(
       checkUnansweredBacklogSpike(env.DB).catch((e) => console.error('anomaly-monitor error:', e)),
+      checkUnassignedBacklog(env.DB).catch((e) => console.error('team-unassigned-alert error:', e)),
+      checkHotLeadsUnassigned(env.DB).catch((e) => console.error('team-hot-alert error:', e)),
     );
   }
 
