@@ -101,6 +101,7 @@ export const GUIDE_GROUPS: GuideGroup[] = [
               '「🙋 自分の担当」（新規）— ONにすると自分が担当しているチャットだけに絞る。既定でON。共有APIキーでのログイン時はこのトグル自体が表示されない',
               '「🔥 未対応のみ」— 長時間放置されているチャットに絞る',
               '各行のバッジ：未読の赤丸、流入元バッジ（新規・友だち追加URLの ?lp=xxx から採取）、TG連携バッジ（新規）、成果バッジ（新規・✅成約／❌離脱）',
+              'Telegramバッジ（新規）：Telegram経由の連絡先には「Telegram」バッジが付く。返信はそのままTelegramに届き、担当割当・スヌーズ・メモ・ボードもLINEと同じように使える（設定は「設定 → Telegramアカウント」）',
               '最終メッセージのプレビュー（画像・Flex・スタンプ・動画・音声・ファイル・位置情報はアイコン付きで種類表示）',
             ],
           },
@@ -565,6 +566,34 @@ export const GUIDE_GROUPS: GuideGroup[] = [
         callouts: [
           { kind: 'info', text: '制限の対象はログインと管理APIのみ。友だち向けのフォーム・LINE連携ページ・Webhookには影響しない。既定は無効で、オフの間はどのIPからでもアクセスできる。' },
           { kind: 'danger', text: '有効化時に「現在のIPを含まない許可リスト」は保存できないガードがあるが、設定を誤ると自分が締め出される。万一ロックアウトしたら、サーバー管理者がD1で該当設定（account_settings の admin_ip_allowlist）を削除するか、環境変数 ADMIN_IP_ALLOWLIST_BYPASS=true を設定して再デプロイすると解除できる（画面内にも同じ手順を記載）。' },
+        ],
+      },
+      {
+        id: 'telegram-accounts',
+        title: 'Telegramアカウント',
+        badges: ['owner', 'new'],
+        purpose: 'Telegram Bot を登録して、顧客との会話を個別チャット・チャットボードでLINEと同じように管理する画面。複数Botをブランド/用途別に登録できる。',
+        blocks: [
+          {
+            label: 'はじめかた',
+            items: [
+              'Telegramで @BotFather からBotを作成し、Botトークンとユーザー名を取得する',
+              'この画面で「+ Botを追加」→ 表示名・Botユーザー名・Botトークンを入力して登録（登録時に自動でWebhookが設定される）',
+              'ユーザーがそのBotにメッセージを送ると、個別チャットに会話が現れ、そのまま返信できる',
+            ],
+          },
+          {
+            label: 'この画面でできること',
+            items: [
+              'Bot一覧（表示名・@ユーザー名・トークン末尾4桁・有効/無効）',
+              '各Botの Webhook URL の表示とコピー（BotFather/手動設定が必要なときの控え）',
+              '有効化/無効化、Webhook再設定、削除',
+            ],
+          },
+        ],
+        callouts: [
+          { kind: 'info', text: 'Botトークンは登録後、末尾4桁のみ表示される。自動返信・AI応答もTelegram受信に適用される（AI応答を使うにはAI設定が有効な環境であること）。LINEの一斉配信・シナリオはTelegram連絡先には送られない（別チャネルのため）。' },
+          { kind: 'caution', text: 'Botトークンは「Botを操作できる鍵」。第三者に渡さないこと。削除するとそのBot経由の送受信はできなくなる（過去の会話履歴は残る）。' },
         ],
       },
       {
