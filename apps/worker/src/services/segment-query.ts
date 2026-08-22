@@ -93,7 +93,8 @@ export function buildSegmentQuery(condition: SegmentCondition): { sql: string; b
 
   const separator = condition.operator === 'AND' ? ' AND ' : ' OR '
   const where = clauses.length > 0 ? clauses.join(separator) : '1=1'
-  const sql = `SELECT f.id, f.line_user_id, f.display_name FROM friends f WHERE ${where} ORDER BY f.created_at ASC, f.id ASC`
+  // channel='line' ガード: Telegram等の非LINE連絡先はLINEセグメント配信の対象外 (081)
+  const sql = `SELECT f.id, f.line_user_id, f.display_name FROM friends f WHERE f.channel = 'line' AND (${where}) ORDER BY f.created_at ASC, f.id ASC`
 
   return { sql, bindings }
 }

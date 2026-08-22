@@ -53,7 +53,8 @@ export async function processBroadcastSend(
     && broadcast.target_type !== 'multi-account-dedup') {
     const raw = broadcast as unknown as Record<string, unknown>;
     const accountId = raw.line_account_id as string | null;
-    const where: string[] = ['f.is_following = 1'];
+    // channel='line' ガード: Telegram等の非LINE連絡先にLINE配信を試みない (081)
+    const where: string[] = ["f.is_following = 1", "f.channel = 'line'"];
     const binds: unknown[] = [];
     if (accountId) {
       where.push('f.line_account_id = ?');

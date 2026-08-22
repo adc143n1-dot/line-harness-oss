@@ -13,7 +13,7 @@ function okJson(result: unknown) {
 
 describe('TelegramClient', () => {
   it('sendText posts to sendMessage with chat_id/text', async () => {
-    const fetchMock = vi.fn(async () => okJson({ message_id: 1 }));
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => okJson({ message_id: 1 }));
     const client = new TelegramClient('BOT123', fetchMock as unknown as typeof fetch);
     const ok = await client.sendText('555', 'hello');
     expect(ok).toBe(true);
@@ -23,7 +23,7 @@ describe('TelegramClient', () => {
   });
 
   it('sendPhoto passes photo URL and optional caption', async () => {
-    const fetchMock = vi.fn(async () => okJson({ message_id: 2 }));
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => okJson({ message_id: 2 }));
     const client = new TelegramClient('BOT123', fetchMock as unknown as typeof fetch);
     await client.sendPhoto('555', 'https://x/i.jpg', 'cap');
     const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
@@ -31,7 +31,7 @@ describe('TelegramClient', () => {
   });
 
   it('setWebhook registers url + secret and restricts to message updates', async () => {
-    const fetchMock = vi.fn(async () => okJson(true));
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => okJson(true));
     const client = new TelegramClient('BOT123', fetchMock as unknown as typeof fetch);
     await client.setWebhook('https://w/api/telegram/webhook/acc1', 'sekret');
     const [url, init] = fetchMock.mock.calls[0];
@@ -44,7 +44,7 @@ describe('TelegramClient', () => {
   });
 
   it('returns false on API error', async () => {
-    const fetchMock = vi.fn(async () => ({ ok: false, status: 400, text: async () => 'bad' }) as unknown as Response);
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => ({ ok: false, status: 400, text: async () => 'bad' }) as unknown as Response);
     const client = new TelegramClient('BOT123', fetchMock as unknown as typeof fetch);
     expect(await client.sendText('1', 'x')).toBe(false);
   });
@@ -61,7 +61,7 @@ describe('TelegramClient', () => {
         arrayBuffer: async () => bytes,
       } as unknown as Response;
     });
-    const put = vi.fn(async () => {});
+    const put = vi.fn(async (_key: string, _data: unknown, _opts?: unknown) => {});
     const r2 = { put } as unknown as R2Bucket;
     const client = new TelegramClient('BOT123', fetchMock as unknown as typeof fetch);
 

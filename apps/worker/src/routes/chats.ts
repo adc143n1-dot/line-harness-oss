@@ -582,44 +582,31 @@ chats.post('/api/chats/:id/send', async (c) => {
       return c.json({ success: false, error: 'Version conflict' }, 409);
     }
 
-    const { friend, accessToken } = await resolveFriendAndAccessToken(
+    const { friend } = await resolveFriendAndAccessToken(
       c.env.DB,
       chat.friend_id,
       c.env.LINE_CHANNEL_ACCESS_TOKEN,
     );
     if (!friend) return c.json({ success: false, error: 'Friend not found' }, 404);
 
-    // LINE APIでメッセージ送信
-    const { LineClient } = await import('@line-crm/line-sdk');
-    const lineClient = new LineClient(accessToken);
-    const messageType = body.messageType ?? 'text';
-
-    if (messageType === 'text') {
-      await lineClient.pushTextMessage(friend.line_user_id, body.content);
-    } else if (messageType === 'flex') {
-      const contents = JSON.parse(body.content);
-      await lineClient.pushFlexMessage(friend.line_user_id, extractFlexAltText(contents), contents);
-    } else if (messageType === 'image') {
-      const parsed = JSON.parse(body.content) as {
-        originalContentUrl: string;
-        previewImageUrl: string;
-      };
-      await lineClient.pushImageMessage(
-        friend.line_user_id,
-        parsed.originalContentUrl,
-        parsed.previewImageUrl,
-      );
-    }
-
-    // メッセージログに記録。
+    const messageType = (body.messageType ?? 'text') as 'text' | 'image' | 'flex';
     // sent_by_staff_id は staff_members を参照するため、env API_KEY 認証の合成
-    // ID (ENV_OWNER_STAFF_ID) では NULL を入れる。自動送信も NULL のまま。
-    const logId = crypto.randomUUID();
+    // ID (ENV_OWNER_STAFF_ID) では NULL を入れる。
     const sentByStaffId = persistableStaffId(c.get('staff'));
-    await c.env.DB
-      .prepare(`INSERT INTO messages_log (id, friend_id, direction, message_type, content, source, sent_by_staff_id, created_at) VALUES (?, ?, 'outgoing', ?, ?, 'manual', ?, ?)`)
-      .bind(logId, friend.id, messageType, body.content, sentByStaffId, jstNow())
-      .run();
+
+    // チャネル横断ディスパッチ (LINE / Telegram を friend.channel で出し分け)。
+    // 送信成功時のみ messages_log に記録される。
+    const { deliverToFriend } = await import('../services/messaging/dispatch.js');
+    const delivered = await deliverToFriend(
+      c.env,
+      friend,
+      { type: messageType, content: body.content },
+      { source: 'manual', sentByStaffId },
+    );
+    if (!delivered.ok) {
+      return c.json({ success: false, error: delivered.error ?? '送信に失敗しました' }, 400);
+    }
+    const logId = delivered.messageId!;
 
     // チャットの最終メッセージ日時を更新（chat.id を直接使う — friend_id で呼ばれても resolveOrCreateChat 済み）
     // first_response_at は最初のスタッフ返信時のみ記録する (初回応答時間の算出用)。

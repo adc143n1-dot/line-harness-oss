@@ -106,8 +106,8 @@ describe('POST /api/chats/:id/send — 送信者の記録', () => {
     expect(res.status).toBe(200);
     expect(messageInsert).toBeDefined();
     expect(messageInsert!.sql).toContain('sent_by_staff_id');
-    // bind 順: id, friend_id, message_type, content, sent_by_staff_id, created_at
-    expect(messageInsert!.params[4]).toBe('staff-7');
+    // dispatch(081)のbind順: id, friend_id, message_type, content, source, sent_by_staff_id, channel, created_at
+    expect(messageInsert!.params[5]).toBe('staff-7');
   });
 
   test('env API_KEY 認証の合成 ID は staff_members に実在しないため NULL にする', async () => {
@@ -118,14 +118,14 @@ describe('POST /api/chats/:id/send — 送信者の記録', () => {
     });
 
     expect(res.status).toBe(200);
-    expect(messageInsert!.params[4]).toBeNull();
+    expect(messageInsert!.params[5]).toBeNull();
   });
 
   test('スタッフ情報が無い場合も NULL で送信自体は成功する', async () => {
     const { res, messageInsert } = await send(undefined);
 
     expect(res.status).toBe(200);
-    expect(messageInsert!.params[4]).toBeNull();
+    expect(messageInsert!.params[5]).toBeNull();
   });
 });
 
