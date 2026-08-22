@@ -392,6 +392,12 @@ liffRoutes.get('/auth/line', async (c) => {
   // It must NOT appear in LIFF URLs or QR codes that escape to external domains.
   const externalRef = ref.startsWith('xh:') ? '' : ref;
 
+  // LIFF_URL 未設定かつアカウントに liff_id がない場合は 500 (undefined.match)
+  // ではなく案内ページを返す (デモアカウント等で踏まれるルート)。
+  if (!liffUrl) {
+    return c.html(errorPage('このリンクは現在準備中です。お手数ですが、LINE公式アカウントの友だち追加からご利用ください。'), 503);
+  }
+
   // Build LIFF URL with ref + ad params (for mobile → LINE app)
   // Extract LIFF ID from URL and pass as query param so the app can init correctly
   const liffIdMatch = liffUrl.match(/liff\.line\.me\/([0-9]+-[A-Za-z0-9]+)/);
