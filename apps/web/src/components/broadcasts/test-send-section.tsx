@@ -56,13 +56,12 @@ export default function TestSendSection({ broadcastId, accountId, disabled }: Te
           <button
             onClick={handleTestSend}
             disabled={disabled || sending || cooldown}
-            className="px-4 py-2 min-h-[44px] text-xs font-medium text-white rounded-lg disabled:opacity-50 transition-opacity"
-            style={{ backgroundColor: '#3B82F6' }}
+            className="px-4 py-2 min-h-[44px] text-xs font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg disabled:opacity-50 transition-opacity"
           >
             {sending ? 'テスト送信中...' : cooldown ? '送信済み' : 'テスト送信する'}
           </button>
           {result && (
-            <p className={`text-xs mt-2 ${result.error ? 'text-red-600' : 'text-green-600'}`}>
+            <p className={`text-xs mt-2 ${result.error ? 'text-red-600' : 'text-emerald-600'}`}>
               {result.error
                 ? `${result.at} テスト送信に失敗しました`
                 : `${result.at} テスト送信済み (${result.sent}名成功${result.failed > 0 ? `, ${result.failed}名失敗` : ''})`}

@@ -109,7 +109,7 @@ export default function ImageUploader({ mode, value, onChange, label }: ImageUpl
         <button
           type="button"
           onClick={() => setManualUrlMode((v) => !v)}
-          className="text-xs text-emerald-700 underline"
+          className="text-xs text-brand-700 underline"
         >
           {manualUrlMode ? '画像アップロードに戻す' : 'URL を直接入力'}
         </button>
@@ -137,7 +137,7 @@ export default function ImageUploader({ mode, value, onChange, label }: ImageUpl
             }
           }}
           placeholder="https://... (外部 CDN / R2 URL)"
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
         />
       ) : (
         <div
@@ -145,7 +145,7 @@ export default function ImageUploader({ mode, value, onChange, label }: ImageUpl
           onDrop={onDrop}
           onPaste={onPaste}
           tabIndex={0}
-          className="rounded-lg border-2 border-dashed border-gray-300 bg-white p-4 transition-colors hover:border-gray-400 focus:border-emerald-500 focus:outline-none"
+          className="rounded-lg border-2 border-dashed border-gray-300 bg-white p-4 transition-colors hover:border-gray-400 focus:border-brand-500 focus:outline-none"
         >
           {previewUrl ? (
             <div className="flex items-center gap-3">
@@ -174,7 +174,7 @@ export default function ImageUploader({ mode, value, onChange, label }: ImageUpl
                 type="button"
                 onClick={() => inputRef.current?.click()}
                 disabled={busy}
-                className="rounded-md bg-emerald-600 px-3 py-1.5 text-white hover:bg-emerald-700 disabled:opacity-50"
+                className="rounded-lg bg-brand-600 px-3 py-1.5 text-white hover:bg-brand-700 disabled:opacity-50"
               >
                 {busy ? 'アップロード中…' : '📎 画像を選択'}
               </button>

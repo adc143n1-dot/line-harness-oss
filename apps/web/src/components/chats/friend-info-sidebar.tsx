@@ -45,7 +45,7 @@ const statusLabels: Record<NonNullable<ChatStatusInfo['status']>, { label: strin
   unread: { label: '未対応', className: 'bg-red-100 text-red-700' },
   in_progress: { label: '対応中', className: 'bg-yellow-100 text-yellow-700' },
   waiting_reply: { label: '返信待ち', className: 'bg-blue-100 text-blue-700' },
-  resolved: { label: '解決済', className: 'bg-green-100 text-green-700' },
+  resolved: { label: '解決済', className: 'bg-emerald-50 text-emerald-700' },
 }
 
 /** Render a metadata value safely as text. Objects/arrays → JSON, primitives → as-is. */

@@ -6,6 +6,8 @@ import { api, fetchApi, ApiError } from '@/lib/api'
 import { UNANSWERED_REFRESH_EVENT } from '@/lib/events'
 import { useAccount } from '@/contexts/account-context'
 import Header from '@/components/layout/header'
+import { Icon } from '@/components/ui/icons'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 import CcPromptButton from '@/components/cc-prompt-button'
 import FlexPreviewComponent from '@/components/flex-preview'
 import FriendInfoSidebar from '@/components/chats/friend-info-sidebar'
@@ -80,22 +82,22 @@ const statusConfig: Record<Chat['status'], { label: string; className: string }>
   unread: { label: '未読', className: 'bg-red-100 text-red-700' },
   in_progress: { label: '対応中', className: 'bg-yellow-100 text-yellow-700' },
   waiting_reply: { label: '返信待ち', className: 'bg-blue-100 text-blue-700' },
-  resolved: { label: '解決済', className: 'bg-green-100 text-green-700' },
+  resolved: { label: '解決済', className: 'bg-emerald-50 text-emerald-700' },
 }
 
 // 進行状態と成果は別々に持つ。1 つのセレクタに混ぜると「成約した対応中」や
 // 「VIP かつ 返信待ち」が表現できなくなる。VIP は人単位の属性なのでタグで付ける。
 const progressOptions: { value: Chat['status']; label: string }[] = [
-  { value: 'unread', label: '🆕 新規' },
-  { value: 'in_progress', label: '💬 対応中' },
-  { value: 'waiting_reply', label: '⏳ 返信待ち' },
-  { value: 'resolved', label: '✅ 完了' },
+  { value: 'unread', label: '新規' },
+  { value: 'in_progress', label: '対応中' },
+  { value: 'waiting_reply', label: '返信待ち' },
+  { value: 'resolved', label: '完了' },
 ]
 
 const outcomeOptions: { value: '' | NonNullable<Chat['outcome']>; label: string }[] = [
   { value: '', label: '― 成果未設定' },
-  { value: 'converted', label: '✅ 成約' },
-  { value: 'lost', label: '❌ 離脱' },
+  { value: 'converted', label: '成約' },
+  { value: 'lost', label: '離脱' },
 ]
 
 const statusFilters: { key: StatusFilter; label: string }[] = [
@@ -327,13 +329,12 @@ function DirectMessagePanel({ friendId, friend, onBack, onSent }: {
               }
             }}
             placeholder="メッセージを入力..."
-            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
           />
           <button
             onClick={handleSend}
             disabled={!message.trim() || sending}
-            className="px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
-            style={{ backgroundColor: '#06C755' }}
+            className="px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50 bg-brand-600 hover:bg-brand-700"
           >
             {sending ? '...' : '送信'}
           </button>
@@ -345,6 +346,7 @@ function DirectMessagePanel({ friendId, friend, onBack, onSent }: {
 
 export default function ChatsPage() {
   const { selectedAccountId } = useAccount()
+  const { confirm: confirmDialog } = useConfirm()
   const [chats, setChats] = useState<Chat[]>([])
   const [allFriends, setAllFriends] = useState<FriendItem[]>([])
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null)
@@ -982,7 +984,7 @@ export default function ChatsPage() {
 
   const handleClaim = async (force = false) => {
     if (!selectedChatId) return
-    if (force && !confirm('他のスタッフが担当中です。引き取りますか？')) return
+    if (force && !(await confirmDialog({ title: '担当の引き取り', message: '他のスタッフが担当中です。引き取りますか？', confirmLabel: '引き取る' }))) return
     setClaiming(true)
     try {
       await api.chats.claim(selectedChatId, { force })
@@ -1046,7 +1048,7 @@ export default function ChatsPage() {
 
   const handleRelease = async () => {
     if (!selectedChatId) return
-    if (!confirm('担当を外して未割当に戻しますか？')) return
+    if (!(await confirmDialog({ title: '担当の解除', message: '担当を外して未割当に戻しますか？', confirmLabel: '外す' }))) return
     setClaiming(true)
     try {
       await api.chats.release(selectedChatId)
@@ -1115,7 +1117,7 @@ export default function ChatsPage() {
 
   const handleInviteTelegram = async () => {
     if (!selectedChatId) return
-    if (!confirm('このユーザーに Telegram 誘導リンクを LINE で送りますか？')) return
+    if (!(await confirmDialog({ title: 'Telegram誘導', message: 'このユーザーに Telegram 誘導リンクを LINE で送りますか？', confirmLabel: '送信する' }))) return
     setInvitingTelegram(true)
     try {
       await api.chats.inviteTelegram(selectedChatId)
@@ -1136,7 +1138,7 @@ export default function ChatsPage() {
 
   const handleInviteDiscord = async () => {
     if (!selectedChatId) return
-    if (!confirm('このユーザーに Discord 誘導リンクを LINE で送りますか？')) return
+    if (!(await confirmDialog({ title: 'Discord誘導', message: 'このユーザーに Discord 誘導リンクを LINE で送りますか？', confirmLabel: '送信する' }))) return
     setInvitingDiscord(true)
     try {
       await api.chats.inviteDiscord(selectedChatId)
@@ -1189,9 +1191,15 @@ export default function ChatsPage() {
 
       {/* Error */}
       {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-          {error}
-        </div>
+        error.includes('🎉') ? (
+          <div className="mb-4 p-4 bg-brand-50 border border-brand-100 rounded-lg text-brand-700 text-sm">
+            {error}
+          </div>
+        ) : (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            {error}
+          </div>
+        )
       )}
 
       <div className="flex gap-4 h-[calc(100vh-120px)] lg:h-[calc(100vh-180px)]">
@@ -1210,8 +1218,8 @@ export default function ChatsPage() {
                   if (!globalSearchMode) setGlobalSearchMode(true)
                 }}
                 onFocus={() => setGlobalSearchMode(true)}
-                placeholder="🔍 全チャットからメッセージを検索 (3文字以上)"
-                className="w-full text-xs border border-gray-200 rounded-lg pl-3 pr-7 py-1.5 focus:outline-none focus:ring-1 focus:ring-green-500"
+                placeholder="全チャットからメッセージを検索 (3文字以上)"
+                className="w-full text-xs border border-edge rounded-lg pl-3 pr-7 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand-500"
               />
               {globalSearchMode && (
                 <button
@@ -1234,7 +1242,7 @@ export default function ChatsPage() {
                 disabled={unansweredOnly}
                 className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                   statusFilter === f.key
-                    ? 'bg-green-500 text-white'
+                    ? 'bg-brand-600 text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 } ${unansweredOnly ? 'opacity-40 cursor-not-allowed' : ''}`}
               >
@@ -1250,7 +1258,7 @@ export default function ChatsPage() {
                   onChange={(e) => setMyChatsOnly(e.target.checked)}
                   className="rounded"
                 />
-                🙋 自分の担当
+                自分の担当
               </label>
             )}
             {/* 担当者フィルタ。「自分の担当」ON中は競合するため無効化 */}
@@ -1259,7 +1267,7 @@ export default function ChatsPage() {
                 value={myChatsOnly ? '' : operatorFilter}
                 onChange={(e) => setOperatorFilter(e.target.value)}
                 disabled={myChatsOnly}
-                className={`text-xs border border-gray-200 rounded-md px-1.5 py-1 bg-white ${myChatsOnly ? 'opacity-40 cursor-not-allowed' : ''}`}
+                className={`text-xs border border-edge rounded-lg px-1.5 py-1 bg-white ${myChatsOnly ? 'opacity-40 cursor-not-allowed' : ''}`}
                 title="担当者で絞り込む"
               >
                 <option value="">担当: 全員</option>
@@ -1276,7 +1284,7 @@ export default function ChatsPage() {
                 onChange={(e) => setUnansweredOnly(e.target.checked)}
                 className="rounded"
               />
-              🔥 未対応のみ
+              未対応のみ
             </label>
             {/* プル型分配: 未割当の未対応から次の1件を取る。同時に押しても
                 原子的claimにより別々のチャットが割り当たる */}
@@ -1284,10 +1292,10 @@ export default function ChatsPage() {
               <button
                 onClick={() => { void handleClaimNext() }}
                 disabled={claimingNext}
-                className="px-2.5 py-1 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-md transition-colors disabled:opacity-50 whitespace-nowrap"
+                className="px-2.5 py-1 text-xs font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg transition-colors disabled:opacity-50 whitespace-nowrap"
                 title="未割当の未対応 (HOTリード優先・古い順) から次の1件を自分の担当にして開く"
               >
-                {claimingNext ? '取得中…' : '▶ 次の未対応を担当'}
+                {claimingNext ? '取得中…' : '次の未対応を担当'}
               </button>
             )}
           </div>
@@ -1355,13 +1363,13 @@ export default function ChatsPage() {
                   // 最新メッセージの本文 preview。flex/image は文字列で見せても意味が薄いので type 表記に置換。
                   const previewRaw = chat.lastMessageContent ?? ''
                   const preview = (() => {
-                    if (chat.lastMessageType === 'image') return '📷 画像'
-                    if (chat.lastMessageType === 'flex') return '📋 Flexメッセージ'
-                    if (chat.lastMessageType === 'sticker') return '🎨 スタンプ'
-                    if (chat.lastMessageType === 'video') return '🎥 動画'
-                    if (chat.lastMessageType === 'audio') return '🎤 音声'
-                    if (chat.lastMessageType === 'file') return '📎 ファイル'
-                    if (chat.lastMessageType === 'location') return '📍 位置情報'
+                    if (chat.lastMessageType === 'image') return '[画像]'
+                    if (chat.lastMessageType === 'flex') return '[Flexメッセージ]'
+                    if (chat.lastMessageType === 'sticker') return '[スタンプ]'
+                    if (chat.lastMessageType === 'video') return '[動画]'
+                    if (chat.lastMessageType === 'audio') return '[音声]'
+                    if (chat.lastMessageType === 'file') return '[ファイル]'
+                    if (chat.lastMessageType === 'location') return '[位置情報]'
                     return previewRaw.replace(/\n+/g, ' ').slice(0, 60)
                   })()
                   return (
@@ -1369,7 +1377,7 @@ export default function ChatsPage() {
                       key={chat.id}
                       onClick={() => { setSelectedFriendId(null); handleSelectChat(chat.id); }}
                       className={`w-full text-left px-4 py-3 border-b border-gray-100 transition-colors ${
-                        isSelected && !selectedFriendId ? 'bg-green-50' : 'hover:bg-gray-50'
+                        isSelected && !selectedFriendId ? 'bg-brand-50' : 'hover:bg-gray-50'
                       }`}
                     >
                       <div className="flex items-start gap-3">
@@ -1411,12 +1419,12 @@ export default function ChatsPage() {
                                   <span
                                     className={`px-1.5 py-0.5 text-[10px] rounded ${
                                       chat.operatorId === myStaffId
-                                        ? 'bg-green-50 text-green-700'
+                                        ? 'bg-brand-50 text-brand-700'
                                         : 'bg-blue-50 text-blue-700'
                                     }`}
                                     title={`担当: ${staffNameOf(chat.operatorId)}`}
                                   >
-                                    🙋 {chat.operatorId === myStaffId ? '自分' : staffNameOf(chat.operatorId)}
+                                    {chat.operatorId === myStaffId ? '自分' : staffNameOf(chat.operatorId)}
                                   </span>
                                 ) : (
                                   <span className="px-1.5 py-0.5 text-[10px] rounded bg-gray-100 text-gray-500">
@@ -1434,18 +1442,18 @@ export default function ChatsPage() {
                               )}
                               {chat.telegramUserId && (
                                 <span className="px-1.5 py-0.5 text-[10px] rounded bg-sky-50 text-sky-700">
-                                  ✅ TG
+                                  TG
                                 </span>
                               )}
                               {chat.outcome && (
                                 <span
                                   className={`px-1.5 py-0.5 text-[10px] rounded ${
                                     chat.outcome === 'converted'
-                                      ? 'bg-green-50 text-green-700'
+                                      ? 'bg-emerald-50 text-emerald-700'
                                       : 'bg-gray-100 text-gray-500'
                                   }`}
                                 >
-                                  {chat.outcome === 'converted' ? '✅ 成約' : '❌ 離脱'}
+                                  {chat.outcome === 'converted' ? '成約' : '離脱'}
                                 </span>
                               )}
                             </div>
@@ -1459,7 +1467,7 @@ export default function ChatsPage() {
                   <button
                     onClick={() => { void loadMoreChats() }}
                     disabled={loadingMore}
-                    className="w-full px-4 py-3 text-sm text-green-700 hover:bg-green-50 disabled:opacity-50 border-b border-gray-100"
+                    className="w-full px-4 py-3 text-sm text-brand-700 hover:bg-brand-50 disabled:opacity-50 border-b border-gray-100"
                   >
                     {loadingMore ? '読み込み中...' : 'さらに読み込む'}
                   </button>
@@ -1521,12 +1529,12 @@ export default function ChatsPage() {
                       setChatSearchOpen((v) => !v)
                       if (chatSearchOpen) { setChatSearchQuery(''); setChatSearchResults([]) }
                     }}
-                    className={`px-2 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium rounded-md transition-colors ${
-                      chatSearchOpen ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    className={`inline-flex items-center gap-1 px-2 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium rounded-lg transition-colors ${
+                      chatSearchOpen ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }`}
                     title="この会話の中を検索"
                   >
-                    🔍 検索
+                    <Icon name="search" className="w-3.5 h-3.5" /> 検索
                   </button>
                   {unansweredOnly && chats.length > 1 && (
                     <button
@@ -1541,7 +1549,7 @@ export default function ChatsPage() {
                           setSelectedChatId(next.id)
                         }
                       }}
-                      className="rounded-md bg-emerald-600 px-3 py-1.5 min-h-[44px] lg:min-h-0 text-sm font-medium text-white hover:bg-emerald-700"
+                      className="rounded-lg bg-brand-600 px-3 py-1.5 min-h-[44px] lg:min-h-0 text-sm font-medium text-white hover:bg-brand-700"
                       title="次の未対応 friend に進む"
                     >
                       次の未対応 →
@@ -1551,7 +1559,7 @@ export default function ChatsPage() {
                   <select
                     value={chatDetail.status}
                     onChange={(e) => handleStatusUpdate(e.target.value as Chat['status'])}
-                    className="px-2 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium border border-gray-300 rounded-md bg-white"
+                    className="px-2 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium border border-edge rounded-lg bg-white"
                     aria-label="進行状態"
                   >
                     {progressOptions.map((o) => (
@@ -1563,7 +1571,7 @@ export default function ChatsPage() {
                   <select
                     value={chatDetail.outcome ?? ''}
                     onChange={(e) => handleOutcomeUpdate(e.target.value)}
-                    className="px-2 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium border border-gray-300 rounded-md bg-white"
+                    className="px-2 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium border border-edge rounded-lg bg-white"
                     aria-label="成果"
                   >
                     {outcomeOptions.map((o) => (
@@ -1578,19 +1586,19 @@ export default function ChatsPage() {
                     <button
                       onClick={() => handleClaim(false)}
                       disabled={claiming}
-                      className="px-3 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-md transition-colors disabled:opacity-50"
+                      className="px-3 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg transition-colors disabled:opacity-50"
                       title="このチャットを自分の担当にする"
                     >
-                      {claiming ? '設定中…' : '🙋 担当する'}
+                      {claiming ? '設定中…' : '担当する'}
                     </button>
                   )}
                   {myStaffId && chatDetail.operatorId === myStaffId && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-emerald-700 bg-emerald-50 rounded-md">
-                      🙋 自分が担当
+                    <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-brand-700 bg-brand-50 rounded-lg">
+                      自分が担当
                       <button
                         onClick={() => { void handleRelease() }}
                         disabled={claiming}
-                        className="ml-0.5 text-emerald-600 hover:text-emerald-900 underline disabled:opacity-50"
+                        className="ml-0.5 text-brand-600 hover:text-brand-800 underline disabled:opacity-50"
                         title="担当を外して未割当に戻す"
                       >
                         外す
@@ -1601,22 +1609,22 @@ export default function ChatsPage() {
                     <button
                       onClick={() => handleClaim(true)}
                       disabled={claiming}
-                      className="px-3 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-md transition-colors disabled:opacity-50"
+                      className="px-3 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors disabled:opacity-50"
                       title={`${staffNameOf(chatDetail.operatorId) ?? '他のスタッフ'}が担当中です`}
                     >
                       {claiming
                         ? '設定中…'
-                        : `⚠️ ${staffNameOf(chatDetail.operatorId) ?? '他スタッフ'}が担当 — 引き取る`}
+                        : `${staffNameOf(chatDetail.operatorId) ?? '他スタッフ'}が担当 — 引き取る`}
                     </button>
                   )}
                   {/* スヌーズ (再連絡予約)。期日に未対応として再浮上する */}
                   {chatDetail.snoozeUntil ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-violet-700 bg-violet-50 rounded-md" title="この時刻に未対応として再浮上します">
-                      ⏰ {new Date(chatDetail.snoozeUntil).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} に再浮上
+                    <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-orange-700 bg-orange-50 rounded-lg" title="この時刻に未対応として再浮上します">
+                      <Icon name="clock" className="w-3.5 h-3.5" /> {new Date(chatDetail.snoozeUntil).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} に再浮上
                       <button
                         onClick={() => { void handleSnooze('clear') }}
                         disabled={snoozing}
-                        className="ml-0.5 text-violet-600 hover:text-violet-900 underline disabled:opacity-50"
+                        className="ml-0.5 text-orange-600 hover:text-orange-800 underline disabled:opacity-50"
                       >
                         解除
                       </button>
@@ -1626,10 +1634,10 @@ export default function ChatsPage() {
                       value=""
                       onChange={(e) => { void handleSnooze(e.target.value) }}
                       disabled={snoozing}
-                      className="text-xs border border-gray-200 rounded-md px-1.5 py-1 bg-white disabled:opacity-50"
+                      className="text-xs border border-edge rounded-lg px-1.5 py-1 bg-white disabled:opacity-50"
                       title="指定した時刻に未対応として再浮上させる (返信待ちの放置防止)"
                     >
-                      <option value="">⏰ 再連絡…</option>
+                      <option value="">再連絡…</option>
                       <option value="1h">1時間後</option>
                       <option value="tomorrow9">明日 9:00</option>
                       <option value="3days9">3日後 9:00</option>
@@ -1641,7 +1649,7 @@ export default function ChatsPage() {
                       value=""
                       onChange={(e) => { if (e.target.value) void handleAssign(e.target.value) }}
                       disabled={claiming}
-                      className="text-xs border border-gray-200 rounded-md px-1.5 py-1 bg-white disabled:opacity-50"
+                      className="text-xs border border-edge rounded-lg px-1.5 py-1 bg-white disabled:opacity-50"
                       title="このチャットをスタッフに割り当てる (admin/owner のみ)"
                     >
                       <option value="">担当を変更…</option>
@@ -1652,36 +1660,36 @@ export default function ChatsPage() {
                   )}
                   {chatDetail.telegramUserId ? (
                     <span
-                      className="px-2 py-1 text-xs font-medium text-sky-700 bg-sky-50 rounded-md"
+                      className="px-2 py-1 text-xs font-medium text-sky-700 bg-sky-50 rounded-lg"
                       title={chatDetail.tgVerifiedAt ? `連携日時: ${chatDetail.tgVerifiedAt}` : undefined}
                     >
-                      ✅ TG連携済
+                      TG連携済
                     </span>
                   ) : (
                     <button
                       onClick={handleInviteTelegram}
                       disabled={invitingTelegram}
-                      className="px-3 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium text-sky-700 bg-sky-50 hover:bg-sky-100 rounded-md transition-colors disabled:opacity-50"
+                      className="px-3 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium text-sky-700 bg-sky-50 hover:bg-sky-100 rounded-lg transition-colors disabled:opacity-50"
                       title="Telegram 誘導リンクを LINE で送る (24時間で失効)"
                     >
-                      {invitingTelegram ? '送信中…' : '📨 Telegramに誘導する'}
+                      {invitingTelegram ? '送信中…' : 'Telegramに誘導する'}
                     </button>
                   )}
                   {chatDetail.discordUserId ? (
                     <span
-                      className="px-2 py-1 text-xs font-medium text-indigo-700 bg-indigo-50 rounded-md"
+                      className="px-2 py-1 text-xs font-medium text-indigo-700 bg-indigo-50 rounded-lg"
                       title={chatDetail.discordVerifiedAt ? `連携日時: ${chatDetail.discordVerifiedAt}` : undefined}
                     >
-                      ✅ Discord連携済
+                      Discord連携済
                     </span>
                   ) : (
                     <button
                       onClick={handleInviteDiscord}
                       disabled={invitingDiscord}
-                      className="px-3 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-md transition-colors disabled:opacity-50"
+                      className="px-3 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors disabled:opacity-50"
                       title="Discord 誘導リンクを LINE で送る (24時間で失効)"
                     >
-                      {invitingDiscord ? '送信中…' : '💬 Discordに誘導する'}
+                      {invitingDiscord ? '送信中…' : 'Discordに誘導する'}
                     </button>
                   )}
                 </div>
@@ -1698,7 +1706,7 @@ export default function ChatsPage() {
                     value={chatSearchQuery}
                     onChange={(e) => setChatSearchQuery(e.target.value)}
                     placeholder={`この会話の中を検索 (${MIN_SEARCH_LENGTH}文字以上)`}
-                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-green-500"
+                    className="w-full text-sm border border-edge rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-brand-500"
                   />
                   {chatSearchQuery.trim().length >= MIN_SEARCH_LENGTH && (
                     <div className="mt-2 max-h-48 overflow-y-auto space-y-1.5">
@@ -1751,7 +1759,7 @@ export default function ChatsPage() {
                           <img src={parsed.originalContentUrl || parsed.previewImageUrl} alt="" className="max-w-[200px] rounded" />
                         )
                       } catch {
-                        bubbleContent = <span>🖼️ [画像]</span>
+                        bubbleContent = <span>[画像]</span>
                       }
                     } else if (msg.messageType === 'sticker') {
                       bubbleContent = <StickerMessageImage content={msg.content} />
@@ -1828,12 +1836,12 @@ export default function ChatsPage() {
                       if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleAddNote()
                     }}
                     placeholder="メモを入力..."
-                    className="flex-1 text-xs border border-gray-300 rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-green-500"
+                    className="flex-1 text-xs border border-edge rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-brand-500"
                   />
                   <button
                     onClick={handleAddNote}
                     disabled={addingNote || !newNoteContent.trim()}
-                    className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors disabled:opacity-50"
+                    className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50"
                   >
                     {addingNote ? '追加中...' : '追加'}
                   </button>
@@ -1848,7 +1856,7 @@ export default function ChatsPage() {
                       type="checkbox"
                       checked={showLoadingIndicator}
                       onChange={(e) => setShowLoadingIndicator(e.target.checked)}
-                      className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                      className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
                     />
                     入力中ローディングを表示
                   </label>
@@ -1856,7 +1864,7 @@ export default function ChatsPage() {
                     value={loadingSeconds}
                     onChange={(e) => setLoadingSeconds(Number.parseInt(e.target.value, 10))}
                     disabled={!showLoadingIndicator}
-                    className="border border-gray-300 rounded-md px-2 py-1 bg-white disabled:bg-gray-100 disabled:text-gray-400"
+                    className="border border-edge rounded-lg px-2 py-1 bg-white disabled:bg-gray-100 disabled:text-gray-400"
                   >
                     {[5, 10, 15, 20, 30, 45, 60].map((sec) => (
                       <option key={sec} value={sec}>{sec}秒</option>
@@ -1868,7 +1876,7 @@ export default function ChatsPage() {
                       type="radio"
                       checked={sendMode === 'enter'}
                       onChange={() => setSendMode('enter')}
-                      className="accent-green-600"
+                      className="accent-brand-600"
                     />
                     <span>Enter</span>
                   </label>
@@ -1877,7 +1885,7 @@ export default function ChatsPage() {
                       type="radio"
                       checked={sendMode === 'shift-enter'}
                       onChange={() => setSendMode('shift-enter')}
-                      className="accent-green-600"
+                      className="accent-brand-600"
                     />
                     <span>Shift+Enter</span>
                   </label>
@@ -1902,10 +1910,10 @@ export default function ChatsPage() {
                           setMessageContent((prev) => (prev ? `${prev}\n${t.content}` : t.content))
                           textareaRef.current?.focus()
                         }}
-                        className="px-2.5 py-1 text-xs rounded-full border border-gray-200 bg-gray-50 text-gray-700 hover:bg-green-50 hover:border-green-300 transition-colors max-w-[180px] truncate"
+                        className="px-2.5 py-1 text-xs rounded-lg border border-edge bg-gray-50 text-gray-700 hover:bg-brand-50 hover:border-brand-300 transition-colors max-w-[180px] truncate"
                         title={t.content}
                       >
-                        ⚡ {t.name}
+                        {t.name}
                       </button>
                     ))}
                   </div>
@@ -1935,13 +1943,12 @@ export default function ChatsPage() {
                     onKeyDown={handleKeyDown}
                     disabled={composerLocked}
                     placeholder={composerLocked ? '「担当する」を押すと入力できます' : 'メッセージを入力...'}
-                    className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-green-500 resize-none overflow-y-auto disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    className="flex-1 text-sm border border-edge rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none overflow-y-auto disabled:bg-gray-100 disabled:cursor-not-allowed"
                   />
                   <button
                     onClick={handleSendMessage}
                     disabled={composerLocked || sending || (!messageContent.trim() && !pendingImage)}
-                    className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{ backgroundColor: '#06C755' }}
+                    className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {sending ? '送信中...' : '送信'}
                   </button>

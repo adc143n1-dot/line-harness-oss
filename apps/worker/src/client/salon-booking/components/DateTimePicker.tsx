@@ -140,7 +140,7 @@ export default function DateTimePicker({
       />
 
       <p className="text-[11px] text-gray-400 text-center pt-1">
-        緑のセルをタップして時間を選択
+        青のセルをタップして時間を選択
       </p>
     </div>
   );

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Header from '@/components/layout/header'
+import Badge from '@/components/ui/badge'
 import { useAccount } from '@/contexts/account-context'
 import { api, type MileageAdminOverview, type MileageRule } from '@/lib/api'
 
@@ -79,7 +80,7 @@ function ruleLimit(rule: MileageRule) {
 function commitmentLabel(actions: number, miles: number) {
   if (actions >= 30 || miles >= 200) return { text: 'コミット強', style: 'bg-rose-50 text-rose-700' }
   if (actions >= 10 || miles >= 80) return { text: '高アクション', style: 'bg-orange-50 text-orange-700' }
-  if (actions > 0) return { text: 'アクティブ', style: 'bg-green-50 text-green-700' }
+  if (actions > 0) return { text: 'アクティブ', style: 'bg-emerald-50 text-emerald-700' }
   return { text: 'これから', style: 'bg-gray-100 text-gray-500' }
 }
 
@@ -309,8 +310,8 @@ export default function MileagePage() {
                   const commitment = commitmentLabel(member.actionCount, member.available)
                   return (
                     <tr key={member.identityKey} className="hover:bg-gray-50/70">
-                      <td className="px-4 py-4 text-center text-sm font-bold text-gray-500">
-                        {rank <= 3 ? ['🥇', '🥈', '🥉'][rank - 1] : rank}
+                      <td className="px-4 py-4 text-center">
+                        <Badge tone={rank <= 3 ? 'amber' : 'gray'}>#{rank}</Badge>
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-3">
@@ -344,16 +345,16 @@ export default function MileagePage() {
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-gray-600">
-                          <span>💬 {formatNumber(member.messageCount)}</span>
-                          <span>🔗 {formatNumber(member.linkClickCount)}</span>
-                          <span>📝 {formatNumber(member.formCount)}</span>
-                          <span>📅 {formatNumber(member.bookingCount)}</span>
-                          <span>🎬 {formatNumber(member.webinarCount)}</span>
-                          <span>📸 {formatNumber(member.instagramCount)}</span>
-                          <span>🌱 継続{formatNumber(member.followingDays)}日</span>
-                          {member.unfollowCount > 0 && <span>↩ 再フォロー{formatNumber(member.unfollowCount)}回</span>}
+                          <span>メッセージ {formatNumber(member.messageCount)}</span>
+                          <span>クリック {formatNumber(member.linkClickCount)}</span>
+                          <span>フォーム {formatNumber(member.formCount)}</span>
+                          <span>予約 {formatNumber(member.bookingCount)}</span>
+                          <span>ウェビナー {formatNumber(member.webinarCount)}</span>
+                          <span>Instagram {formatNumber(member.instagramCount)}</span>
+                          <span>継続{formatNumber(member.followingDays)}日</span>
+                          {member.unfollowCount > 0 && <span>再フォロー{formatNumber(member.unfollowCount)}回</span>}
                           {member.qualityReferralCount > 0 && (
-                            <span>🤝 良質紹介{formatNumber(member.qualityReferralCount)}人・{formatNumber(member.referralMiles)}mile</span>
+                            <span>良質紹介{formatNumber(member.qualityReferralCount)}人・{formatNumber(member.referralMiles)}mile</span>
                           )}
                         </div>
                       </td>

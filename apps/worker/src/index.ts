@@ -103,6 +103,7 @@ import adminUpdate from './routes/admin-update.js';
 import { mediaInquiries } from './routes/media-inquiries.js';
 import { isLinkPreviewBot } from './lib/og-bot.js';
 import { buildOgHtml } from './lib/og-html.js';
+import { pageShell, LINE_ICON_SVG } from './lib/page-shell.js';
 import {
   resolveOgForEvent,
   resolveOgForForm,
@@ -460,75 +461,31 @@ app.get('/r/:ref', async (c) => {
       ? '<p class="hint">※開かない場合はボタンを<strong>長押し</strong>して「LINEで開く」を選択</p>'
       : '';
 
-    return c.html(`<!DOCTYPE html>
-<html lang="ja">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>LINE で開く</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Hiragino Sans','Helvetica Neue',system-ui,sans-serif;background:#f5f7f5;display:flex;justify-content:center;align-items:center;min-height:100vh}
-.card{background:#fff;border-radius:20px;box-shadow:0 2px 20px rgba(0,0,0,0.06);text-align:center;max-width:360px;width:90%;padding:40px 28px 32px;border:1px solid rgba(0,0,0,0.04)}
-.line-icon{width:48px;height:48px;margin:0 auto 20px}
-.line-icon svg{width:48px;height:48px}
-.msg{font-size:15px;color:#444;font-weight:500;margin-bottom:28px;line-height:1.6}
-.btn{display:block;width:100%;padding:16px;border:none;border-radius:12px;font-size:16px;font-weight:700;text-decoration:none;text-align:center;color:#fff;background:#06C755;box-shadow:0 2px 12px rgba(6,199,85,0.2);transition:all .15s}
-.btn:active{transform:scale(0.98);opacity:.9}
-.hint{font-size:11px;color:#888;margin-top:10px;line-height:1.6}
-.hint strong{color:#06C755;font-weight:700}
-.help{font-size:12px;color:#999;margin-top:18px;line-height:1.5}
-.help a{color:#999;text-decoration:underline}
-</style>
-</head>
-<body>
-<div class="card">
-<div class="line-icon">
-<svg viewBox="0 0 48 48" fill="none"><rect width="48" height="48" rx="12" fill="#06C755"/><path d="M24 12C17.37 12 12 16.58 12 22.2c0 3.54 2.35 6.65 5.86 8.47-.2.74-.76 2.75-.87 3.17-.14.55.2.54.42.39.18-.12 2.84-1.88 4-2.65.84.13 1.7.22 2.59.22 6.63 0 12-4.58 12-10.2S30.63 12 24 12z" fill="#fff"/></svg>
-</div>
+    return c.html(pageShell({
+      title: 'LINE で開く',
+      body: `<div class="card">
+<div class="line-icon">${LINE_ICON_SVG}</div>
 <p class="msg">友達追加して始める</p>
-<a href="${buttonHref}" class="btn">LINEで開く</a>
+<a href="${buttonHref}" class="btn btn-line">LINEで開く</a>
 ${longPressHint}
 <p class="help">うまく開けない方は <a href="${helpUrl}">こちら</a></p>
-</div>
-</body>
-</html>`);
+</div>`,
+    }));
   }
 
   // PC: show QR code page — QR encodes LIFF URL directly
-  return c.html(`<!DOCTYPE html>
-<html lang="ja">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>LINE で開く</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Hiragino Sans','Helvetica Neue',system-ui,sans-serif;background:#f5f7f5;display:flex;justify-content:center;align-items:center;min-height:100vh}
-.card{background:#fff;border-radius:20px;box-shadow:0 2px 20px rgba(0,0,0,0.06);text-align:center;max-width:480px;width:90%;padding:48px;border:1px solid rgba(0,0,0,0.04)}
-.line-icon{width:48px;height:48px;margin:0 auto 20px}
-.line-icon svg{width:48px;height:48px}
-.msg{font-size:15px;color:#444;font-weight:500;margin-bottom:32px;line-height:1.6}
-.qr{background:#f9f9f9;border-radius:16px;padding:24px;display:inline-block;margin-bottom:24px;border:1px solid rgba(0,0,0,0.04)}
-.qr img{display:block;width:240px;height:240px}
-.hint{font-size:13px;color:#999;line-height:1.6}
-.footer{font-size:11px;color:#bbb;margin-top:24px;line-height:1.5}
-</style>
-</head>
-<body>
-<div class="card">
-<div class="line-icon">
-<svg viewBox="0 0 48 48" fill="none"><rect width="48" height="48" rx="12" fill="#06C755"/><path d="M24 12C17.37 12 12 16.58 12 22.2c0 3.54 2.35 6.65 5.86 8.47-.2.74-.76 2.75-.87 3.17-.14.55.2.54.42.39.18-.12 2.84-1.88 4-2.65.84.13 1.7.22 2.59.22 6.63 0 12-4.58 12-10.2S30.63 12 24 12z" fill="#fff"/></svg>
-</div>
+  return c.html(pageShell({
+    title: 'LINE で開く',
+    body: `<div class="card wide">
+<div class="line-icon">${LINE_ICON_SVG}</div>
 <p class="msg">スマートフォンで QR コードを読み取ってください</p>
 <div class="qr">
 <img src="/api/qr?size=240x240&data=${encodeURIComponent(liffTarget)}" alt="QR Code">
 </div>
 <p class="hint">LINE アプリのカメラまたは<br>スマートフォンのカメラで読み取れます</p>
 <p class="footer">友だち追加で全機能を無料体験できます</p>
-</div>
-</body>
-</html>`);
+</div>`,
+  }));
 });
 
 // /r/:ref/help — opt-in recovery page when "LINEで開く" didn't launch the app.
@@ -578,35 +535,26 @@ app.get('/r/:ref/help', (c) => {
 </div>` : '';
   const copyMethodNum = isIOS ? '2' : '1';
 
-  return c.html(`<!DOCTYPE html>
-<html lang="ja">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>LINEを開く方法</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Hiragino Sans','Helvetica Neue',system-ui,sans-serif;background:#f5f7f5;display:flex;justify-content:center;align-items:center;min-height:100vh;padding:16px}
-.card{background:#fff;border-radius:20px;box-shadow:0 2px 20px rgba(0,0,0,0.06);max-width:400px;width:100%;padding:28px 24px;border:1px solid rgba(0,0,0,0.04)}
-.title{font-size:17px;color:#333;font-weight:700;margin-bottom:20px;text-align:center;line-height:1.5}
+  return c.html(pageShell({
+    title: 'LINEを開く方法',
+    extraCss: `body{padding:16px}
+.card{text-align:left;max-width:400px;width:100%;padding:28px 24px}
+.title{font-size:17px;margin-bottom:20px;text-align:center}
 .method{display:flex;gap:12px;margin-bottom:20px;align-items:flex-start}
 .method-num{flex-shrink:0;width:28px;height:28px;border-radius:50%;background:#06C755;color:#fff;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;margin-top:1px}
 .method-body{flex:1}
-.method-title{font-size:14px;font-weight:700;color:#333;margin-bottom:6px}
-.method-desc{font-size:13px;color:#666;line-height:1.7}
+.method-title{font-size:14px;font-weight:700;color:#17212f;margin-bottom:6px}
+.method-desc{font-size:13px;color:#53637a;line-height:1.7}
 .method-desc strong{color:#06C755;font-weight:700}
-.copy-section{background:#f9f9f9;border-radius:12px;padding:16px;margin-top:8px}
-.url-box{background:#fff;border:1px solid #e5e7e5;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:#333;word-break:break-all;line-height:1.5;user-select:all;-webkit-user-select:all}
+.copy-section{background:#f6f9fc;border-radius:12px;padding:16px;margin-top:8px}
+.url-box{background:#fff;border:1px solid #dae3ee;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:#17212f;word-break:break-all;line-height:1.5;user-select:all;-webkit-user-select:all}
 .copy-btn{display:block;width:100%;padding:12px;border:none;border-radius:10px;font-size:13px;font-weight:600;text-align:center;color:#fff;background:#06C755;cursor:pointer;margin-bottom:10px;transition:all .15s;font-family:inherit}
 .copy-btn:active{transform:scale(0.98);opacity:.9}
-.copy-btn.copied{background:#999}
-.copy-hint{font-size:11px;color:#aaa;text-align:center;margin-bottom:8px;line-height:1.5}
-.steps{font-size:12px;color:#666;line-height:1.8;padding-left:18px;margin-top:6px}
-.steps li::marker{color:#06C755;font-weight:700}
-</style>
-</head>
-<body>
-<div class="card">
+.copy-btn.copied{background:#8695ac}
+.copy-hint{font-size:11px;color:#8695ac;text-align:center;margin-bottom:8px;line-height:1.5}
+.steps{font-size:12px;color:#53637a;line-height:1.8;padding-left:18px;margin-top:6px}
+.steps li::marker{color:#06C755;font-weight:700}`,
+    body: `<div class="card">
 <p class="title">LINEを開く方法</p>
 ${longPressBlock}
 <div class="method">
@@ -627,8 +575,8 @@ ${longPressBlock}
 </div>
 </div>
 </div>
-</div>
-<script>
+</div>`,
+    extraBodyEnd: `<script>
 (function(){
   var btn = document.getElementById('copyBtn');
   var url = btn.getAttribute('data-url');
@@ -676,9 +624,8 @@ ${longPressBlock}
     }
   });
 })();
-</script>
-</body>
-</html>`);
+</script>`,
+  }));
 });
 
 // /o — `/r/:ref` の ref 解決・追跡を一切行わない明示 liffId 版の open page。
@@ -725,69 +672,28 @@ app.get('/o', async (c) => {
     const longPressHint = isIOS
       ? '<p class="hint">※開かない場合はボタンを<strong>長押し</strong>して「LINEで開く」を選択</p>'
       : '';
-    return c.html(`<!DOCTYPE html>
-<html lang="ja">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>LINE で開く</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Hiragino Sans','Helvetica Neue',system-ui,sans-serif;background:#f5f7f5;display:flex;justify-content:center;align-items:center;min-height:100vh}
-.card{background:#fff;border-radius:20px;box-shadow:0 2px 20px rgba(0,0,0,0.06);text-align:center;max-width:360px;width:90%;padding:40px 28px 32px;border:1px solid rgba(0,0,0,0.04)}
-.line-icon{width:48px;height:48px;margin:0 auto 20px}
-.line-icon svg{width:48px;height:48px}
-.msg{font-size:15px;color:#444;font-weight:500;margin-bottom:28px;line-height:1.6}
-.btn{display:block;width:100%;padding:16px;border:none;border-radius:12px;font-size:16px;font-weight:700;text-decoration:none;text-align:center;color:#fff;background:#06C755;box-shadow:0 2px 12px rgba(6,199,85,0.2);transition:all .15s}
-.btn:active{transform:scale(0.98);opacity:.9}
-.hint{font-size:11px;color:#888;margin-top:10px;line-height:1.6}
-.hint strong{color:#06C755;font-weight:700}
-</style>
-</head>
-<body>
-<div class="card">
-<div class="line-icon">
-<svg viewBox="0 0 48 48" fill="none"><rect width="48" height="48" rx="12" fill="#06C755"/><path d="M24 12C17.37 12 12 16.58 12 22.2c0 3.54 2.35 6.65 5.86 8.47-.2.74-.76 2.75-.87 3.17-.14.55.2.54.42.39.18-.12 2.84-1.88 4-2.65.84.13 1.7.22 2.59.22 6.63 0 12-4.58 12-10.2S30.63 12 24 12z" fill="#fff"/></svg>
-</div>
+    return c.html(pageShell({
+      title: 'LINE で開く',
+      body: `<div class="card">
+<div class="line-icon">${LINE_ICON_SVG}</div>
 <p class="msg">LINE で開く</p>
-<a href="${buttonHref}" class="btn">LINEで開く</a>
+<a href="${buttonHref}" class="btn btn-line">LINEで開く</a>
 ${longPressHint}
-</div>
-</body>
-</html>`);
+</div>`,
+    }));
   }
 
-  return c.html(`<!DOCTYPE html>
-<html lang="ja">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>LINE で開く</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Hiragino Sans','Helvetica Neue',system-ui,sans-serif;background:#f5f7f5;display:flex;justify-content:center;align-items:center;min-height:100vh}
-.card{background:#fff;border-radius:20px;box-shadow:0 2px 20px rgba(0,0,0,0.06);text-align:center;max-width:480px;width:90%;padding:48px;border:1px solid rgba(0,0,0,0.04)}
-.line-icon{width:48px;height:48px;margin:0 auto 20px}
-.line-icon svg{width:48px;height:48px}
-.msg{font-size:15px;color:#444;font-weight:500;margin-bottom:32px;line-height:1.6}
-.qr{background:#f9f9f9;border-radius:16px;padding:24px;display:inline-block;margin-bottom:24px;border:1px solid rgba(0,0,0,0.04)}
-.qr img{display:block;width:240px;height:240px}
-.hint{font-size:13px;color:#999;line-height:1.6}
-</style>
-</head>
-<body>
-<div class="card">
-<div class="line-icon">
-<svg viewBox="0 0 48 48" fill="none"><rect width="48" height="48" rx="12" fill="#06C755"/><path d="M24 12C17.37 12 12 16.58 12 22.2c0 3.54 2.35 6.65 5.86 8.47-.2.74-.76 2.75-.87 3.17-.14.55.2.54.42.39.18-.12 2.84-1.88 4-2.65.84.13 1.7.22 2.59.22 6.63 0 12-4.58 12-10.2S30.63 12 24 12z" fill="#fff"/></svg>
-</div>
+  return c.html(pageShell({
+    title: 'LINE で開く',
+    body: `<div class="card wide">
+<div class="line-icon">${LINE_ICON_SVG}</div>
 <p class="msg">スマートフォンで QR コードを読み取ってください</p>
 <div class="qr">
 <img src="/api/qr?size=240x240&data=${encodeURIComponent(liffTarget)}" alt="QR Code">
 </div>
 <p class="hint">LINE アプリのカメラまたは<br>スマートフォンのカメラで読み取れます</p>
-</div>
-</body>
-</html>`);
+</div>`,
+  }));
 });
 
 // Convenience redirect for /book path

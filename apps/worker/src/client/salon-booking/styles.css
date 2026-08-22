@@ -5,6 +5,7 @@
  */
 @import "tailwindcss/theme.css";
 @import "tailwindcss/utilities.css";
+@import '../design-tokens.css';
 
 /* ─── salon-booking namespace の inline 上書き ─────────────
  * index.html の friend-add 用 inline:
@@ -105,9 +106,9 @@ body.sb-active #app {
   text-decoration: inherit;
 }
 
-/* LINE 緑テーマ */
-.sb-line-green { background-color: #06C755; }
-.sb-line-green-text { color: #06C755; }
+/* ブランド青テーマ (旧 LINE 緑。クラス名は markup 互換のため据え置き) */
+.sb-line-green { background-color: #2563eb; }
+.sb-line-green-text { color: #1d4ed8; }
 
 /* fade-in / slide-up アニメーション */
 @keyframes sb-fade-in {
@@ -126,8 +127,8 @@ body.sb-active #app {
 @keyframes sb-spin { to { transform: rotate(360deg); } }
 .sb-spinner {
   width: 32px; height: 32px;
-  border: 3px solid #e5e7eb;
-  border-top-color: #06C755;
+  border: 3px solid #dae3ee;
+  border-top-color: #2563eb;
   border-radius: 9999px;
   animation: sb-spin 0.8s linear infinite;
 }
@@ -138,15 +139,15 @@ body.sb-active #app {
   border-radius: 10px;
   font-weight: 600;
   font-size: 14px;
-  background: #ecfdf5;
-  color: #06C755;
-  border: 1.5px solid #06C755;
+  background: #e4edfc;
+  color: #2563eb;
+  border: 1.5px solid #2563eb;
   cursor: pointer;
   transition: transform 0.15s, background-color 0.15s, color 0.15s;
 }
 .sb-slot-btn:active {
   transform: scale(0.96);
-  background-color: #06C755;
+  background-color: #2563eb;
   color: #fff;
 }
 
@@ -174,11 +175,11 @@ body.sb-active #app {
   gap: 4px;
   padding: 8px 14px 8px 10px;
   font-size: 13px;
-  color: #4b5563;
+  color: #53637a;
   background: #fff;
   border-radius: 9999px;
   box-shadow: 0 1px 2px rgba(0,0,0,0.06);
   transition: background-color 0.15s;
 }
-.sb-back-btn:hover { background: #f9fafb; }
-.sb-back-btn:active { background: #f3f4f6; }
+.sb-back-btn:hover { background: #f6f9fc; }
+.sb-back-btn:active { background: #ecf2f9; }

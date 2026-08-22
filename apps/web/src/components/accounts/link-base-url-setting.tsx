@@ -83,7 +83,7 @@ function UrlSettingCard({ title, description, placeholder, load, save }: UrlSett
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
           />
           {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
-          {saved && <p className="text-xs text-green-600 mt-1">保存しました</p>}
+          {saved && <p className="text-xs text-emerald-600 mt-1">保存しました</p>}
         </div>
         <button
           onClick={handleSave}

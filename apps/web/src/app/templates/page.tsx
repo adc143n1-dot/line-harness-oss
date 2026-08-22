@@ -6,6 +6,8 @@ import Header from '@/components/layout/header'
 import FlexPreviewComponent from '@/components/flex-preview'
 import CcPromptButton from '@/components/cc-prompt-button'
 import ImageUploader from '@/components/shared/image-uploader'
+import { useConfirm } from '@/components/ui/confirm-dialog'
+import { Icon } from '@/components/ui/icons'
 
 interface Template {
   id: string
@@ -70,6 +72,7 @@ const ccPrompts = [
 ]
 
 export default function TemplatesPage() {
+  const { confirm: confirmDialog } = useConfirm()
   const [templates, setTemplates] = useState<Template[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -201,11 +204,15 @@ export default function TemplatesPage() {
   }
 
   const handleDelete = async (id: string, usageCount: number) => {
-    if (usageCount > 0) {
-      if (!confirm(`このテンプレートは ${usageCount} 箇所で使用されています。削除すると参照がクリアされます。続行しますか？`)) return
-    } else {
-      if (!confirm('このテンプレートを削除しますか？')) return
-    }
+    const ok = await confirmDialog({
+      title: 'テンプレートを削除',
+      message: usageCount > 0
+        ? `このテンプレートは ${usageCount} 箇所で使用されています。削除すると参照がクリアされます。続行しますか？`
+        : 'このテンプレートを削除しますか？',
+      confirmLabel: '削除する',
+      tone: 'danger',
+    })
+    if (!ok) return
     try {
       await api.templates.delete(id)
       if (drawerId === id) setDrawerId(null)
@@ -222,8 +229,7 @@ export default function TemplatesPage() {
         action={
           <button
             onClick={() => setShowCreate(true)}
-            className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90"
-            style={{ backgroundColor: '#06C755' }}
+            className="px-4 py-2 text-sm font-medium text-white rounded-lg bg-brand-600 hover:bg-brand-700 transition-colors"
           >
             + 新規テンプレート
           </button>
@@ -249,9 +255,8 @@ export default function TemplatesPage() {
             key={key}
             onClick={() => setTypeFilter(key)}
             className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
-              typeFilter === key ? 'text-white' : 'text-gray-600 bg-gray-100 hover:bg-gray-200'
+              typeFilter === key ? 'bg-brand-600 text-white' : 'text-gray-600 bg-gray-100 hover:bg-gray-200'
             }`}
-            style={typeFilter === key ? { backgroundColor: '#06C755' } : undefined}
           >
             {label}
           </button>
@@ -267,7 +272,7 @@ export default function TemplatesPage() {
               <label className="block text-xs font-medium text-gray-600 mb-1">名前 <span className="text-red-500">*</span></label>
               <input
                 type="text"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
                 placeholder="例: コスト比較 flex"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -277,7 +282,7 @@ export default function TemplatesPage() {
               <label className="block text-xs font-medium text-gray-600 mb-1">カテゴリ</label>
               <input
                 type="text"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
                 placeholder="例: general, 挨拶, 返信"
                 value={form.category}
                 onChange={(e) => setForm({ ...form, category: e.target.value })}
@@ -286,7 +291,7 @@ export default function TemplatesPage() {
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">タイプ</label>
               <select
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
                 value={form.messageType}
                 onChange={(e) => setForm({ ...form, messageType: e.target.value })}
               >
@@ -327,7 +332,7 @@ export default function TemplatesPage() {
                 />
               ) : (
                 <textarea
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-green-500 resize-y"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-brand-500 resize-y"
                   rows={form.messageType === 'flex' ? 10 : 4}
                   placeholder={form.messageType === 'flex' ? '{"type":"bubble","body":...}' : 'メッセージ内容'}
                   value={form.messageContent}
@@ -342,8 +347,7 @@ export default function TemplatesPage() {
               <button
                 onClick={handleCreate}
                 disabled={saving}
-                className="px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50"
-                style={{ backgroundColor: '#06C755' }}
+                className="px-4 py-2 text-sm font-medium text-white rounded-lg bg-brand-600 hover:bg-brand-700 disabled:opacity-50"
               >
                 {saving ? '作成中...' : '作成'}
               </button>
@@ -396,7 +400,7 @@ export default function TemplatesPage() {
                   <tr
                     key={t.id}
                     onClick={() => setDrawerId(t.id)}
-                    className={`hover:bg-gray-50 cursor-pointer transition-colors ${drawerId === t.id ? 'bg-green-50' : ''}`}
+                    className={`hover:bg-gray-50 cursor-pointer transition-colors ${drawerId === t.id ? 'bg-brand-50' : ''}`}
                   >
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium ${typeBadgeColor[t.messageType] ?? 'bg-gray-100 text-gray-700'}`}>
@@ -423,7 +427,7 @@ export default function TemplatesPage() {
                     <td className="px-4 py-3 text-right">
                       <button
                         onClick={(e) => { e.stopPropagation(); handleDelete(t.id, t.usageCount) }}
-                        className="px-2.5 py-1 text-xs font-medium text-red-500 hover:bg-red-50 rounded-md"
+                        className="px-2.5 py-1 text-xs font-medium text-red-500 hover:bg-red-50 rounded-lg"
                       >
                         削除
                       </button>
@@ -452,7 +456,7 @@ export default function TemplatesPage() {
                     autoFocus
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    className="flex-1 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="flex-1 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
                   />
                 ) : (
                   <h3
@@ -525,7 +529,7 @@ export default function TemplatesPage() {
                   <h4 className="text-[11px] font-medium text-gray-500 mb-1.5 uppercase tracking-wide">内容 / JSON 編集</h4>
                   <textarea
                     rows={drawerData.messageType === 'flex' ? 12 : 4}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-green-500 resize-y"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-brand-500 resize-y"
                     value={editContent ?? drawerData.messageContent}
                     onChange={(e) => setEditContent(e.target.value)}
                   />
@@ -536,14 +540,13 @@ export default function TemplatesPage() {
                     <button
                       onClick={handleSaveEdit}
                       disabled={savingEdit}
-                      className="px-3 py-1.5 text-xs font-medium text-white rounded-md disabled:opacity-50"
-                      style={{ backgroundColor: '#06C755' }}
+                      className="px-3 py-1.5 text-xs font-medium text-white rounded-lg bg-brand-600 hover:bg-brand-700 disabled:opacity-50"
                     >
                       {savingEdit ? '保存中...' : '保存'}
                     </button>
                     <button
                       onClick={() => { setEditContent(null); setEditName(null) }}
-                      className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md"
+                      className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg"
                     >
                       キャンセル
                     </button>
@@ -562,29 +565,33 @@ export default function TemplatesPage() {
                       <ul className="space-y-1.5 text-xs">
                         {drawerData.usedBy.autoReplies.map((ar) => (
                           <li key={`ar-${ar.id}`}>
-                            <a href="/auto-replies" className="text-blue-600 hover:underline">
-                              🔗 自動返信: {ar.keyword} <span className="text-gray-400">({ar.matchType})</span>
+                            <a href="/auto-replies" className="text-blue-600 hover:underline inline-flex items-center gap-1">
+                              <Icon name="reply" className="w-3.5 h-3.5" />
+                              自動返信: {ar.keyword} <span className="text-gray-400">({ar.matchType})</span>
                             </a>
                           </li>
                         ))}
                         {drawerData.usedBy.automations.map((au) => (
                           <li key={`au-${au.id}`}>
-                            <a href="/automations" className="text-blue-600 hover:underline">
-                              🔗 オートメーション: {au.name} <span className="text-gray-400">({au.eventType})</span>
+                            <a href="/automations" className="text-blue-600 hover:underline inline-flex items-center gap-1">
+                              <Icon name="bolt" className="w-3.5 h-3.5" />
+                              オートメーション: {au.name} <span className="text-gray-400">({au.eventType})</span>
                             </a>
                           </li>
                         ))}
                         {scenarioStepUsages.map((ss) => (
                           <li key={`ss-${ss.stepId}`}>
-                            <a href={`/scenarios/detail?id=${ss.scenarioId}`} className="text-blue-600 hover:underline">
-                              🎬 シナリオ: {ss.scenarioName} <span className="text-gray-400">#{ss.stepOrder}</span>
+                            <a href={`/scenarios/detail?id=${ss.scenarioId}`} className="text-blue-600 hover:underline inline-flex items-center gap-1">
+                              <Icon name="video" className="w-3.5 h-3.5" />
+                              シナリオ: {ss.scenarioName} <span className="text-gray-400">#{ss.stepOrder}</span>
                             </a>
                           </li>
                         ))}
                       </ul>
                       {scenarioStepUsages.length > 0 && (
-                        <p className="mt-2 text-[10px] text-amber-700">
-                          ⚠ このテンプレートを修正すると、上記すべてに一斉反映されます
+                        <p className="mt-2 text-[10px] text-amber-700 inline-flex items-center gap-1">
+                          <Icon name="warning" className="w-3.5 h-3.5" />
+                          このテンプレートを修正すると、上記すべてに一斉反映されます
                         </p>
                       )}
                     </>

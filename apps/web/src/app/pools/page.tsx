@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
 import Header from '@/components/layout/header'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 import type { TrafficPool, PoolAccount, LineAccount } from '@line-crm/shared'
 
 export default function PoolsPage() {
@@ -42,7 +43,7 @@ export default function PoolsPage() {
         <span className="text-sm text-gray-500">{pools.length} プール</span>
         <button
           onClick={() => setShowCreate(true)}
-          className="px-3 py-1.5 rounded bg-blue-600 text-white text-sm hover:bg-blue-700"
+          className="px-3 py-1.5 rounded-lg bg-brand-600 text-white text-sm hover:bg-brand-700"
         >
           + 新規プール
         </button>
@@ -90,6 +91,7 @@ function PoolCard({
   onChange: () => void
 }) {
   const isMain = pool.slug === 'main'
+  const { confirm: confirmDialog, alert: alertDialog } = useConfirm()
   const apiBase = process.env.NEXT_PUBLIC_API_URL ?? ''
   const publicUrl = `${apiBase}/pool/${pool.slug}`
   const [copied, setCopied] = useState(false)
@@ -104,10 +106,16 @@ function PoolCard({
   }
   const onDelete = async () => {
     if (isMain) return
-    if (!confirm(`プール「${pool.name}」を削除しますか?`)) return
+    const ok = await confirmDialog({
+      title: 'プールを削除',
+      message: `プール「${pool.name}」を削除しますか?`,
+      confirmLabel: '削除する',
+      tone: 'danger',
+    })
+    if (!ok) return
     const res = await api.pools.delete(pool.id)
     if (res.success) onChange()
-    else alert(res.error ?? '削除に失敗しました')
+    else await alertDialog({ title: '削除に失敗しました', message: res.error ?? undefined })
   }
 
   return (
@@ -156,6 +164,7 @@ function PoolAccountList({
   onChange: () => void
 }) {
   const [members, setMembers] = useState<PoolAccount[]>([])
+  const { confirm: confirmDialog } = useConfirm()
 
   const reload = async () => {
     const res = await api.pools.accounts.list(poolId)
@@ -178,7 +187,12 @@ function PoolAccountList({
   }
 
   const onRemove = async (poolAccountId: string) => {
-    if (!confirm('このアカウントをプールから外しますか?')) return
+    const ok = await confirmDialog({
+      title: 'プールから外す',
+      message: 'このアカウントをプールから外しますか?',
+      confirmLabel: '外す',
+    })
+    if (!ok) return
     const res = await api.pools.accounts.remove(poolId, poolAccountId)
     if (res.success) {
       await reload()
@@ -220,7 +234,7 @@ function PoolAccountList({
                 e.target.value = ''
               }
             }}
-            className="text-xs border border-gray-200 rounded px-2 py-1"
+            className="text-xs border border-gray-200 rounded-lg px-2 py-1"
           >
             <option value="">＋ アカウントを追加</option>
             {candidates.map((a) => (
@@ -273,18 +287,18 @@ function CreatePoolModal({
           value={slug}
           onChange={(e) => setSlug(e.target.value)}
           placeholder="slug (例: brand-a)"
-          className="w-full border border-gray-200 rounded px-3 py-2 text-sm font-mono"
+          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono"
         />
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="表示名 (例: ブランドA)"
-          className="w-full border border-gray-200 rounded px-3 py-2 text-sm"
+          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
         />
         <select
           value={activeAccountId}
           onChange={(e) => setActiveAccountId(e.target.value)}
-          className="w-full border border-gray-200 rounded px-3 py-2 text-sm"
+          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
         >
           <option value="">最初の所属アカウントを選択</option>
           {accounts.map((a) => (
@@ -300,7 +314,7 @@ function CreatePoolModal({
           <button
             onClick={onSubmit}
             disabled={submitting || !slug || !name || !activeAccountId}
-            className="text-sm px-3 py-1.5 rounded bg-blue-600 text-white disabled:opacity-50"
+            className="text-sm px-3 py-1.5 rounded-lg bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50"
           >
             {submitting ? '作成中…' : '作成'}
           </button>

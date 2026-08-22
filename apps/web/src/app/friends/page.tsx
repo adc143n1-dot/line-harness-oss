@@ -143,20 +143,19 @@ export default function FriendsPage() {
             value={searchInput}
             onChange={(e) => handleSearchInputChange(e.target.value)}
             placeholder="友だち名を検索"
-            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
           />
           <select
             value={sortMode}
             onChange={(e) => handleSortChange(e.target.value as SortMode)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
           >
             <option value="recent">友だち追加の新しい順</option>
             <option value="oldest">友だち追加の古い順</option>
           </select>
           <button
             type="submit"
-            className="px-4 py-2 rounded-lg text-white text-sm font-medium"
-            style={{ backgroundColor: '#06C755' }}
+            className="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium transition-colors"
           >
             検索
           </button>
@@ -167,7 +166,7 @@ export default function FriendsPage() {
           <div className="flex items-center gap-2">
             <label className="text-xs text-gray-600 font-medium whitespace-nowrap">タグ:</label>
             <select
-              className="text-xs border border-gray-300 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="text-xs border border-gray-300 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
               value={selectedTagId}
               onChange={(e) => handleTagFilterChange(e.target.value)}
             >
@@ -180,7 +179,7 @@ export default function FriendsPage() {
           <div className="flex items-center gap-2">
             <label className="text-xs text-gray-600 font-medium whitespace-nowrap">対応マーク:</label>
             <select
-              className="text-xs border border-gray-300 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="text-xs border border-gray-300 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
               value={responseFilter}
               onChange={(e) => handleResponseFilterChange(e.target.value as ResponseFilter)}
             >

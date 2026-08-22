@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { api } from '@/lib/api'
 import Header from '@/components/layout/header'
+import Button from '@/components/ui/button'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 import CcPromptButton from '@/components/cc-prompt-button'
 import TestRecipientsSetting from '@/components/accounts/test-recipients-setting'
 import AiReplySetting from '@/components/accounts/ai-reply-setting'
@@ -60,6 +62,7 @@ const ccPrompts = [
 ]
 
 export default function AccountsPage() {
+  const { confirm: confirmDialog } = useConfirm()
   const [accounts, setAccounts] = useState<LineAccountListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -129,7 +132,12 @@ export default function AccountsPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('このLINEアカウントを削除しますか？')) return
+    if (!(await confirmDialog({
+      title: 'アカウントを削除',
+      message: 'このLINEアカウントを削除しますか？',
+      tone: 'danger',
+      confirmLabel: '削除する',
+    }))) return
     await api.lineAccounts.delete(id)
     load()
   }
@@ -146,13 +154,11 @@ export default function AccountsPage() {
         description="マルチアカウント設定"
         action={
           <div className="flex gap-2">
-            <button
-              onClick={() => setShowReorder(true)}
-              className="px-3 py-2 rounded-lg text-xs font-medium border border-gray-300 hover:bg-gray-50"
-            >
+            <Button variant="secondary" size="sm" onClick={() => setShowReorder(true)}>
               並び替えモード
-            </button>
-            <button
+            </Button>
+            <Button
+              size="sm"
               onClick={() => {
                 const next = !showCreate
                 setShowCreate(next)
@@ -161,11 +167,9 @@ export default function AccountsPage() {
                   setCreateError('')
                 }
               }}
-              className="px-4 py-2 rounded-lg text-white text-sm font-medium"
-              style={{ backgroundColor: '#06C755' }}
             >
               {showCreate ? 'キャンセル' : '+ アカウント追加'}
-            </button>
+            </Button>
           </div>
         }
       />
@@ -223,14 +227,9 @@ export default function AccountsPage() {
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={submitting}
-            className="px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
-            style={{ backgroundColor: '#06C755' }}
-          >
+          <Button type="submit" disabled={submitting}>
             {submitting ? '登録中...' : '登録'}
-          </button>
+          </Button>
         </form>
       )}
 
@@ -255,8 +254,7 @@ export default function AccountsPage() {
                     />
                   ) : (
                     <div
-                      className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm"
-                      style={{ backgroundColor: account.isActive ? '#06C755' : '#9CA3AF' }}
+                      className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm ${account.isActive ? 'bg-brand-600' : 'bg-gray-400'}`}
                     >
                       {account.displayName?.charAt(0) || 'L'}
                     </div>
@@ -270,7 +268,7 @@ export default function AccountsPage() {
                 </div>
                 <button
                   onClick={() => handleToggle(account.id, account.isActive)}
-                  className={`text-xs px-2 py-0.5 rounded-full ${account.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}
+                  className={`text-xs px-2 py-0.5 rounded-full ${account.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}
                 >
                   {account.isActive ? '有効' : '無効'}
                 </button>

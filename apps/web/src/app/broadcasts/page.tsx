@@ -6,6 +6,8 @@ import type { Tag } from '@line-crm/shared'
 import { api, type ApiBroadcast, type BroadcastInsight } from '@/lib/api'
 import { useAccount } from '@/contexts/account-context'
 import Header from '@/components/layout/header'
+import Button from '@/components/ui/button'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 import BroadcastForm from '@/components/broadcasts/broadcast-form'
 import BroadcastDetail from '@/components/broadcasts/broadcast-detail'
 import CcPromptButton from '@/components/cc-prompt-button'
@@ -36,7 +38,7 @@ const statusConfig: Record<
   draft: { label: '下書き', className: 'bg-gray-100 text-gray-600' },
   scheduled: { label: '予約済み', className: 'bg-blue-100 text-blue-700' },
   sending: { label: '送信中', className: 'bg-yellow-100 text-yellow-700' },
-  sent: { label: '送信完了', className: 'bg-green-100 text-green-700' },
+  sent: { label: '送信完了', className: 'bg-emerald-50 text-emerald-700' },
 }
 
 function formatDatetime(iso: string | null): string {
@@ -65,6 +67,7 @@ export default function BroadcastsPage() {
 type BroadcastTab = 'single' | 'dedup' | 'all'
 
 function BroadcastList() {
+  const { confirm: confirmDialog } = useConfirm()
   const { selectedAccountId } = useAccount()
   const [broadcasts, setBroadcasts] = useState<ApiBroadcast[]>([])
   const [tags, setTags] = useState<Tag[]>([])
@@ -124,7 +127,12 @@ function BroadcastList() {
   }, [broadcasts])
 
   const handleDelete = async (id: string) => {
-    if (!confirm('この配信を削除してもよいですか？')) return
+    if (!(await confirmDialog({
+      title: '配信を削除',
+      message: 'この配信を削除してもよいですか？',
+      tone: 'danger',
+      confirmLabel: '削除する',
+    }))) return
     try {
       await api.broadcasts.delete(id)
       load()
@@ -153,13 +161,9 @@ function BroadcastList() {
       <Header
         title="一斉配信"
         action={
-          <button
-            onClick={() => setShowCreate(true)}
-            className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90"
-            style={{ backgroundColor: '#06C755' }}
-          >
+          <Button onClick={() => setShowCreate(true)}>
             + 新規配信
-          </button>
+          </Button>
         }
       />
 
@@ -192,10 +196,9 @@ function BroadcastList() {
               onClick={() => setActiveTab(tab.id)}
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === tab.id
-                  ? 'border-green-500 text-gray-900'
+                  ? 'border-brand-600 text-brand-700'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
-              style={activeTab === tab.id ? { borderColor: '#06C755' } : undefined}
             >
               {tab.label}
               <span className="ml-1.5 inline-flex items-center justify-center px-1.5 py-0 rounded-full bg-gray-100 text-xs text-gray-600 min-w-[20px]">
@@ -362,7 +365,7 @@ function BroadcastList() {
                         {(broadcast.status === 'draft' || broadcast.status === 'scheduled') && (
                           <button
                             onClick={() => handleDelete(broadcast.id)}
-                            className="px-3 py-1 min-h-[44px] text-xs font-medium text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-md transition-colors"
+                            className="px-3 py-1 min-h-[44px] text-xs font-medium text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
                           >
                             削除
                           </button>

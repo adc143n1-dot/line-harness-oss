@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import Header from '@/components/layout/header'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 import { bookingApi, type BookingRequest } from '@/lib/api'
 import { useAccount } from '@/contexts/account-context'
 import {
@@ -86,6 +87,7 @@ const receivedFormatter = new Intl.DateTimeFormat('ja-JP', {
 })
 
 export default function BookingsPage() {
+  const { confirm: confirmDialog, alert: alertDialog } = useConfirm()
   const { selectedAccountId, selectedAccount } = useAccount()
   const [statusFilter, setStatusFilter] = useState('all')
   const [timeFilter, setTimeFilter] = useState<BookingTimeFilter>('upcoming')
@@ -143,12 +145,20 @@ export default function BookingsPage() {
     action: 'approve' | 'reject' | 'cancel' | 'no_show' | 'complete',
   ) {
     if (!selectedAccountId) return
-    if (!confirm(`この予約を「${actionLabel[action]}」しますか？`)) return
+    if (!(await confirmDialog({
+      title: `予約を${actionLabel[action]}`,
+      message: `この予約を「${actionLabel[action]}」しますか？`,
+      tone: action === 'approve' || action === 'complete' ? 'default' : 'danger',
+      confirmLabel: `${actionLabel[action]}する`,
+    }))) return
     try {
       await bookingApi.decideRequest(selectedAccountId, id, action)
       await load()
     } catch (e) {
-      alert(`操作に失敗しました: ${e instanceof Error ? e.message : String(e)}`)
+      await alertDialog({
+        title: '操作に失敗しました',
+        message: e instanceof Error ? e.message : String(e),
+      })
     }
   }
 
@@ -225,7 +235,7 @@ export default function BookingsPage() {
                 <button
                   type="button"
                   onClick={() => copyUrl(shareUrl)}
-                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                  className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
                 >
                   {copied ? 'コピー済' : 'コピー'}
                 </button>
@@ -619,7 +629,7 @@ function ActionButtons({
         <button
           type="button"
           onClick={() => onAction('approve')}
-          className="flex-1 rounded-lg bg-[#06C755] px-4 py-2 text-xs font-bold text-white hover:opacity-90 lg:w-24"
+          className="flex-1 rounded-lg bg-brand-600 px-4 py-2 text-xs font-bold text-white hover:bg-brand-700 lg:w-24"
         >
           承認
         </button>

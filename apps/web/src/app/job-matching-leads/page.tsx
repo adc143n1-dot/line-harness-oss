@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { api } from '@/lib/api'
 import type { JobMatchingLeadItem } from '@/lib/api'
 import Header from '@/components/layout/header'
+import Badge from '@/components/ui/badge'
+import type { BadgeTone } from '@/components/ui/badge'
 
 const PAGE_SIZE = 30
 
@@ -36,10 +38,10 @@ const STATE_LABELS: Record<string, string> = {
   awaiting_q2: 'Q2回答待ち',
   diagnosed: '診断完了',
 }
-const TEMPERATURE_STYLE: Record<string, { label: string; className: string }> = {
-  hot: { label: '🔥 HOT', className: 'bg-red-100 text-red-700' },
-  warm: { label: '🌤️ WARM', className: 'bg-yellow-100 text-yellow-800' },
-  cold: { label: '❄️ COLD', className: 'bg-blue-100 text-blue-700' },
+const TEMPERATURE_STYLE: Record<string, { label: string; tone: BadgeTone }> = {
+  hot: { label: 'HOT', tone: 'red' },
+  warm: { label: 'WARM', tone: 'amber' },
+  cold: { label: 'COLD', tone: 'sky' },
 }
 
 const CHAT_STATUS_LABELS: Record<string, string> = {
@@ -123,12 +125,11 @@ export default function JobMatchingLeadsPage() {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="名前で検索..."
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-48"
+              className="border border-edge rounded-lg px-3 py-2 text-sm w-48"
             />
             <button
               type="submit"
-              className="px-3 py-2 min-h-[44px] rounded-lg text-white text-sm font-medium"
-              style={{ backgroundColor: '#06C755' }}
+              className="px-3 py-2 min-h-[44px] rounded-lg text-white text-sm font-medium bg-brand-600 hover:bg-brand-700"
             >
               検索
             </button>
@@ -136,12 +137,12 @@ export default function JobMatchingLeadsPage() {
           <select
             value={temperature}
             onChange={(e) => updateAndResetPage(() => setTemperature(e.target.value as typeof temperature))}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            className="border border-edge rounded-lg px-3 py-2 text-sm"
           >
             <option value="">すべての温度</option>
-            <option value="hot">🔥 HOT</option>
-            <option value="warm">🌤️ WARM</option>
-            <option value="cold">❄️ COLD</option>
+            <option value="hot">HOT</option>
+            <option value="warm">WARM</option>
+            <option value="cold">COLD</option>
           </select>
         </div>
       </div>
@@ -185,15 +186,15 @@ export default function JobMatchingLeadsPage() {
                     <td className="px-4 py-3 text-sm text-gray-600">
                       {lead.q4Answer ? (
                         lead.q4Answer === 'now'
-                          ? <span className="text-xs px-2 py-0.5 rounded-full bg-orange-50 text-orange-700 font-medium">🚀 今すぐ</span>
+                          ? <Badge tone="orange">今すぐ</Badge>
                           : (Q4_LABELS[lead.q4Answer] ?? lead.q4Answer)
                       ) : '-'}
                     </td>
                     <td className="px-4 py-3">
                       {lead.leadScore !== null && temp ? (
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${temp.className}`}>
+                        <Badge tone={temp.tone}>
                           {temp.label} {lead.leadScore}点
-                        </span>
+                        </Badge>
                       ) : (
                         <span className="text-sm text-gray-400">-</span>
                       )}
@@ -203,11 +204,9 @@ export default function JobMatchingLeadsPage() {
                     </td>
                     <td className="px-4 py-3">
                       {lead.operatorId ? (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
-                          🙋 {staffNameOf(lead.operatorId)}
-                        </span>
+                        <Badge tone="blue">{staffNameOf(lead.operatorId)}</Badge>
                       ) : (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">未割当</span>
+                        <Badge tone="gray">未割当</Badge>
                       )}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600">

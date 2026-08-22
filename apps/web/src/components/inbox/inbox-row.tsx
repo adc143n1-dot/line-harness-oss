@@ -19,10 +19,10 @@ export interface InboxRowData {
 
 const TYPE_LABELS: Record<string, string> = {
   sticker: 'スタンプ',
-  video: '🎥 動画',
-  audio: '🎤 音声',
-  file: '📄 ファイル',
-  location: '📍 位置情報',
+  video: '[動画]',
+  audio: '[音声]',
+  file: '[ファイル]',
+  location: '[位置情報]',
 }
 
 function formatPreview(type: string, content: string): string {
@@ -55,7 +55,7 @@ function ImageThumb({ raw }: { raw: string }) {
   } catch {
     // ignore
   }
-  if (!src) return <span className="text-sm text-gray-600">🖼 画像</span>
+  if (!src) return <span className="text-sm text-gray-600">[画像]</span>
   return (
     <span className="inline-flex items-center gap-2">
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -65,7 +65,7 @@ function ImageThumb({ raw }: { raw: string }) {
         loading="lazy"
         className="h-12 w-12 flex-shrink-0 rounded object-cover ring-1 ring-gray-200"
       />
-      <span className="text-sm text-gray-500">🖼 画像</span>
+      <span className="text-sm text-gray-500">画像</span>
     </span>
   )
 }
@@ -104,7 +104,7 @@ export default function InboxRow({ row, operatorNameOf }: Props) {
           <span className="truncate text-sm font-medium text-gray-900">
             {row.displayName || '(名前なし)'}
           </span>
-          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+          <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-medium text-brand-700">
             {row.accountName}
           </span>
           {machineAfterIncoming && (
@@ -116,7 +116,7 @@ export default function InboxRow({ row, operatorNameOf }: Props) {
           {operatorNameOf && (
             row.operatorId ? (
               <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-700">
-                🙋 {operatorNameOf(row.operatorId)}
+                {operatorNameOf(row.operatorId)}
               </span>
             ) : (
               <span className="rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-medium text-gray-600">

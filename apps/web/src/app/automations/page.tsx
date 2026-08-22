@@ -4,6 +4,9 @@ import { useState, useEffect, useCallback } from 'react'
 import { api } from '@/lib/api'
 import { useAccount } from '@/contexts/account-context'
 import Header from '@/components/layout/header'
+import Button from '@/components/ui/button'
+import { useConfirm } from '@/components/ui/confirm-dialog'
+import { Icon } from '@/components/ui/icons'
 import CcPromptButton from '@/components/cc-prompt-button'
 
 type AutomationEventType = "friend_add" | "tag_change" | "score_threshold" | "cv_fire" | "message_received" | "postback_received" | "calendar_booked"
@@ -97,6 +100,7 @@ const ccPrompts = [
 ]
 
 export default function AutomationsPage() {
+  const { confirm: confirmDialog } = useConfirm()
   const { selectedAccountId, loading: accountLoading } = useAccount()
   const [automations, setAutomations] = useState<Automation[]>([])
   const [loading, setLoading] = useState(true)
@@ -207,9 +211,11 @@ export default function AutomationsPage() {
     // would silently affect all accounts, so warn first.
     const target = automations.find((a) => a.id === id)
     if (target?.lineAccountId === null) {
-      const ok = confirm(
-        `「${target.name}」は全アカウント共通のオートメーションです。${current ? '無効化' : '有効化'}するとすべてのアカウントに影響します。続行しますか?`,
-      )
+      const ok = await confirmDialog({
+        title: '全アカウント共通のオートメーション',
+        message: `「${target.name}」は全アカウント共通のオートメーションです。${current ? '無効化' : '有効化'}するとすべてのアカウントに影響します。続行しますか?`,
+        confirmLabel: '続行する',
+      })
       if (!ok) return
     }
     try {
@@ -225,7 +231,12 @@ export default function AutomationsPage() {
     const message = target?.lineAccountId === null
       ? `「${target.name}」は全アカウント共通のオートメーションです。削除するとすべてのアカウントから消えます。本当に削除しますか?`
       : 'このオートメーションを削除してもよいですか？'
-    if (!confirm(message)) return
+    if (!(await confirmDialog({
+      title: 'オートメーションを削除',
+      message,
+      tone: 'danger',
+      confirmLabel: '削除する',
+    }))) return
     try {
       await api.automations.delete(id)
       loadAutomations()
@@ -239,13 +250,9 @@ export default function AutomationsPage() {
       <Header
         title="オートメーション"
         action={
-          <button
-            onClick={() => setShowCreate(true)}
-            className="px-4 py-2 min-h-[44px] text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90"
-            style={{ backgroundColor: '#06C755' }}
-          >
+          <Button onClick={() => setShowCreate(true)}>
             + 新規ルール
-          </button>
+          </Button>
         }
       />
 
@@ -265,7 +272,7 @@ export default function AutomationsPage() {
               <label className="block text-xs font-medium text-gray-600 mb-1">ルール名 <span className="text-red-500">*</span></label>
               <input
                 type="text"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
                 placeholder="例: 友だち追加時にウェルカムタグ付与"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -274,7 +281,7 @@ export default function AutomationsPage() {
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">説明</label>
               <textarea
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
                 rows={2}
                 placeholder="ルールの説明 (省略可)"
                 value={form.description}
@@ -284,7 +291,7 @@ export default function AutomationsPage() {
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">イベントタイプ</label>
               <select
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
                 value={form.eventType}
                 onChange={(e) => setForm({ ...form, eventType: e.target.value as AutomationEventType })}
               >
@@ -296,7 +303,7 @@ export default function AutomationsPage() {
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">アクション (JSON)</label>
               <textarea
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-500 resize-y"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500 resize-y"
                 rows={6}
                 placeholder='[{"type": "add_tag", "params": {"tagId": "..."}}]'
                 value={form.actionsJson}
@@ -306,7 +313,7 @@ export default function AutomationsPage() {
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">条件 (JSON)</label>
               <textarea
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-500 resize-y"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500 resize-y"
                 rows={3}
                 placeholder='{"tagId": "...", "operator": "equals"}'
                 value={form.conditionsJson}
@@ -317,7 +324,7 @@ export default function AutomationsPage() {
               <label className="block text-xs font-medium text-gray-600 mb-1">優先度</label>
               <input
                 type="number"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
                 value={form.priority}
                 onChange={(e) => setForm({ ...form, priority: parseInt(e.target.value, 10) || 0 })}
               />
@@ -326,20 +333,12 @@ export default function AutomationsPage() {
             {formError && <p className="text-xs text-red-600">{formError}</p>}
 
             <div className="flex gap-2">
-              <button
-                onClick={handleCreate}
-                disabled={saving}
-                className="px-4 py-2 min-h-[44px] text-sm font-medium text-white rounded-lg disabled:opacity-50 transition-opacity"
-                style={{ backgroundColor: '#06C755' }}
-              >
+              <Button onClick={handleCreate} disabled={saving}>
                 {saving ? '作成中...' : '作成'}
-              </button>
-              <button
-                onClick={() => { setShowCreate(false); setFormError('') }}
-                className="px-4 py-2 min-h-[44px] text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-              >
+              </Button>
+              <Button variant="secondary" onClick={() => { setShowCreate(false); setFormError('') }}>
                 キャンセル
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -376,7 +375,7 @@ export default function AutomationsPage() {
                 <button
                   onClick={() => handleToggleActive(automation.id, automation.isActive)}
                   className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                    automation.isActive ? 'bg-green-500' : 'bg-gray-300'
+                    automation.isActive ? 'bg-emerald-500' : 'bg-gray-300'
                   }`}
                   title={automation.isActive ? '有効 - クリックで無効化' : '無効 - クリックで有効化'}
                 >
@@ -399,7 +398,7 @@ export default function AutomationsPage() {
                   {eventTypeLabelMap[automation.eventType]}
                 </span>
                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                  automation.isActive ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'
+                  automation.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'
                 }`}>
                   {automation.isActive ? '有効' : '無効'}
                 </span>
@@ -424,8 +423,9 @@ export default function AutomationsPage() {
                   <div className="flex items-center gap-4 text-xs text-gray-400 mb-3">
                     <span>アクション: {automation.actions.length}件</span>
                     {sendMsgWithTpl > 0 && (
-                      <a href="/templates" className="text-blue-600 hover:underline" title="template_id 参照を含む send_message action あり">
-                        🔗 template×{sendMsgWithTpl}
+                      <a href="/templates" className="inline-flex items-center gap-1 text-brand-600 hover:underline" title="template_id 参照を含む send_message action あり">
+                        <Icon name="link" className="w-3 h-3" />
+                        template×{sendMsgWithTpl}
                       </a>
                     )}
                     <span>優先度: {automation.priority}</span>
@@ -437,7 +437,7 @@ export default function AutomationsPage() {
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
                 <button
                   onClick={() => handleDelete(automation.id)}
-                  className="px-3 py-1 min-h-[44px] text-xs font-medium text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-md transition-colors"
+                  className="px-3 py-1 min-h-[44px] text-xs font-medium text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
                 >
                   削除
                 </button>

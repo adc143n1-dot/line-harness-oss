@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL!
 // self-update を構成した環境 (create-line-harness セットアップ) でのみ設定される。
@@ -36,6 +37,7 @@ async function fetchHistory(adminKey: string): Promise<Row[]> {
 }
 
 export default function UpdatesPage() {
+  const { alert: alertDialog } = useConfirm()
   const [state, setState] = useState<LoadState>({ kind: 'loading' })
 
   useEffect(() => {
@@ -123,7 +125,10 @@ export default function UpdatesPage() {
                     Date.now() < r.rollback_expires_at ? (
                       <button
                         onClick={() =>
-                          alert('rollback not implemented in MVP — use CLI')
+                          alertDialog({
+                            title: 'Rollback',
+                            message: 'rollback not implemented in MVP — use CLI',
+                          })
                         }
                         className="underline text-blue-600 text-xs"
                       >
@@ -144,7 +149,7 @@ export default function UpdatesPage() {
 }
 
 function statusClass(s: string): string {
-  if (s === 'success') return 'bg-green-100 text-green-800'
+  if (s === 'success') return 'bg-emerald-50 text-emerald-700'
   if (s === 'rolled_back') return 'bg-amber-100 text-amber-800'
   if (s === 'failed') return 'bg-red-100 text-red-800'
   if (s === 'running') return 'bg-blue-100 text-blue-800'

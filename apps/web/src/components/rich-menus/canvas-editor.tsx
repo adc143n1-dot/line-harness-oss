@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 
 export type Area = {
   id: string
@@ -87,6 +88,7 @@ export function CanvasEditor({
   const dims = SIZE_DIMS[size]
   const [scale, setScale] = useState(0.3)
   const [drag, setDrag] = useState<DragState>(null)
+  const { alert: alertDialog } = useConfirm()
 
   function toImageCoord(clientX: number, clientY: number) {
     const rect = canvasRef.current!.getBoundingClientRect()
@@ -198,7 +200,7 @@ export function CanvasEditor({
           // LINE の上限 (1 page あたり area 20 個) を事前にブロック。
           // 上限を超えて追加させると Save Draft / Publish が 400 になる。
           if (areas.length >= 20) {
-            alert('1 ページあたり areas は最大 20 個までです (LINE 仕様)。')
+            void alertDialog({ title: 'areas の上限に達しました', message: '1 ページあたり areas は最大 20 個までです (LINE 仕様)。' })
           } else {
             onAddArea({
               id: typeof crypto !== 'undefined' && 'randomUUID' in crypto

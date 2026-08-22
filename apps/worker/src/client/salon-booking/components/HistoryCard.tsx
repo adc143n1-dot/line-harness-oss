@@ -3,7 +3,7 @@ import { utcToJstDisplay } from '../lib/datetime.js';
 
 const STATUS_LABEL: Record<string, { label: string; bg: string; fg: string }> = {
   requested: { label: 'リクエスト中', bg: '#fef3c7', fg: '#92400e' },
-  confirmed: { label: '確定', bg: '#d1fae5', fg: '#065f46' },
+  confirmed: { label: '確定', bg: '#ecfdf5', fg: '#059669' },
   rejected: { label: '不可', bg: '#f3f4f6', fg: '#6b7280' },
   expired: { label: '期限切れ', bg: '#f3f4f6', fg: '#6b7280' },
   cancelled: { label: 'キャンセル', bg: '#f3f4f6', fg: '#6b7280' },

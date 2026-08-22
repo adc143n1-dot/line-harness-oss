@@ -6,6 +6,7 @@ import Header from '@/components/layout/header'
 import { useAccount } from '@/contexts/account-context'
 import { api } from '@/lib/api'
 import { ApplyToTagModal } from '@/components/rich-menus/apply-to-tag-modal'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 
 type RichMenuGroupListItem = {
   id: string
@@ -22,7 +23,7 @@ type RichMenuGroupListItem = {
 function StatusBadge({ status }: { status: 'draft' | 'published' }) {
   const cls =
     status === 'published'
-      ? 'bg-green-100 text-green-800'
+      ? 'bg-emerald-50 text-emerald-700'
       : 'bg-gray-100 text-gray-700'
   return (
     <span className={`text-xs px-2 py-0.5 rounded ${cls}`}>
@@ -50,6 +51,7 @@ type LineMenu = {
 
 export default function RichMenusListPage() {
   const { selectedAccount } = useAccount()
+  const { confirm: confirmDialog, alert: alertDialog } = useConfirm()
   const [groups, setGroups] = useState<RichMenuGroupListItem[]>([])
   const [external, setExternal] = useState<{
     currentDefault: string | null
@@ -106,56 +108,67 @@ export default function RichMenusListPage() {
 
   async function handleDelete(group: RichMenuGroupListItem) {
     if (group.status === 'published') {
-      alert(
-        `「${group.name}」は LINE に登録されています。\n\n` +
+      await alertDialog({
+        title: '削除できません',
+        message:
+          `「${group.name}」は LINE に登録されています。\n\n` +
           '編集画面の「危険な操作」から「LINE から取り下げ」を実行してから、改めて削除してください。',
-      )
+      })
       return
     }
-    if (!confirm(`「${group.name}」を削除します。元には戻せません。`)) return
+    const ok = await confirmDialog({
+      title: 'リッチメニューを削除',
+      message: `「${group.name}」を削除します。元には戻せません。`,
+      confirmLabel: '削除する',
+      tone: 'danger',
+    })
+    if (!ok) return
     try {
       const res = await api.richMenuGroups.delete(group.id)
       if (!res.success) throw new Error(res.error ?? '削除失敗')
       await reload()
     } catch (e) {
-      alert(e instanceof Error ? e.message : String(e))
+      await alertDialog({ title: 'エラー', message: e instanceof Error ? e.message : String(e) })
     }
   }
 
   async function handleDeleteExternal(menu: LineMenu) {
     if (!selectedAccount?.id) return
-    if (
-      !confirm(
+    const ok = await confirmDialog({
+      title: 'LINE 上のメニューを削除',
+      message:
         `LINE 上のリッチメニュー「${menu.name}」(richMenuId: ${menu.richMenuId.slice(0, 14)}...) を削除します。\n\n` +
-          'この管理画面外で作成されたメニューを LINE 公式アカウントから消します。元に戻せません。\n\n続行しますか？',
-      )
-    )
-      return
+        'この管理画面外で作成されたメニューを LINE 公式アカウントから消します。元に戻せません。\n\n続行しますか？',
+      confirmLabel: '削除する',
+      tone: 'danger',
+    })
+    if (!ok) return
     try {
       const res = await api.richMenuGroups.deleteExternal(menu.richMenuId, selectedAccount.id)
       if (!res.success) throw new Error(res.error ?? '削除失敗')
       await reload()
     } catch (e) {
-      alert(e instanceof Error ? e.message : String(e))
+      await alertDialog({ title: 'エラー', message: e instanceof Error ? e.message : String(e) })
     }
   }
 
   async function handleImport(menu: LineMenu) {
     if (!selectedAccount?.id) return
-    if (
-      !confirm(
+    const ok = await confirmDialog({
+      title: '管理画面に取り込む',
+      message:
         `「${menu.name}」を管理画面に取り込みます。\n\n` +
-          '取り込み後は「管理画面で作成・編集するメニュー」セクションに表示され、編集や友だちへの再適用が可能になります。\n\n続行しますか？',
-      )
-    )
-      return
+        '取り込み後は「管理画面で作成・編集するメニュー」セクションに表示され、編集や友だちへの再適用が可能になります。\n\n続行しますか？',
+      confirmLabel: '取り込む',
+    })
+    if (!ok) return
     try {
       const res = await api.richMenuGroups.importFromLine(menu.richMenuId, selectedAccount.id)
       if (!res.success) throw new Error(res.error ?? '取り込み失敗')
-      alert(`取り込みました: ${res.data?.name ?? menu.name}`)
+      await alertDialog({ title: '取り込み完了', message: `取り込みました: ${res.data?.name ?? menu.name}` })
       await reload()
     } catch (e) {
-      alert(e instanceof Error ? e.message : String(e))
+      await alertDialog({ title: 'エラー', message: e instanceof Error ? e.message : String(e) })
     }
   }
 
@@ -167,8 +180,7 @@ export default function RichMenusListPage() {
         action={
           <Link
             href="/rich-menus/new"
-            className="inline-flex items-center gap-1 px-4 py-2 text-white rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
-            style={{ backgroundColor: '#06C755' }}
+            className="inline-flex items-center gap-1 px-4 py-2 text-white rounded-lg text-sm font-medium bg-brand-600 hover:bg-brand-700 transition-colors"
           >
             <span className="text-lg leading-none">+</span> 新規作成
           </Link>
@@ -221,8 +233,7 @@ export default function RichMenusListPage() {
           </p>
           <Link
             href="/rich-menus/new"
-            className="inline-flex items-center gap-1 px-4 py-2 text-white rounded-lg text-sm font-medium transition-opacity hover:opacity-90"
-            style={{ backgroundColor: '#06C755' }}
+            className="inline-flex items-center gap-1 px-4 py-2 text-white rounded-lg text-sm font-medium bg-brand-600 hover:bg-brand-700 transition-colors"
           >
             <span className="text-lg leading-none">+</span> 最初のメニューを作る
           </Link>
@@ -281,8 +292,7 @@ export default function RichMenusListPage() {
                 {g.status === 'published' && (
                   <button
                     onClick={() => setApplyTo(g)}
-                    className="font-medium hover:underline"
-                    style={{ color: '#06C755' }}
+                    className="font-medium text-brand-600 hover:text-brand-700 hover:underline"
                   >
                     友だちに表示
                   </button>
@@ -476,8 +486,7 @@ function ExternalSection({
                       <div className="flex flex-col items-end gap-1">
                         <button
                           onClick={() => onImport(m)}
-                          className="text-xs font-medium hover:underline"
-                          style={{ color: '#06C755' }}
+                          className="text-xs font-medium text-brand-600 hover:text-brand-700 hover:underline"
                           title="管理画面に取り込んで以後 UI で操作可能にする"
                         >
                           管理画面に取り込む

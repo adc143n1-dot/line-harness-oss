@@ -1,0 +1,35 @@
+/* 共有デザイントークン — 白×青デザインシステム。
+ * 4つの LIFF サブアプリ (salon-booking / event-booking / webinar / affiliate)
+ * の styles.css から `@import '../design-tokens.css';` で読み込む。
+ * Tailwind v4 の @theme なので bg-brand-600 / text-ink 等の utility が
+ * 自動生成される。LINE 緑 (--color-line) は LINE 操作ボタン専用。
+ */
+@theme {
+  /* ブランド (アクセント青) */
+  --color-brand-50: #eff5fe;
+  --color-brand-100: #e4edfc;
+  --color-brand-200: #c7dbfa;
+  --color-brand-300: #93b8f5;
+  --color-brand-500: #3b82f6;
+  --color-brand-600: #2563eb;
+  --color-brand-700: #1d4ed8;
+
+  /* LINE 操作 (LINEで開く / 友だち追加) 専用 */
+  --color-line: #06c755;
+
+  /* サーフェス */
+  --color-app: #f6f9fc;
+  --color-surface: #ffffff;
+  --color-surface-alt: #ecf2f9;
+  --color-edge: #dae3ee;
+
+  /* テキスト */
+  --color-ink: #17212f;
+  --color-ink-muted: #53637a;
+  --color-ink-faint: #8695ac;
+
+  /* セマンティック */
+  --color-success: #059669;
+  --color-warn: #d97706;
+  --color-danger: #dc2626;
+}

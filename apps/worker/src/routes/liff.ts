@@ -32,6 +32,7 @@ import { notifyAffiliateFriendAdd } from '../services/affiliate-notifier.js';
 import { verifyCallerLineUserId } from '../services/liff-auth.js';
 import { awardActivityMileage } from '../services/activity-mileage.js';
 import { safeRedirectTarget } from '../lib/safe-redirect.js';
+import { pageShell, LINE_ICON_SVG } from '../lib/page-shell.js';
 import type { Env } from '../index.js';
 import { verifyCrossAccountToken } from '../lib/cross-account-token.js';
 
@@ -491,39 +492,18 @@ liffRoutes.get('/auth/line', async (c) => {
   }
 
   // PC: show QR code page
-  return c.html(`<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LINE で開く</title>
-  <style>
-    *{margin:0;padding:0;box-sizing:border-box}
-    body{font-family:'Hiragino Sans','Helvetica Neue',system-ui,sans-serif;background:#f5f7f5;display:flex;justify-content:center;align-items:center;min-height:100vh}
-    .card{background:#fff;border-radius:20px;box-shadow:0 2px 20px rgba(0,0,0,0.06);text-align:center;max-width:480px;width:90%;padding:48px;border:1px solid rgba(0,0,0,0.04)}
-    .line-icon{width:48px;height:48px;margin:0 auto 20px}
-    .line-icon svg{width:48px;height:48px}
-    .msg{font-size:15px;color:#444;font-weight:500;margin-bottom:32px;line-height:1.6}
-    .qr{background:#f9f9f9;border-radius:16px;padding:24px;display:inline-block;margin-bottom:24px;border:1px solid rgba(0,0,0,0.04)}
-    .qr img{display:block;width:240px;height:240px}
-    .hint{font-size:13px;color:#999;line-height:1.6}
-    .footer{font-size:11px;color:#bbb;margin-top:24px;line-height:1.5}
-  </style>
-</head>
-<body>
-  <div class="card">
-    <div class="line-icon">
-      <svg viewBox="0 0 48 48" fill="none"><rect width="48" height="48" rx="12" fill="#06C755"/><path d="M24 12C17.37 12 12 16.58 12 22.2c0 3.54 2.35 6.65 5.86 8.47-.2.74-.76 2.75-.87 3.17-.14.55.2.54.42.39.18-.12 2.84-1.88 4-2.65.84.13 1.7.22 2.59.22 6.63 0 12-4.58 12-10.2S30.63 12 24 12z" fill="#fff"/></svg>
-    </div>
-    <p class="msg">スマートフォンで QR コードを読み取ってください</p>
-    <div class="qr">
-      <img src="/api/qr?size=240x240&data=${encodeURIComponent(qrUrl)}" alt="QR Code">
-    </div>
-    <p class="hint">LINE アプリのカメラまたは<br>スマートフォンのカメラで読み取れます</p>
-    <p class="footer">友だち追加で全機能を無料体験できます</p>
-  </div>
-</body>
-</html>`);
+  return c.html(pageShell({
+    title: 'LINE で開く',
+    body: `<div class="card wide">
+<div class="line-icon">${LINE_ICON_SVG}</div>
+<p class="msg">スマートフォンで QR コードを読み取ってください</p>
+<div class="qr">
+<img src="/api/qr?size=240x240&data=${encodeURIComponent(qrUrl)}" alt="QR Code">
+</div>
+<p class="hint">LINE アプリのカメラまたは<br>スマートフォンのカメラで読み取れます</p>
+<p class="footer">友だち追加で全機能を無料体験できます</p>
+</div>`,
+  }));
 });
 
 /**
@@ -1525,37 +1505,21 @@ function authLandingPage(liffUrl: string, oauthUrl: string): string {
   // line:// scheme to force open LINE app with LIFF
   const lineSchemeUrl = `https://line.me/R/app/${liffId}${liffQs}`;
 
-  return `<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LINE で開く</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Hiragino Sans', system-ui, sans-serif; background: #06C755; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-    .card { background: #fff; border-radius: 16px; padding: 40px 24px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); text-align: center; max-width: 400px; width: 90%; }
-    .line-icon { font-size: 48px; margin-bottom: 16px; }
-    h2 { font-size: 20px; color: #333; margin-bottom: 8px; }
-    .sub { font-size: 14px; color: #999; margin-bottom: 24px; }
-    .btn { display: block; width: 100%; padding: 16px; border: none; border-radius: 8px; font-size: 16px; font-weight: 700; text-decoration: none; text-align: center; cursor: pointer; transition: opacity 0.15s; font-family: inherit; }
-    .btn:active { opacity: 0.85; }
-    .btn-line { background: #06C755; color: #fff; margin-bottom: 12px; }
-    .btn-web { background: #f5f5f5; color: #666; font-size: 13px; padding: 12px; }
-    .loading { margin-top: 16px; font-size: 13px; color: #999; }
-    .hidden { display: none; }
-  </style>
-</head>
-<body>
-  <div class="card" id="card">
-    <div class="line-icon">💬</div>
-    <h2>LINEで開く</h2>
-    <p class="sub">LINEアプリが起動します</p>
-    <a href="${escapeHtml(lineSchemeUrl)}" class="btn btn-line" id="openBtn">LINEアプリで開く</a>
-    <a href="${escapeHtml(oauthUrl)}" class="btn btn-web" id="pcBtn">PCの方・LINEが開かない方</a>
-    <p class="loading hidden" id="loading">LINEアプリを起動中...</p>
-  </div>
-  <script>
+  return pageShell({
+    title: 'LINE で開く',
+    extraCss: `.btn-line{margin-bottom:12px}
+.btn-web{background:#f6f9fc;color:#53637a;font-size:13px;padding:12px;box-shadow:none}
+.loading{margin-top:16px;font-size:13px;color:#8695ac}
+.hidden{display:none}`,
+    body: `<div class="card" id="card">
+<div class="line-icon">${LINE_ICON_SVG}</div>
+<p class="title">LINEで開く</p>
+<p class="msg">LINEアプリが起動します</p>
+<a href="${escapeHtml(lineSchemeUrl)}" class="btn btn-line" id="openBtn">LINEアプリで開く</a>
+<a href="${escapeHtml(oauthUrl)}" class="btn btn-web" id="pcBtn">PCの方・LINEが開かない方</a>
+<p class="loading hidden" id="loading">LINEアプリを起動中...</p>
+</div>`,
+    extraBodyEnd: `<script>
     var lineUrl = '${escapeHtml(lineSchemeUrl)}';
     var ua = navigator.userAgent.toLowerCase();
     var isMobile = /iphone|ipad|android/.test(ua);
@@ -1584,68 +1548,43 @@ function authLandingPage(liffUrl: string, oauthUrl: string): string {
         document.getElementById('openBtn').textContent = 'もう一度試す';
       }, 2500);
     }
-  </script>
-</body>
-</html>`;
+  </script>`,
+  });
 }
 
 function completionPage(displayName: string, pictureUrl: string | null, ref: string): string {
-  return `<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>登録完了</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Hiragino Sans', system-ui, sans-serif; background: #f5f5f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-    .card { background: #fff; border-radius: 16px; padding: 40px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); text-align: center; max-width: 400px; width: 90%; }
-    .check { width: 64px; height: 64px; border-radius: 50%; background: #06C755; color: #fff; font-size: 32px; line-height: 64px; margin: 0 auto 16px; }
-    h2 { font-size: 20px; color: #06C755; margin-bottom: 16px; }
-    .profile { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 16px 0; }
-    .profile img { width: 48px; height: 48px; border-radius: 50%; }
-    .profile .name { font-size: 16px; font-weight: 600; }
-    .message { font-size: 14px; color: #666; line-height: 1.6; margin-top: 12px; }
-    .ref { display: inline-block; margin-top: 12px; padding: 4px 12px; background: #f0f0f0; border-radius: 12px; font-size: 11px; color: #999; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <div class="check">✓</div>
-    <h2>登録完了！</h2>
-    <div class="profile">
-      ${pictureUrl ? `<img src="${pictureUrl}" alt="">` : ''}
-      <p class="name">${escapeHtml(displayName)} さん</p>
-    </div>
-    <p class="message">ありがとうございます！<br>これからお役立ち情報をお届けします。<br>このページは閉じて大丈夫です。</p>
-    ${ref ? `<p class="ref">${escapeHtml(ref)}</p>` : ''}
-  </div>
-</body>
-</html>`;
+  return pageShell({
+    title: '登録完了',
+    extraCss: `.icon-circle.success{color:#059669;font-weight:700}
+.profile{display:flex;align-items:center;justify-content:center;gap:12px;margin:16px 0}
+.profile img{width:48px;height:48px;border-radius:50%}
+.profile .name{font-size:16px;font-weight:600}
+.message{font-size:14px;color:#53637a;line-height:1.6;margin-top:12px}
+.ref{display:inline-block;margin-top:12px;padding:4px 12px;background:#f6f9fc;border-radius:12px;font-size:11px;color:#8695ac}`,
+    body: `<div class="card">
+<div class="icon-circle success">✓</div>
+<p class="title">登録完了！</p>
+<div class="profile">
+${pictureUrl ? `<img src="${pictureUrl}" alt="">` : ''}
+<p class="name">${escapeHtml(displayName)} さん</p>
+</div>
+<p class="message">ありがとうございます！<br>これからお役立ち情報をお届けします。<br>このページは閉じて大丈夫です。</p>
+${ref ? `<p class="ref">${escapeHtml(ref)}</p>` : ''}
+</div>`,
+  });
 }
 
 function errorPage(message: string): string {
-  return `<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>エラー</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Hiragino Sans', system-ui, sans-serif; background: #f5f5f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-    .card { background: #fff; border-radius: 16px; padding: 40px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); text-align: center; max-width: 400px; width: 90%; }
-    h2 { font-size: 18px; color: #e53e3e; margin-bottom: 12px; }
-    p { font-size: 14px; color: #666; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h2>エラー</h2>
-    <p>${escapeHtml(message)}</p>
-  </div>
-</body>
-</html>`;
+  return pageShell({
+    title: 'エラー',
+    extraCss: `.icon-circle.error{color:#dc2626;font-weight:700}
+.msg{margin-bottom:0}`,
+    body: `<div class="card">
+<div class="icon-circle error">!</div>
+<p class="title">エラー</p>
+<p class="msg">${escapeHtml(message)}</p>
+</div>`,
+  });
 }
 
 function escapeHtml(str: string): string {

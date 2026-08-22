@@ -100,14 +100,14 @@ export default function FollowerImportButton({ accountId, onImported }: Props) {
           type="button"
           onClick={startOrResume}
           disabled={running}
-          className="mt-2 px-3 py-1.5 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 text-xs font-medium disabled:opacity-50"
+          className="mt-2 px-3 py-1.5 rounded-lg bg-brand-50 text-brand-700 hover:bg-brand-100 text-xs font-medium disabled:opacity-50"
         >
           {running ? '移行中…' : inProgress ? '移行を再開' : '一度だけ移行を開始'}
         </button>
       )}
 
       {inProgress && (
-        <p className="mt-1 text-xs text-green-700">
+        <p className="mt-1 text-xs text-emerald-700">
           {state.phase === 'importing_ids'
             ? `友だちID ${state.received.toLocaleString()}件を確認済み`
             : `プロフィール ${state.profilesProcessed.toLocaleString()}件を処理済み`}
@@ -115,7 +115,7 @@ export default function FollowerImportButton({ accountId, onImported }: Props) {
       )}
 
       {state.phase === 'completed' && (
-        <p className="mt-1 text-xs text-green-700">
+        <p className="mt-1 text-xs text-emerald-700">
           完了: {state.received.toLocaleString()}件確認、{reflected.toLocaleString()}件反映
           {state.conflicts > 0 ? `、${state.conflicts.toLocaleString()}件保留` : ''}
         </p>

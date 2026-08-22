@@ -150,12 +150,11 @@ export default function SegmentBuilder({ tags, accountId, initialConditions, onA
       <div className="flex gap-2 mt-3 pt-3 border-t border-gray-200">
         <button
           onClick={() => onApply({ operator, rules })}
-          className="px-3 py-1.5 min-h-[44px] text-xs font-medium text-white rounded-md"
-          style={{ backgroundColor: '#06C755' }}
+          className="px-3 py-1.5 min-h-[44px] text-xs font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg"
         >
           適用
         </button>
-        <button onClick={onCancel} className="px-3 py-1.5 min-h-[44px] text-xs font-medium text-gray-600 bg-gray-200 rounded-md">
+        <button onClick={onCancel} className="px-3 py-1.5 min-h-[44px] text-xs font-medium text-gray-600 bg-gray-200 rounded-lg">
           キャンセル
         </button>
       </div>

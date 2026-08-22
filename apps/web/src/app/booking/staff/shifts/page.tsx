@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Header from '@/components/layout/header'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 import { bookingApi, type BookingShift, type BookingStaff } from '@/lib/api'
 import { useAccount } from '@/contexts/account-context'
 
@@ -29,6 +30,7 @@ const DEFAULT_TEMPLATE: WeeklyTemplate = {
 }
 
 export default function StaffShiftsPage() {
+  const { confirm: confirmDialog } = useConfirm()
   const sp = useSearchParams()
   const staffId = sp.get('staff_id') ?? ''
   const googleResult = sp.get('google')
@@ -134,7 +136,13 @@ export default function StaffShiftsPage() {
   }
 
   async function disconnectCalendar() {
-    if (!selectedAccountId || !staffId || !confirm('Googleカレンダー連携を解除しますか？')) return
+    if (!selectedAccountId || !staffId) return
+    if (!(await confirmDialog({
+      title: 'カレンダー連携を解除',
+      message: 'Googleカレンダー連携を解除しますか？',
+      tone: 'danger',
+      confirmLabel: '解除する',
+    }))) return
     await bookingApi.deleteGoogleCalendar(selectedAccountId, staffId)
     setCalendarConnected(false)
     setCalendarId('')
@@ -142,7 +150,13 @@ export default function StaffShiftsPage() {
   }
 
   async function deleteShift(shiftId: string) {
-    if (!selectedAccountId || !confirm('この日付別の応急枠を削除しますか？')) return
+    if (!selectedAccountId) return
+    if (!(await confirmDialog({
+      title: '応急枠を削除',
+      message: 'この日付別の応急枠を削除しますか？',
+      tone: 'danger',
+      confirmLabel: '削除する',
+    }))) return
     await bookingApi.deleteShift(selectedAccountId, staffId, shiftId)
     await load()
   }
@@ -196,7 +210,7 @@ export default function StaffShiftsPage() {
                 )
               })}
               <div className="flex justify-end pt-2">
-                <button onClick={saveRules} disabled={savingRules} className="rounded-lg bg-[#06C755] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
+                <button onClick={saveRules} disabled={savingRules} className="rounded-lg bg-brand-600 hover:bg-brand-700 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
                   {savingRules ? '保存中…' : '受付時間を保存'}
                 </button>
               </div>
@@ -210,7 +224,7 @@ export default function StaffShiftsPage() {
                   <h2 className="font-semibold text-gray-900">Googleカレンダー連携</h2>
                   <p className="mt-1 text-sm text-gray-500">予定との重複を防ぎ、確定した予約をGoogleカレンダーにも登録します。</p>
                 </div>
-                <span className={`rounded-full px-3 py-1 text-xs font-medium ${calendarConnected ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                <span className={`rounded-full px-3 py-1 text-xs font-medium ${calendarConnected ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
                   {calendarConnected ? '接続済み' : '未接続'}
                 </span>
               </div>
@@ -237,13 +251,13 @@ export default function StaffShiftsPage() {
                   value={calendarId}
                   onChange={(event) => setCalendarId(event.target.value)}
                   placeholder="例: example@gmail.com または xxx@group.calendar.google.com"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-100"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
                 />
                 <span className="mt-1.5 block text-xs text-gray-500">Googleカレンダー → 設定と共有 → カレンダーの統合 → カレンダーID</span>
               </label>}
               <div className="flex justify-end gap-2">
                 {calendarConnected && <button onClick={disconnectCalendar} className="rounded-lg border border-red-200 px-4 py-2 text-sm text-red-600">連携解除</button>}
-                <button onClick={connectCalendar} disabled={savingCalendar || (!oauthConfigured && (!calendarId.trim() || !serviceAccountConfigured))} className="rounded-lg bg-[#06C755] px-5 py-2 text-sm font-semibold text-white disabled:opacity-50">
+                <button onClick={connectCalendar} disabled={savingCalendar || (!oauthConfigured && (!calendarId.trim() || !serviceAccountConfigured))} className="rounded-lg bg-brand-600 hover:bg-brand-700 px-5 py-2 text-sm font-semibold text-white disabled:opacity-50">
                   {savingCalendar ? '接続画面を開いています…' : oauthConfigured ? (calendarConnected ? 'Googleアカウントを再接続' : 'Googleアカウントで接続') : (calendarConnected ? '再接続して確認' : '接続して確認')}
                 </button>
               </div>

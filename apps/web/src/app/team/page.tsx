@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import Header from '@/components/layout/header'
+import { Icon } from '@/components/ui/icons'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 import { api } from '@/lib/api'
 import type { TeamOverview, AdvisorReport, AutomationCandidate } from '@/lib/api'
 
@@ -14,6 +16,7 @@ const CANDIDATE_TYPE_LABEL: Record<AutomationCandidate['type'], string> = {
 }
 
 export default function TeamPage() {
+  const { confirm: confirmDialog } = useConfirm()
   const [overview, setOverview] = useState<TeamOverview | null>(null)
   const [staffRoster, setStaffRoster] = useState<{ id: string; name: string; isActive: boolean }[]>([])
   const [myRole, setMyRole] = useState<string | null>(null)
@@ -57,7 +60,7 @@ export default function TeamPage() {
   }, [load])
 
   const handleAnalyze = async () => {
-    if (!confirm('AI分析を実行しますか？(Anthropic APIを1回呼び出します)')) return
+    if (!(await confirmDialog({ title: 'AI分析', message: 'AI分析を実行しますか？(Anthropic APIを1回呼び出します)', confirmLabel: '実行する' }))) return
     setAnalyzing(true)
     setAdvisorError('')
     try {
@@ -127,10 +130,11 @@ export default function TeamPage() {
           <button
             onClick={() => { void handleAnalyze() }}
             disabled={analyzing}
-            className="px-4 py-2 min-h-[44px] rounded-lg text-white text-sm font-medium disabled:opacity-50 bg-violet-600 hover:bg-violet-700"
+            className="inline-flex items-center gap-1.5 px-4 py-2 min-h-[44px] rounded-lg text-white text-sm font-medium disabled:opacity-50 bg-violet-600 hover:bg-violet-700"
             title="運用データをAIが分析し、改善・自動化の提案を返します"
           >
-            {analyzing ? '🤖 分析中…' : '🤖 AIで分析'}
+            <Icon name="sparkles" className="w-4 h-4" />
+            {analyzing ? '分析中…' : 'AIで分析'}
           </button>
         }
       />
@@ -143,7 +147,7 @@ export default function TeamPage() {
       {(report || advisorError) && (
         <div className="bg-white rounded-lg border border-violet-200 p-5 mb-6">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="text-sm font-bold text-violet-800">🤖 AI所見</h2>
+            <h2 className="text-sm font-bold text-violet-800 inline-flex items-center gap-1.5"><Icon name="sparkles" className="w-4 h-4" /> AI所見</h2>
             {report && (
               <span className="text-xs text-gray-400">
                 {new Date(report.generatedAt).toLocaleString('ja-JP')} 生成
@@ -166,7 +170,7 @@ export default function TeamPage() {
             onClick={() => setShowCandidates((v) => !v)}
             className="w-full flex items-center justify-between text-left"
           >
-            <h2 className="text-sm font-bold text-gray-800">⚙️ 自動化の候補 ({candidates.length}件)</h2>
+            <h2 className="text-sm font-bold text-gray-800 inline-flex items-center gap-1.5"><Icon name="bolt" className="w-4 h-4 text-ink-muted" /> 自動化の候補 ({candidates.length}件)</h2>
             <span className="text-xs text-gray-400">{showCandidates ? '閉じる ▲' : '開く ▼'}</span>
           </button>
           {showCandidates && (
@@ -177,9 +181,9 @@ export default function TeamPage() {
                   <p className="text-gray-800 whitespace-pre-wrap">{cand.content.slice(0, 200)}</p>
                   <div className="mt-2 flex gap-2">
                     {cand.type === 'repeated_manual_reply' ? (
-                      <Link href="/templates" className="text-xs text-green-700 hover:underline">→ テンプレートに登録する</Link>
+                      <Link href="/templates" className="text-xs text-brand-700 hover:underline">→ テンプレートに登録する</Link>
                     ) : (
-                      <Link href="/auto-replies" className="text-xs text-green-700 hover:underline">→ 自動返信ルールを作る</Link>
+                      <Link href="/auto-replies" className="text-xs text-brand-700 hover:underline">→ 自動返信ルールを作る</Link>
                     )}
                   </div>
                 </li>
@@ -221,7 +225,7 @@ export default function TeamPage() {
                 : 'bg-white border-gray-200 hover:bg-gray-50'
             }`}
           >
-            <p className="text-xs text-gray-500">🔥 HOTリードで未割当</p>
+            <p className="text-xs text-gray-500 inline-flex items-center gap-1"><Icon name="fire" className="w-3.5 h-3.5 text-red-500" /> HOTリードで未割当</p>
             <p className={`text-2xl font-bold mt-1 ${overview.global.hotUnassigned > 0 ? 'text-red-700' : 'text-gray-900'}`}>
               {overview.global.hotUnassigned}<span className="text-sm font-normal text-gray-400 ml-1">件</span>
             </p>
@@ -253,16 +257,16 @@ export default function TeamPage() {
                 <label className="flex items-center gap-2">
                   <span className="w-28 text-xs text-gray-500">目標初動 (分)</span>
                   <input type="number" value={targetFirstResponse} onChange={(e) => setTargetFirstResponse(e.target.value)}
-                    placeholder="例: 30 (空欄で解除)" className="border border-gray-300 rounded px-2 py-1 text-sm w-36" />
+                    placeholder="例: 30 (空欄で解除)" className="border border-edge rounded-lg px-2 py-1 text-sm w-36" />
                 </label>
                 <label className="flex items-center gap-2">
                   <span className="w-28 text-xs text-gray-500">日次解決目標 (件)</span>
                   <input type="number" value={targetDailyResolved} onChange={(e) => setTargetDailyResolved(e.target.value)}
-                    placeholder="例: 20 (空欄で解除)" className="border border-gray-300 rounded px-2 py-1 text-sm w-36" />
+                    placeholder="例: 20 (空欄で解除)" className="border border-edge rounded-lg px-2 py-1 text-sm w-36" />
                 </label>
                 <div className="flex gap-2 pt-1">
-                  <button onClick={() => { void handleSaveTargets() }} className="px-3 py-1 text-xs text-white rounded" style={{ backgroundColor: '#06C755' }}>保存</button>
-                  <button onClick={() => setEditingTargets(false)} className="px-3 py-1 text-xs border border-gray-300 rounded">キャンセル</button>
+                  <button onClick={() => { void handleSaveTargets() }} className="px-3 py-1 text-xs text-white rounded-lg bg-brand-600 hover:bg-brand-700">保存</button>
+                  <button onClick={() => setEditingTargets(false)} className="px-3 py-1 text-xs border border-edge rounded-lg">キャンセル</button>
                 </div>
               </div>
             ) : (
@@ -324,7 +328,7 @@ export default function TeamPage() {
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">返信待ち</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">本日解決</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase" title="直近7日、担当が付いてから最初の返信までの平均">平均初動</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase" title="直近30日の解決のうち ✅成約 になった割合">成約率(30日)</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase" title="直近30日の解決のうち成約になった割合">成約率(30日)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">

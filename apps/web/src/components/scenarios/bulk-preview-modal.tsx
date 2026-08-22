@@ -71,7 +71,7 @@ export default function BulkPreviewModal({ open, scenarioId, onClose }: Props) {
           </label>
           <input
             type="datetime-local"
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             value={startAt}
             onChange={(e) => setStartAt(e.target.value)}
           />

@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { jstNow } from '@line-crm/db';
 import type { Env } from '../index.js';
 import { discordOAuthConfigured, exchangeDiscordCode } from '../services/discord-oauth.js';
+import { pageShell } from '../lib/page-shell.js';
 
 const discordLink = new Hono<Env>();
 
@@ -14,27 +15,15 @@ function escapeHtml(str: string): string {
 }
 
 function simplePage(title: string, heading: string, message: string, ok: boolean): string {
-  return `<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${escapeHtml(title)}</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Hiragino Sans', system-ui, sans-serif; background: #f5f5f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-    .card { background: #fff; border-radius: 16px; padding: 40px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); text-align: center; max-width: 400px; width: 90%; }
-    h2 { font-size: 18px; color: ${ok ? '#5865F2' : '#e53e3e'}; margin-bottom: 12px; }
-    p { font-size: 14px; color: #666; line-height: 1.6; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h2>${escapeHtml(heading)}</h2>
-    <p>${escapeHtml(message)}</p>
-  </div>
-</body>
-</html>`;
+  return pageShell({
+    title: escapeHtml(title),
+    extraCss: `.title{color:${ok ? '#5865F2' : '#e53e3e'}}
+.msg{margin-bottom:0}`,
+    body: `<div class="card">
+<p class="title">${escapeHtml(heading)}</p>
+<p class="msg">${escapeHtml(message)}</p>
+</div>`,
+  });
 }
 
 /**

@@ -681,7 +681,7 @@ function WebinarApp({ ctx, slug }: { ctx: WebinarContext; slug: string }) {
           <div ref={chatBoxRef} className="flex-1 overflow-y-auto p-3 text-sm">
             {chat.map((item) => (
               <div key={item.key} className="mb-2">
-                <span className={item.mine ? 'font-medium text-[#06C755]' : 'font-medium text-gray-400'}>
+                <span className={item.mine ? 'font-medium text-brand-300' : 'font-medium text-gray-400'}>
                   {item.authorName}
                 </span>{' '}
                 <span className="text-gray-100">{item.body}</span>
@@ -702,7 +702,7 @@ function WebinarApp({ ctx, slug }: { ctx: WebinarContext; slug: string }) {
             />
             <button
               onClick={() => void sendComment()}
-              className="rounded-full bg-[#06C755] px-4 py-2 text-sm font-bold active:opacity-80"
+              className="rounded-full bg-brand-600 px-4 py-2 text-sm font-bold active:opacity-80"
             >
               送信
             </button>
@@ -723,7 +723,7 @@ function WebinarApp({ ctx, slug }: { ctx: WebinarContext; slug: string }) {
         <h1 className="mb-1 text-center text-xl font-bold">{state.title}</h1>
         {registered !== null ? (
           <div className="mt-5 w-full max-w-sm rounded-2xl bg-gray-800 p-5 text-center">
-            <p className="text-sm text-[#06C755]">✅ 予約済み</p>
+            <p className="text-sm text-emerald-400">✅ 予約済み</p>
             <p className="mt-2 text-lg font-bold">{formatJp(registered)} の回</p>
             <p className="mt-3 text-xs leading-relaxed text-gray-400">
               開始前にLINEで視聴リンクをお送りします。
@@ -743,7 +743,7 @@ function WebinarApp({ ctx, slug }: { ctx: WebinarContext; slug: string }) {
               onClick={() => void registerSession(t)}
               className={`rounded-full py-3 text-center font-bold active:opacity-80 disabled:opacity-50 ${
                 registered === t
-                  ? 'bg-[#06C755] text-white'
+                  ? 'bg-brand-600 text-white'
                   : 'bg-gray-800 text-gray-100'
               }`}
             >
@@ -818,7 +818,7 @@ function WebinarApp({ ctx, slug }: { ctx: WebinarContext; slug: string }) {
                   disabled={registering}
                   onClick={() => void registerSession(t)}
                   className={`rounded-full py-3 text-center font-bold active:opacity-80 disabled:opacity-50 ${
-                    registered === t ? 'bg-[#06C755] text-white' : 'bg-gray-800 text-gray-100'
+                    registered === t ? 'bg-brand-600 text-white' : 'bg-gray-800 text-gray-100'
                   }`}
                 >
                   {formatJp(t)} の回{registered === t ? ' ✅' : ''}
@@ -926,14 +926,14 @@ function WebinarApp({ ctx, slug }: { ctx: WebinarContext; slug: string }) {
               )}
               <button
                 onClick={() => openCta(item.ctaCard!)}
-                className="mt-3 w-full rounded-full bg-[#06C755] py-3 text-center text-base font-bold text-white active:opacity-80"
+                className="mt-3 w-full rounded-full bg-brand-600 py-3 text-center text-base font-bold text-white active:opacity-80"
               >
                 {item.ctaCard.buttonLabel}
               </button>
             </div>
           ) : (
             <div key={item.key} className="mb-2">
-              <span className={item.mine ? 'font-medium text-[#06C755]' : 'font-medium text-gray-400'}>
+              <span className={item.mine ? 'font-medium text-brand-300' : 'font-medium text-gray-400'}>
                 {item.authorName}
               </span>{' '}
               <span className="text-gray-100">{item.body}</span>
@@ -945,14 +945,14 @@ function WebinarApp({ ctx, slug }: { ctx: WebinarContext; slug: string }) {
       {activeCta ? (
         <button
           onClick={() => openCta(activeCta)}
-          className="mx-3 mb-2 rounded-full bg-[#06C755] py-3 text-center font-bold text-white active:opacity-80"
+          className="mx-3 mb-2 rounded-full bg-brand-600 py-3 text-center font-bold text-white active:opacity-80"
         >
           {activeCta.buttonLabel}
         </button>
       ) : ctaVisible && state.cta ? (
         <button
           onClick={clickCta}
-          className="mx-3 mb-2 rounded-full bg-[#06C755] py-3 text-center font-bold text-white active:opacity-80"
+          className="mx-3 mb-2 rounded-full bg-brand-600 py-3 text-center font-bold text-white active:opacity-80"
         >
           {state.cta.label}
         </button>
@@ -972,7 +972,7 @@ function WebinarApp({ ctx, slug }: { ctx: WebinarContext; slug: string }) {
           />
           <button
             onClick={() => void sendComment()}
-            className="rounded-full bg-[#06C755] px-4 py-2 text-sm font-bold active:opacity-80"
+            className="rounded-full bg-brand-600 px-4 py-2 text-sm font-bold active:opacity-80"
           >
             送信
           </button>
@@ -1222,14 +1222,14 @@ function FormSheet({
               <div className="py-5 text-center">
                 <p className="text-3xl">✅</p>
                 <p className="mt-2 text-xl font-bold">個別相談が確定しました</p>
-                <p className="mt-3 rounded-xl bg-green-50 px-4 py-3 text-lg font-bold text-green-800">
+                <p className="mt-3 rounded-xl bg-emerald-50 px-4 py-3 text-lg font-bold text-emerald-700">
                   {formatConsultationDate(booked.startsAt)}
                 </p>
                 <a
                   href={booked.meetUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="mt-4 block w-full rounded-full bg-[#06C755] px-6 py-3 font-bold text-white"
+                  className="mt-4 block w-full rounded-full bg-brand-600 px-6 py-3 font-bold text-white"
                 >
                   Google Meetを確認する
                 </a>
@@ -1273,7 +1273,7 @@ function FormSheet({
                             key={slot.startsAt}
                             onClick={() => void bookSlot(slot)}
                             disabled={bookingStartsAt !== null}
-                            className="rounded-lg border border-[#06C755] bg-white py-2.5 text-sm font-bold text-[#049f45] active:bg-green-50 disabled:opacity-50"
+                            className="rounded-lg border border-brand-600 bg-white py-2.5 text-sm font-bold text-brand-700 active:bg-brand-50 disabled:opacity-50"
                           >
                             {bookingStartsAt === slot.startsAt ? '確定中...' : slot.start}
                           </button>
@@ -1301,7 +1301,7 @@ function FormSheet({
                       const url = consultation?.fallbackUrl || completionUrl;
                       if (url) window.location.assign(url);
                     }}
-                    className="mt-5 w-full rounded-full bg-[#06C755] px-6 py-3 font-bold text-white active:opacity-80"
+                    className="mt-5 w-full rounded-full bg-brand-600 px-6 py-3 font-bold text-white active:opacity-80"
                   >
                     予約カレンダーを開く
                   </button>
@@ -1483,7 +1483,7 @@ function FormSheet({
               <button
                 onClick={() => void submit()}
                 disabled={submitting || !canSubmit}
-                className="w-full rounded-full bg-[#06C755] py-3 text-base font-bold text-white shadow disabled:bg-gray-300 disabled:text-gray-500 disabled:opacity-100 active:opacity-80"
+                className="w-full rounded-full bg-brand-600 py-3 text-base font-bold text-white shadow disabled:bg-gray-300 disabled:text-gray-500 disabled:opacity-100 active:opacity-80"
               >
                 {submitting
                   ? '送信中...'

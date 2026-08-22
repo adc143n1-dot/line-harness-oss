@@ -86,12 +86,11 @@ export default function PromptModal({ isOpen, onClose, prompts }: PromptModalPro
                   </pre>
                   <button
                     onClick={() => handleCopy(p.prompt, i)}
-                    className="mt-2 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors min-h-[36px]"
-                    style={
+                    className={`mt-2 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors min-h-[36px] ${
                       copiedIndex === i
-                        ? { backgroundColor: '#06C755', color: '#fff' }
-                        : { backgroundColor: '#f3f4f6', color: '#374151' }
-                    }
+                        ? 'bg-emerald-50 text-emerald-700'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
                   >
                     {copiedIndex === i ? (
                       <>

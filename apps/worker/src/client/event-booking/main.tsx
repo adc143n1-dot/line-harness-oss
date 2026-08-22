@@ -220,7 +220,7 @@ function EventDetailScreen({
         {event.image_url ? (
           <img src={event.image_url} alt="" className="w-full h-auto bg-gray-100" />
         ) : (
-          <div className="w-full h-52 bg-gradient-to-br from-green-100 to-green-200" />
+          <div className="w-full h-52 bg-gradient-to-br from-brand-100 to-brand-200" />
         )}
         <div className="px-4 mt-4">
           <div className="eb-card eb-card-success">
@@ -243,7 +243,7 @@ function EventDetailScreen({
       {event.image_url ? (
         <img src={event.image_url} alt="" className="w-full h-auto bg-gray-100" />
       ) : (
-        <div className="w-full h-52 bg-gradient-to-br from-green-100 to-green-200" />
+        <div className="w-full h-52 bg-gradient-to-br from-brand-100 to-brand-200" />
       )}
 
       <div className="px-4 mt-4">
@@ -483,7 +483,7 @@ function DoneScreen({ status, onGoHistory }: { status: string; onGoHistory: () =
 
 const STATUS_LABEL: Record<string, { text: string; cls: string }> = {
   requested: { text: '承認待ち', cls: 'bg-amber-100 text-amber-800' },
-  confirmed: { text: '確定', cls: 'bg-green-100 text-green-800' },
+  confirmed: { text: '確定', cls: 'bg-emerald-50 text-emerald-700' },
   rejected: { text: '見送り', cls: 'bg-gray-200 text-gray-700' },
   cancelled: { text: 'キャンセル', cls: 'bg-gray-100 text-gray-600' },
   expired: { text: '期限切れ', cls: 'bg-gray-100 text-gray-500' },
@@ -545,7 +545,7 @@ function HistoryScreen({
               key={t}
               onClick={() => setTab(t)}
               className={`flex-1 py-3 text-sm font-medium border-b-2 ${
-                tab === t ? 'border-[#06C755] eb-line-green-text' : 'border-transparent text-gray-500'
+                tab === t ? 'border-brand-600 eb-line-green-text' : 'border-transparent text-gray-500'
               }`}
             >
               {t === 'upcoming' ? 'これから' : '過去'}
@@ -575,7 +575,7 @@ function HistoryScreen({
                   {b.event_image_url ? (
                     <img src={b.event_image_url} alt="" className="w-24 h-24 object-cover bg-gray-100 shrink-0" />
                   ) : (
-                    <div className="w-24 h-24 bg-gradient-to-br from-green-100 to-green-200 shrink-0" />
+                    <div className="w-24 h-24 bg-gradient-to-br from-brand-100 to-brand-200 shrink-0" />
                   )}
                   <div className="flex-1 p-4 min-w-0">
                     <div className="flex items-start justify-between gap-2">
@@ -683,7 +683,7 @@ function BookingDetailScreen({
       {booking.event_image_url ? (
         <img src={booking.event_image_url} alt="" className="w-full h-auto bg-gray-100" />
       ) : (
-        <div className="w-full h-52 bg-gradient-to-br from-green-100 to-green-200" />
+        <div className="w-full h-52 bg-gradient-to-br from-brand-100 to-brand-200" />
       )}
       <div className="px-4 mt-4 space-y-4">
         <div className="eb-card space-y-2">
@@ -763,10 +763,10 @@ function App({ ctx, initial }: { ctx: EventBookingContext; initial: Screen }) {
   })();
 
   return (
-    <div className="min-h-screen" style={{ background: '#f5f5f5' }}>
+    <div className="min-h-screen" style={{ background: '#f6f9fc' }}>
       <header
         className="px-4 py-3 text-white text-center font-bold sticky top-0 z-20"
-        style={{ background: '#06C755', fontSize: '15px' }}
+        style={{ background: '#2563eb', fontSize: '15px' }}
       >
         {headerLabel}
       </header>

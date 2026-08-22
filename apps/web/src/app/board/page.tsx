@@ -25,10 +25,10 @@ interface Chat {
 }
 
 const COLUMNS: Array<{ status: BoardStatus; label: string; accent: string }> = [
-  { status: 'unread', label: '🆕 未読', accent: 'border-t-red-400' },
-  { status: 'in_progress', label: '💬 対応中', accent: 'border-t-blue-400' },
-  { status: 'waiting_reply', label: '⏳ 返信待ち', accent: 'border-t-amber-400' },
-  { status: 'resolved', label: '✅ 完了', accent: 'border-t-emerald-400' },
+  { status: 'unread', label: '未読', accent: 'border-t-red-400' },
+  { status: 'in_progress', label: '対応中', accent: 'border-t-blue-400' },
+  { status: 'waiting_reply', label: '返信待ち', accent: 'border-t-amber-400' },
+  { status: 'resolved', label: '完了', accent: 'border-t-emerald-400' },
 ]
 
 function formatElapsed(iso: string | null): string {
@@ -71,8 +71,8 @@ function BoardCard({
       </p>
       <div className="mt-1.5">
         {chat.operatorId ? (
-          <span className={`px-1.5 py-0.5 text-[10px] rounded ${isMine ? 'bg-green-50 text-green-700' : 'bg-blue-50 text-blue-700'}`}>
-            🙋 {isMine ? '自分' : operatorName}
+          <span className={`px-1.5 py-0.5 text-[10px] rounded ${isMine ? 'bg-brand-50 text-brand-700' : 'bg-blue-50 text-blue-700'}`}>
+            {isMine ? '自分' : operatorName}
           </span>
         ) : (
           <span className="px-1.5 py-0.5 text-[10px] rounded bg-gray-100 text-gray-500">未割当</span>
@@ -99,7 +99,7 @@ function BoardColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`flex-1 min-w-[240px] bg-gray-50 rounded-lg border border-gray-200 border-t-4 ${accent} ${isOver ? 'ring-2 ring-green-400 bg-green-50/50' : ''}`}
+      className={`flex-1 min-w-[240px] bg-gray-50 rounded-lg border border-gray-200 border-t-4 ${accent} ${isOver ? 'ring-2 ring-brand-400 bg-brand-50/50' : ''}`}
     >
       <div className="px-3 py-2 border-b border-gray-200 flex items-center justify-between">
         <span className="text-sm font-bold text-gray-700">{label}</span>
@@ -221,17 +221,20 @@ export default function BoardPage() {
             <button
               onClick={() => { void handleClaimNext() }}
               disabled={claimingNext}
-              className="px-4 py-2 min-h-[44px] rounded-lg text-white text-sm font-medium disabled:opacity-50"
-              style={{ backgroundColor: '#06C755' }}
+              className="px-4 py-2 min-h-[44px] rounded-lg text-white text-sm font-medium disabled:opacity-50 bg-brand-600 hover:bg-brand-700"
             >
-              {claimingNext ? '取得中…' : '▶ 次の未対応を担当'}
+              {claimingNext ? '取得中…' : '次の未対応を担当'}
             </button>
           ) : undefined
         }
       />
 
       {error && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 mb-4">{error}</div>
+        error.includes('🎉') ? (
+          <div className="rounded-lg border border-brand-100 bg-brand-50 p-3 text-sm text-brand-700 mb-4">{error}</div>
+        ) : (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 mb-4">{error}</div>
+        )
       )}
 
       {loading ? (
@@ -265,7 +268,7 @@ export default function BoardPage() {
           </div>
           <DragOverlay>
             {activeChat && (
-              <div className="bg-white rounded-lg border-2 border-green-400 p-3 shadow-lg w-[240px]">
+              <div className="bg-white rounded-lg border-2 border-brand-400 p-3 shadow-lg w-[240px]">
                 <p className="text-sm font-medium text-gray-900 truncate">{activeChat.friendName}</p>
               </div>
             )}

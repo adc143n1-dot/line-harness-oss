@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Header from '@/components/layout/header'
+import Button from '@/components/ui/button'
 import { bookingApi, type BookingMenu, type BookingStaff, type StaffMenuMatrix } from '@/lib/api'
 import { useAccount } from '@/contexts/account-context'
 
@@ -108,16 +109,14 @@ export default function MenuStaffMatrix() {
             : 'このメニューを提供できるスタッフ・上書き料金/所要分'
         }
         action={
-          <button
+          <Button
             onClick={saveAll}
             // error がある間も無効化: 失敗時に古い rows が残る可能性があるので
             // 「保存して再取得」のショートサーキットを防ぎ、ユーザーが再読み込みする導線へ。
             disabled={saving || !selectedAccountId || loading || Boolean(error)}
-            className="px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50"
-            style={{ backgroundColor: '#06C755' }}
           >
             {saving ? '保存中…' : '保存'}
-          </button>
+          </Button>
         }
       />
 
@@ -127,7 +126,7 @@ export default function MenuStaffMatrix() {
         </div>
       )}
       {savedAt && Date.now() - savedAt < 3000 && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-800 text-sm">
+        <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700 text-sm">
           保存しました
         </div>
       )}
@@ -205,7 +204,7 @@ export default function MenuStaffMatrix() {
                           }
                           disabled={!offered}
                           placeholder={menu ? `${menu.duration_minutes}` : '-'}
-                          className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-24 tabular-nums focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50 disabled:text-gray-400"
+                          className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-24 tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:bg-gray-50 disabled:text-gray-400"
                         />
                         <span className="ml-1 text-xs text-gray-400">分</span>
                       </td>
@@ -221,7 +220,7 @@ export default function MenuStaffMatrix() {
                           }
                           disabled={!offered}
                           placeholder={menu ? menu.base_price.toString() : '-'}
-                          className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-28 tabular-nums focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50 disabled:text-gray-400"
+                          className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-28 tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:bg-gray-50 disabled:text-gray-400"
                         />
                       </td>
                     </tr>

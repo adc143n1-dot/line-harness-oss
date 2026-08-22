@@ -124,7 +124,7 @@ export default function FriendListTable({ friends, allTags, onRefresh }: Props) 
                     {isAddingTag ? (
                       <div className="flex items-center gap-2">
                         <select
-                          className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-green-500"
+                          className="text-sm border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-brand-500"
                           value={selectedTagId}
                           onChange={(e) => setSelectedTagId(e.target.value)}
                         >
@@ -136,14 +136,13 @@ export default function FriendListTable({ friends, allTags, onRefresh }: Props) 
                         <button
                           onClick={() => handleAddTag(friend.id)}
                           disabled={!selectedTagId || loading}
-                          className="px-3 py-1 text-xs font-medium rounded-md text-white disabled:opacity-50 transition-opacity"
-                          style={{ backgroundColor: '#06C755' }}
+                          className="px-3 py-1 text-xs font-medium rounded-lg text-white bg-brand-600 hover:bg-brand-700 disabled:opacity-50 transition-opacity"
                         >
                           追加
                         </button>
                         <button
                           onClick={() => { setAddingTagForFriend(null); setSelectedTagId('') }}
-                          className="px-3 py-1 text-xs font-medium rounded-md text-gray-600 bg-gray-200 hover:bg-gray-300 transition-colors"
+                          className="px-3 py-1 text-xs font-medium rounded-lg text-gray-600 bg-gray-200 hover:bg-gray-300 transition-colors"
                         >
                           キャンセル
                         </button>
@@ -152,7 +151,7 @@ export default function FriendListTable({ friends, allTags, onRefresh }: Props) 
                       availableTags.length > 0 && (
                         <button
                           onClick={() => setAddingTagForFriend(friend.id)}
-                          className="text-xs font-medium text-green-600 hover:text-green-700 flex items-center gap-1 transition-colors"
+                          className="text-xs font-medium text-brand-600 hover:text-brand-700 flex items-center gap-1 transition-colors"
                         >
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

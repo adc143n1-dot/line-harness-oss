@@ -92,7 +92,7 @@ export default function WeekCalendar({
                   isToday
                     ? {
                         color: '#fff',
-                        background: '#06C755',
+                        background: '#2563eb',
                         borderRadius: 9999,
                         width: 22,
                         height: 22,
@@ -146,9 +146,9 @@ export default function WeekCalendar({
                         style={{
                           width: '100%',
                           height: '100%',
-                          background: isSelected ? '#06C755' : '#ecfdf5',
-                          border: isSelected ? '1.5px solid #06C755' : '1px solid #86efac',
-                          color: isSelected ? '#fff' : '#047857',
+                          background: isSelected ? '#2563eb' : '#e4edfc',
+                          border: isSelected ? '1.5px solid #2563eb' : '1px solid #93b8f5',
+                          color: isSelected ? '#fff' : '#1d4ed8',
                           fontSize: 11,
                           fontWeight: 700,
                           lineHeight: 1,

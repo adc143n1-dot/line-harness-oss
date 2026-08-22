@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 
 type Tag = { id: string; name: string; color: string }
 
@@ -23,6 +24,7 @@ export function ApplyToTagModal({ groupId, groupName, onClose }: Props) {
     'config',
   )
   const [error, setError] = useState<string | null>(null)
+  const { confirm: confirmDialog } = useConfirm()
   const [result, setResult] = useState<{
     chunks: number
     total: number
@@ -44,15 +46,15 @@ export function ApplyToTagModal({ groupId, groupName, onClose }: Props) {
   async function apply() {
     // 「全員のデフォルト」は影響範囲が大きいので強い確認。
     if (mode.kind === 'set-default') {
-      if (
-        !confirm(
+      const ok = await confirmDialog({
+        title: '全員のデフォルトに設定しますか？',
+        message:
           'このリッチメニューを「LINE 公式アカウントの全員のデフォルト」に設定します。\n\n' +
-            '・新規友だちも含め、特別な設定をしていない全員に表示されます\n' +
-            '・同アカウント内で他のメニューがデフォルトに設定されていた場合、そちらは解除されます\n\n' +
-            '続行しますか？',
-        )
-      )
-        return
+          '・新規友だちも含め、特別な設定をしていない全員に表示されます\n' +
+          '・同アカウント内で他のメニューがデフォルトに設定されていた場合、そちらは解除されます',
+        confirmLabel: '続行する',
+      })
+      if (!ok) return
     }
     setPhase('running')
     setError(null)
@@ -109,7 +111,7 @@ export function ApplyToTagModal({ groupId, groupName, onClose }: Props) {
                       onChange={(e) =>
                         setMode({ kind: 'tag', tagId: e.target.value })
                       }
-                      className="mt-2 block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="mt-2 block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
                     >
                       {tags.length === 0 ? (
                         <option value="">タグがありません</option>
@@ -141,8 +143,7 @@ export function ApplyToTagModal({ groupId, groupName, onClose }: Props) {
                 <button
                   onClick={apply}
                   disabled={mode.kind === 'tag' && !mode.tagId}
-                  className="px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50 transition-opacity hover:opacity-90"
-                  style={{ backgroundColor: '#06C755' }}
+                  className="px-4 py-2 text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg disabled:opacity-50 transition-colors"
                 >
                   実行する
                 </button>
@@ -161,7 +162,7 @@ export function ApplyToTagModal({ groupId, groupName, onClose }: Props) {
 
           {phase === 'done' && result && (
             <>
-              <div className="bg-green-50 border border-green-200 text-green-800 text-sm p-4 rounded-lg mb-4">
+              <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm p-4 rounded-lg mb-4">
                 <div className="font-medium mb-1">✓ 完了しました</div>
                 <div className="text-xs">
                   {result.message ??
@@ -171,8 +172,7 @@ export function ApplyToTagModal({ groupId, groupName, onClose }: Props) {
               <div className="flex justify-end">
                 <button
                   onClick={onClose}
-                  className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90"
-                  style={{ backgroundColor: '#06C755' }}
+                  className="px-4 py-2 text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg transition-colors"
                 >
                   閉じる
                 </button>
@@ -194,8 +194,7 @@ export function ApplyToTagModal({ groupId, groupName, onClose }: Props) {
                 </button>
                 <button
                   onClick={() => setPhase('config')}
-                  className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90"
-                  style={{ backgroundColor: '#06C755' }}
+                  className="px-4 py-2 text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg transition-colors"
                 >
                   やり直す
                 </button>
@@ -233,7 +232,7 @@ function RadioOption({
           : checked
             ? warn
               ? 'border-amber-400 bg-amber-50 cursor-pointer'
-              : 'border-green-500 bg-green-50 cursor-pointer'
+              : 'border-brand-500 bg-brand-50 cursor-pointer'
             : 'border-gray-200 hover:bg-gray-50 cursor-pointer'
       }`}
     >

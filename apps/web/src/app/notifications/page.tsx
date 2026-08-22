@@ -180,11 +180,10 @@ export default function InboxPage() {
             <button
               onClick={() => { void handleClaimNext() }}
               disabled={claimingNext}
-              className="px-4 py-2 min-h-[44px] rounded-lg text-white text-sm font-medium disabled:opacity-50"
-              style={{ backgroundColor: '#06C755' }}
+              className="px-4 py-2 min-h-[44px] rounded-lg text-white text-sm font-medium disabled:opacity-50 bg-brand-600 hover:bg-brand-700"
               title="未割当の未対応 (HOTリード優先・古い順) から次の1件を自分の担当にして開く"
             >
-              {claimingNext ? '取得中…' : '▶ 次の未対応を担当する'}
+              {claimingNext ? '取得中…' : '次の未対応を担当する'}
             </button>
           ) : undefined
         }
@@ -209,9 +208,15 @@ export default function InboxPage() {
       />
 
       {error && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-          {error}
-        </div>
+        error.includes('🎉') ? (
+          <div className="rounded-lg border border-brand-100 bg-brand-50 p-3 text-sm text-brand-700">
+            {error}
+          </div>
+        ) : (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            {error}
+          </div>
+        )
       )}
 
       {truncated && (

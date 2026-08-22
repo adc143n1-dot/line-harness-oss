@@ -5,6 +5,7 @@
  */
 @import "tailwindcss/theme.css";
 @import "tailwindcss/utilities.css";
+@import '../design-tokens.css';
 
 /* ─── event-booking namespace の inline 上書き ─────────────
  * index.html の friend-add 用 inline:
@@ -94,9 +95,9 @@ body.eb-active #app {
   text-decoration: inherit;
 }
 
-/* LINE 緑テーマ (salon-booking と統一) */
-.eb-line-green { background-color: #06C755; }
-.eb-line-green-text { color: #06C755; }
+/* ブランド青テーマ (salon-booking と統一。クラス名は markup 互換のため据え置き) */
+.eb-line-green { background-color: #2563eb; }
+.eb-line-green-text { color: #1d4ed8; }
 
 /* fade-in / slide-up アニメーション */
 @keyframes eb-fade-in {
@@ -115,8 +116,8 @@ body.eb-active #app {
 @keyframes eb-spin { to { transform: rotate(360deg); } }
 .eb-spinner {
   width: 32px; height: 32px;
-  border: 3px solid #e5e7eb;
-  border-top-color: #06C755;
+  border: 3px solid #dae3ee;
+  border-top-color: #2563eb;
   border-radius: 9999px;
   animation: eb-spin 0.8s linear infinite;
 }
@@ -145,25 +146,25 @@ body.eb-active #app {
   gap: 4px;
   padding: 8px 14px 8px 10px;
   font-size: 13px;
-  color: #4b5563;
+  color: #53637a;
   background: #fff;
   border-radius: 9999px;
   box-shadow: 0 1px 2px rgba(0,0,0,0.06);
   transition: background-color 0.15s;
 }
-.eb-back-btn:hover { background: #f9fafb; }
-.eb-back-btn:active { background: #f3f4f6; }
+.eb-back-btn:hover { background: #f6f9fc; }
+.eb-back-btn:active { background: #ecf2f9; }
 
-/* スロットボタン (LINE 緑のアウトライン) */
+/* スロットボタン (ブランド青のアウトライン) */
 .eb-slot-btn {
   width: 100%;
   padding: 14px 16px;
   border-radius: 12px;
   font-weight: 600;
   font-size: 14px;
-  background: #ecfdf5;
-  color: #06C755;
-  border: 1.5px solid #06C755;
+  background: #e4edfc;
+  color: #2563eb;
+  border: 1.5px solid #2563eb;
   cursor: pointer;
   transition: transform 0.15s, background-color 0.15s, color 0.15s;
   display: flex;
@@ -172,35 +173,35 @@ body.eb-active #app {
 }
 .eb-slot-btn:active {
   transform: scale(0.98);
-  background-color: #06C755;
+  background-color: #2563eb;
   color: #fff;
 }
 .eb-slot-btn:disabled {
-  background: #f3f4f6;
-  color: #9ca3af;
-  border-color: #e5e7eb;
+  background: #ecf2f9;
+  color: #8695ac;
+  border-color: #dae3ee;
   cursor: not-allowed;
 }
 
-/* primary action (LINE 緑塗り) */
+/* primary action (ブランド青塗り) */
 .eb-primary-btn {
   width: 100%;
   padding: 14px 16px;
   border-radius: 12px;
-  background: #06C755;
+  background: #2563eb;
   color: #fff;
   font-weight: 700;
   font-size: 15px;
-  box-shadow: 0 2px 4px rgba(6,199,85,0.18);
+  box-shadow: 0 2px 4px rgba(37,99,235,0.18);
   transition: transform 0.15s, opacity 0.15s;
 }
 .eb-primary-btn:active { transform: scale(0.98); }
 .eb-primary-btn:disabled { opacity: 0.5; }
 
-/* 予約済 ステート (緑系の薄いカード) */
+/* 予約済 ステート (success 緑の薄いカード — セマンティック成功表示なので緑を維持) */
 .eb-card.eb-card-success {
-  background: #f0fdf4;
-  border: 1px solid #86efac;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
 }
 
 /* secondary action (薄いグレー塗り) */
@@ -208,9 +209,9 @@ body.eb-active #app {
   width: 100%;
   padding: 12px 16px;
   border-radius: 12px;
-  background: #f3f4f6;
-  color: #374151;
+  background: #ecf2f9;
+  color: #53637a;
   font-weight: 600;
   font-size: 14px;
 }
-.eb-secondary-btn:active { background: #e5e7eb; }
+.eb-secondary-btn:active { background: #dae3ee; }

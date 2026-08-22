@@ -5,6 +5,7 @@ import { api } from '@/lib/api'
 import type { ConversionPoint } from '@line-crm/shared'
 import Header from '@/components/layout/header'
 import CcPromptButton from '@/components/cc-prompt-button'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 
 interface ConversionReportItem {
   conversionPointId: string
@@ -34,6 +35,7 @@ const ccPrompts = [
 ]
 
 export default function ConversionsPage() {
+  const { confirm: confirmDialog } = useConfirm()
   const [points, setPoints] = useState<ConversionPoint[]>([])
   const [report, setReport] = useState<ConversionReportItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -71,7 +73,13 @@ export default function ConversionsPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('このCVポイントを削除しますか？')) return
+    const ok = await confirmDialog({
+      title: 'CVポイントを削除',
+      message: 'このCVポイントを削除しますか？',
+      tone: 'danger',
+      confirmLabel: '削除する',
+    })
+    if (!ok) return
     await api.conversions.deletePoint(id)
     load()
   }
@@ -96,8 +104,7 @@ export default function ConversionsPage() {
         action={
           <button
             onClick={() => setShowCreate(!showCreate)}
-            className="px-4 py-2 min-h-[44px] rounded-lg text-white text-sm font-medium"
-            style={{ backgroundColor: '#06C755' }}
+            className="px-4 py-2 min-h-[44px] rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium transition-colors"
           >
             {showCreate ? 'キャンセル' : '+ CVポイント作成'}
           </button>
@@ -144,8 +151,7 @@ export default function ConversionsPage() {
           </div>
           <button
             type="submit"
-            className="mt-4 px-4 py-2 min-h-[44px] rounded-lg text-white text-sm font-medium"
-            style={{ backgroundColor: '#06C755' }}
+            className="mt-4 px-4 py-2 min-h-[44px] rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium transition-colors"
           >
             作成
           </button>
@@ -159,7 +165,7 @@ export default function ConversionsPage() {
             <div key={r.conversionPointId} className="bg-white rounded-lg border border-gray-200 p-4">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm font-medium text-gray-700">{r.conversionPointName}</p>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{r.eventType}</span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-brand-100 text-brand-700">{r.eventType}</span>
               </div>
               <div className="flex items-end gap-4">
                 <div>
@@ -168,7 +174,7 @@ export default function ConversionsPage() {
                 </div>
                 {r.totalValue > 0 && (
                   <div>
-                    <p className="text-lg font-semibold text-green-600">{r.totalValue.toLocaleString('ja-JP', { style: 'currency', currency: 'JPY' })}</p>
+                    <p className="text-lg font-semibold text-emerald-600">{r.totalValue.toLocaleString('ja-JP', { style: 'currency', currency: 'JPY' })}</p>
                     <p className="text-xs text-gray-400">売上</p>
                   </div>
                 )}
@@ -200,7 +206,7 @@ export default function ConversionsPage() {
                 <tr key={point.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 text-sm font-medium text-gray-900">{point.name}</td>
                   <td className="px-4 py-3">
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{point.eventType}</span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-brand-100 text-brand-700">{point.eventType}</span>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">
                     {point.value !== null ? `¥${point.value.toLocaleString()}` : '-'}

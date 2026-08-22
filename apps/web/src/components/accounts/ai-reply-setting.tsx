@@ -87,7 +87,7 @@ export default function AiReplySetting({ accountId }: AiReplySettingProps) {
           onChange={(e) => setLimitInput(e.target.value)}
           onBlur={saveLimit}
           placeholder="無制限"
-          className="w-20 border border-gray-200 rounded-md px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-purple-400"
+          className="w-20 border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-purple-400"
         />
         <span className="text-xs text-gray-400">件{dailyLimit !== null ? ` (現在: ${dailyLimit})` : ''}</span>
       </div>

@@ -5,6 +5,9 @@ import Link from 'next/link'
 import { api } from '@/lib/api'
 import CcPromptButton from '@/components/cc-prompt-button'
 import { useAccount } from '@/contexts/account-context'
+import Header from '@/components/layout/header'
+import { Icon } from '@/components/ui/icons'
+import type { IconName } from '@/components/ui/icons'
 
 const ccPrompts = [
   {
@@ -38,33 +41,29 @@ interface StatCardProps {
   title: string
   value: number | null
   loading: boolean
-  icon: React.ReactNode
+  icon: IconName
   href: string
-  accentColor?: string
 }
 
-function StatCard({ title, value, loading, icon, href, accentColor = '#06C755' }: StatCardProps) {
+function StatCard({ title, value, loading, icon, href }: StatCardProps) {
   return (
-    <Link href={href} className="block bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow group">
+    <Link href={href} className="block bg-surface rounded-lg shadow-sm border border-edge p-6 hover:shadow-md hover:border-brand-300 transition-all group">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm font-medium text-gray-500 mb-2">{title}</p>
+          <p className="text-sm font-medium text-ink-muted mb-2">{title}</p>
           {loading ? (
-            <div className="h-8 w-20 bg-gray-100 rounded animate-pulse" />
+            <div className="h-8 w-20 bg-surface-alt rounded animate-pulse" />
           ) : (
-            <p className="text-3xl font-bold text-gray-900">
+            <p className="text-3xl font-bold text-ink">
               {value !== null ? value.toLocaleString('ja-JP') : '-'}
             </p>
           )}
         </div>
-        <div
-          className="w-10 h-10 rounded-lg flex items-center justify-center text-white shrink-0"
-          style={{ backgroundColor: accentColor }}
-        >
-          {icon}
+        <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-brand-100 text-brand-700 shrink-0">
+          <Icon name={icon} />
         </div>
       </div>
-      <p className="text-xs text-gray-400 mt-3 group-hover:text-green-600 transition-colors">
+      <p className="text-xs text-ink-faint mt-3 group-hover:text-brand-600 transition-colors">
         詳細を見る →
       </p>
     </Link>
@@ -94,11 +93,11 @@ function FriendAddLinkCard() {
   }
 
   return (
-    <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+    <div className="mb-6 bg-surface rounded-lg shadow-sm border border-edge p-4">
       <div className="flex items-center justify-between mb-2">
         <div>
-          <p className="text-sm font-semibold text-gray-800">友だち追加リンク</p>
-          <p className="text-xs text-gray-400 mt-0.5">
+          <p className="text-sm font-semibold text-ink">友だち追加リンク</p>
+          <p className="text-xs text-ink-faint mt-0.5">
             {selectedAccount
               ? `${selectedAccount.displayName || selectedAccount.name} への追加リンク (UUID計測つき)`
               : 'デフォルトアカウントへの追加リンク (UUID計測つき)'}
@@ -107,7 +106,7 @@ function FriendAddLinkCard() {
         <button
           type="button"
           onClick={() => setShowQr((v) => !v)}
-          className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 font-medium text-gray-600"
+          className="text-xs px-3 py-1.5 rounded-lg border border-edge hover:bg-surface-alt font-medium text-ink-muted"
         >
           {showQr ? 'QRを隠す' : 'QR表示'}
         </button>
@@ -117,13 +116,13 @@ function FriendAddLinkCard() {
           readOnly
           value={link}
           onFocus={(e) => e.currentTarget.select()}
-          className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-xs font-mono bg-gray-50 text-gray-700 truncate"
+          className="flex-1 border border-edge rounded-lg px-3 py-2 text-xs font-mono bg-app text-ink-muted truncate"
         />
+        {/* 友だち追加につながるLINE操作なのでLINE緑を使う */}
         <button
           type="button"
           onClick={onCopy}
-          className="px-4 rounded-lg text-xs font-medium text-white shrink-0"
-          style={{ backgroundColor: copied ? '#059669' : '#06C755' }}
+          className={`px-4 rounded-lg text-xs font-medium text-white shrink-0 transition-colors ${copied ? 'bg-success' : 'bg-line hover:bg-line-dark'}`}
         >
           {copied ? 'コピーしました ✓' : 'コピー'}
         </button>
@@ -136,13 +135,21 @@ function FriendAddLinkCard() {
             alt="友だち追加QRコード"
             width={240}
             height={240}
-            className="border border-gray-200 rounded-lg"
+            className="border border-edge rounded-lg"
           />
         </div>
       )}
     </div>
   )
 }
+
+const QUICK_ACTIONS: { href: string; icon: IconName; title: string; description: string }[] = [
+  { href: '/friends', icon: 'users', title: '友だち管理', description: '友だちの一覧・タグ管理' },
+  { href: '/scenarios', icon: 'clipboard-list', title: 'シナリオ配信', description: '自動配信シナリオの作成・編集' },
+  { href: '/broadcasts', icon: 'megaphone', title: '一斉配信', description: 'メッセージの一斉送信・予約' },
+  { href: '/chats', icon: 'chat', title: 'チャット', description: 'オペレーターチャット管理' },
+  { href: '/health', icon: 'shield', title: 'BAN検知', description: 'アカウント健康度ダッシュボード' },
+]
 
 export default function DashboardPage() {
   const { selectedAccountId, selectedAccount } = useAccount()
@@ -209,14 +216,14 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">ダッシュボード</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          {selectedAccount
+      <Header
+        title="ダッシュボード"
+        description={
+          selectedAccount
             ? `${selectedAccount.displayName || selectedAccount.name} の管理画面`
-            : 'LINE公式アカウント CRM 管理画面'}
-        </p>
-      </div>
+            : 'LINE公式アカウント CRM 管理画面'
+        }
+      />
 
       {error && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
@@ -226,192 +233,35 @@ export default function DashboardPage() {
 
       <FriendAddLinkCard />
 
-      {/* Demo banner */}
-      <a
-        href="https://your-worker.your-subdomain.workers.dev/auth/line?ref=dashboard"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block mb-6 p-4 rounded-xl border border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 transition-colors"
-      >
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-bold text-gray-900">LINE で体験する</p>
-            <p className="text-xs text-gray-500 mt-0.5">友だち追加でステップ配信・フォーム・自動返信を体験</p>
-          </div>
-          <span className="text-xs px-3 py-1.5 rounded-full text-white font-medium" style={{ backgroundColor: '#06C755' }}>
-            友だち追加
-          </span>
-        </div>
-      </a>
-
       {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
-        <StatCard
-          title="友だち数"
-          value={stats.friendCount}
-          loading={loading}
-          href="/friends"
-          icon={
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          }
-        />
-        <StatCard
-          title="アクティブシナリオ数"
-          value={stats.activeScenarioCount}
-          loading={loading}
-          href="/scenarios"
-          accentColor="#3B82F6"
-          icon={
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-          }
-        />
-        <StatCard
-          title="配信数 (合計)"
-          value={stats.broadcastCount}
-          loading={loading}
-          href="/broadcasts"
-          accentColor="#8B5CF6"
-          icon={
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
-            </svg>
-          }
-        />
-      </div>
-
-      {/* Round 3 summary cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
-        <StatCard
-          title="テンプレート数"
-          value={stats.templateCount}
-          loading={loading}
-          href="/templates"
-          accentColor="#F59E0B"
-          icon={
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6z" />
-            </svg>
-          }
-        />
-        <StatCard
-          title="アクティブルール数"
-          value={stats.automationCount}
-          loading={loading}
-          href="/automations"
-          accentColor="#EF4444"
-          icon={
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-          }
-        />
-        <StatCard
-          title="マイル付与ルール数"
-          value={stats.scoringRuleCount}
-          loading={loading}
-          href="/scoring"
-          accentColor="#10B981"
-          icon={
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-            </svg>
-          }
-        />
+        <StatCard title="友だち数" value={stats.friendCount} loading={loading} href="/friends" icon="users" />
+        <StatCard title="アクティブシナリオ数" value={stats.activeScenarioCount} loading={loading} href="/scenarios" icon="clipboard-list" />
+        <StatCard title="配信数 (合計)" value={stats.broadcastCount} loading={loading} href="/broadcasts" icon="megaphone" />
+        <StatCard title="テンプレート数" value={stats.templateCount} loading={loading} href="/templates" icon="template" />
+        <StatCard title="アクティブルール数" value={stats.automationCount} loading={loading} href="/automations" icon="bolt" />
+        <StatCard title="マイル付与ルール数" value={stats.scoringRuleCount} loading={loading} href="/scoring" icon="star" />
       </div>
 
       {/* Quick links */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-sm font-semibold text-gray-800 mb-4">クイックアクション</h2>
+      <div className="bg-surface rounded-lg shadow-sm border border-edge p-6">
+        <h2 className="text-sm font-semibold text-ink mb-4">クイックアクション</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Link
-            href="/friends"
-            className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-green-300 hover:bg-green-50 transition-colors group"
-          >
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0" style={{ backgroundColor: '#06C755' }}>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-900 group-hover:text-green-700 transition-colors">友だち管理</p>
-              <p className="text-xs text-gray-400">友だちの一覧・タグ管理</p>
-            </div>
-          </Link>
-
-          <Link
-            href="/scenarios"
-            className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-colors group"
-          >
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0 bg-blue-500">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-900 group-hover:text-blue-700 transition-colors">シナリオ配信</p>
-              <p className="text-xs text-gray-400">自動配信シナリオの作成・編集</p>
-            </div>
-          </Link>
-
-          <Link
-            href="/broadcasts"
-            className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-purple-300 hover:bg-purple-50 transition-colors group"
-          >
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0 bg-purple-500">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-900 group-hover:text-purple-700 transition-colors">一斉配信</p>
-              <p className="text-xs text-gray-400">メッセージの一斉送信・予約</p>
-            </div>
-          </Link>
-
-          <Link
-            href="/chats"
-            className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-green-300 hover:bg-green-50 transition-colors group"
-          >
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0" style={{ backgroundColor: '#06C755' }}>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-900 group-hover:text-green-700 transition-colors">チャット</p>
-              <p className="text-xs text-gray-400">オペレーターチャット管理</p>
-            </div>
-          </Link>
-
-          <Link
-            href="/health"
-            className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-red-300 hover:bg-red-50 transition-colors group"
-          >
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0 bg-red-500">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-900 group-hover:text-red-700 transition-colors">BAN検知</p>
-              <p className="text-xs text-gray-400">アカウント健康度ダッシュボード</p>
-            </div>
-          </Link>
+          {QUICK_ACTIONS.map((action) => (
+            <Link
+              key={action.href}
+              href={action.href}
+              className="flex items-center gap-3 p-3 rounded-lg border border-edge hover:border-brand-300 hover:bg-brand-50 transition-colors group"
+            >
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-brand-100 text-brand-700 shrink-0">
+                <Icon name={action.icon} className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-ink group-hover:text-brand-700 transition-colors">{action.title}</p>
+                <p className="text-xs text-ink-faint">{action.description}</p>
+              </div>
+            </Link>
+          ))}
         </div>
       </div>
 

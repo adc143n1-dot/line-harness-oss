@@ -128,7 +128,7 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
           </label>
           <input
             type="text"
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             placeholder="例: 3月のキャンペーン告知"
             value={form.title}
             onChange={(e) => setForm({ ...form, title: e.target.value })}
@@ -144,9 +144,9 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
                 key={type}
                 type="button"
                 onClick={() => setForm({ ...form, messageType: type })}
-                className={`px-3 py-1.5 min-h-[44px] text-xs font-medium rounded-md border transition-colors ${
+                className={`px-3 py-1.5 min-h-[44px] text-xs font-medium rounded-lg border transition-colors ${
                   form.messageType === type
-                    ? 'border-green-500 text-green-700 bg-green-50'
+                    ? 'border-brand-500 text-brand-700 bg-brand-50'
                     : 'border-gray-300 text-gray-600 bg-white hover:border-gray-400'
                 }`}
               >
@@ -226,7 +226,7 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
             </div>
           )}
           <textarea
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-y"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 resize-y"
             rows={form.messageType === 'flex' ? 8 : form.messageType === 'image' ? 3 : 4}
             placeholder={
               form.messageType === 'text'
@@ -276,9 +276,9 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
             <button
               type="button"
               onClick={() => setForm({ ...form, targetType: 'all', targetTagId: '' })}
-              className={`px-3 py-1.5 min-h-[44px] text-xs font-medium rounded-md border transition-colors ${
+              className={`px-3 py-1.5 min-h-[44px] text-xs font-medium rounded-lg border transition-colors ${
                 form.targetType === 'all'
-                  ? 'border-green-500 text-green-700 bg-green-50'
+                  ? 'border-brand-500 text-brand-700 bg-brand-50'
                   : 'border-gray-300 text-gray-600 bg-white hover:border-gray-400'
               }`}
             >
@@ -287,9 +287,9 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
             <button
               type="button"
               onClick={() => setForm({ ...form, targetType: 'tag' })}
-              className={`px-3 py-1.5 min-h-[44px] text-xs font-medium rounded-md border transition-colors ${
+              className={`px-3 py-1.5 min-h-[44px] text-xs font-medium rounded-lg border transition-colors ${
                 form.targetType === 'tag'
-                  ? 'border-green-500 text-green-700 bg-green-50'
+                  ? 'border-brand-500 text-brand-700 bg-brand-50'
                   : 'border-gray-300 text-gray-600 bg-white hover:border-gray-400'
               }`}
             >
@@ -298,9 +298,9 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
             <button
               type="button"
               onClick={() => setForm({ ...form, targetType: 'multi-account-dedup', targetTagId: '' })}
-              className={`px-3 py-1.5 min-h-[44px] text-xs font-medium rounded-md border transition-colors ${
+              className={`px-3 py-1.5 min-h-[44px] text-xs font-medium rounded-lg border transition-colors ${
                 form.targetType === 'multi-account-dedup'
-                  ? 'border-green-500 text-green-700 bg-green-50'
+                  ? 'border-brand-500 text-brand-700 bg-brand-50'
                   : 'border-gray-300 text-gray-600 bg-white hover:border-gray-400'
               }`}
             >
@@ -309,7 +309,7 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
           </div>
           {form.targetType === 'tag' && (
             <select
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
               value={form.targetTagId}
               onChange={(e) => setForm({ ...form, targetTagId: e.target.value })}
             >
@@ -339,9 +339,9 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
             <button
               type="button"
               onClick={() => setForm({ ...form, sendNow: true, scheduledAt: '' })}
-              className={`px-3 py-1.5 min-h-[44px] text-xs font-medium rounded-md border transition-colors ${
+              className={`px-3 py-1.5 min-h-[44px] text-xs font-medium rounded-lg border transition-colors ${
                 form.sendNow
-                  ? 'border-green-500 text-green-700 bg-green-50'
+                  ? 'border-brand-500 text-brand-700 bg-brand-50'
                   : 'border-gray-300 text-gray-600 bg-white hover:border-gray-400'
               }`}
             >
@@ -350,9 +350,9 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
             <button
               type="button"
               onClick={() => setForm({ ...form, sendNow: false })}
-              className={`px-3 py-1.5 min-h-[44px] text-xs font-medium rounded-md border transition-colors ${
+              className={`px-3 py-1.5 min-h-[44px] text-xs font-medium rounded-lg border transition-colors ${
                 !form.sendNow
-                  ? 'border-green-500 text-green-700 bg-green-50'
+                  ? 'border-brand-500 text-brand-700 bg-brand-50'
                   : 'border-gray-300 text-gray-600 bg-white hover:border-gray-400'
               }`}
             >
@@ -362,7 +362,7 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
           {!form.sendNow && (
             <input
               type="datetime-local"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
               value={form.scheduledAt}
               onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })}
             />
@@ -377,8 +377,7 @@ export default function BroadcastForm({ tags, onSuccess, onCancel }: BroadcastFo
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-4 py-2 min-h-[44px] text-sm font-medium text-white rounded-lg disabled:opacity-50 transition-opacity"
-            style={{ backgroundColor: '#06C755' }}
+            className="px-4 py-2 min-h-[44px] text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg disabled:opacity-50 transition-opacity"
           >
             {saving ? '作成中...' : '作成'}
           </button>

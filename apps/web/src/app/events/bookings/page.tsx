@@ -6,6 +6,7 @@ import Link from 'next/link'
 import Header from '@/components/layout/header'
 import { useAccount } from '@/contexts/account-context'
 import { eventsApi, type EventBookingItem, type EventDetail } from '@/lib/api'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 
 const STATUS_TABS: Array<{ key: string; label: string }> = [
   { key: 'requested', label: '承認待ち' },
@@ -19,13 +20,13 @@ const STATUS_TABS: Array<{ key: string; label: string }> = [
 ]
 
 const statusBadge: Record<string, string> = {
-  requested: 'bg-yellow-100 text-yellow-800',
-  confirmed: 'bg-green-100 text-green-800',
+  requested: 'bg-amber-50 text-amber-700',
+  confirmed: 'bg-emerald-50 text-emerald-700',
   rejected: 'bg-gray-100 text-gray-700',
   cancelled: 'bg-gray-100 text-gray-600',
   expired: 'bg-gray-100 text-gray-500',
-  attended: 'bg-blue-100 text-blue-800',
-  no_show: 'bg-red-100 text-red-800',
+  attended: 'bg-brand-100 text-brand-700',
+  no_show: 'bg-red-50 text-red-700',
 }
 
 function formatJp(iso: string): string {
@@ -39,6 +40,7 @@ function formatJp(iso: string): string {
 }
 
 function BookingsInner() {
+  const { confirm: confirmDialog } = useConfirm()
   const params = useSearchParams()
   const eventId = params.get('id')
   const { selectedAccountId, accounts } = useAccount()
@@ -98,7 +100,14 @@ function BookingsInner() {
 
   async function adminCancel(id: string) {
     if (!selectedAccountId || !eventId) return
-    if (!confirm('運営側でキャンセルしますか？友だちにLINE通知が送られます。')) return
+    const ok = await confirmDialog({
+      title: '予約をキャンセル',
+      message: '運営側でキャンセルしますか？友だちにLINE通知が送られます。',
+      tone: 'danger',
+      confirmLabel: 'キャンセルする',
+      cancelLabel: '閉じる',
+    })
+    if (!ok) return
     setBusy(true)
     try {
       await eventsApi.adminCancelBooking(selectedAccountId, eventId, id)
@@ -128,9 +137,9 @@ function BookingsInner() {
       <Header title={event?.name ?? 'イベント予約管理'} />
       <div className="p-6 max-w-6xl mx-auto">
         <div className="mb-4 flex items-center gap-2 text-sm">
-          <Link href="/events" className="text-blue-600 hover:underline">イベント一覧</Link>
+          <Link href="/events" className="text-brand-600 hover:underline">イベント一覧</Link>
           <span className="text-gray-400">/</span>
-          <Link href={`/events/edit?id=${eventId}`} className="text-blue-600 hover:underline">
+          <Link href={`/events/edit?id=${eventId}`} className="text-brand-600 hover:underline">
             {event?.name ?? '編集'}
           </Link>
           <span className="text-gray-400">/</span>
@@ -156,7 +165,7 @@ function BookingsInner() {
                 onClick={() => setTab(t.key)}
                 className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                   tab === t.key
-                    ? 'border-blue-600 text-blue-600 bg-blue-50'
+                    ? 'border-brand-600 text-brand-600 bg-brand-50'
                     : 'border-transparent text-gray-600 hover:bg-gray-50'
                 }`}
               >
@@ -209,7 +218,7 @@ function BookingsInner() {
                             <button
                               onClick={() => decide(b.id, 'confirm')}
                               disabled={busy}
-                              className="px-3 py-1 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 disabled:opacity-50"
+                              className="px-3 py-1 bg-brand-600 text-white rounded-lg text-xs font-medium hover:bg-brand-700 disabled:opacity-50"
                             >
                               承認
                             </button>
@@ -227,7 +236,7 @@ function BookingsInner() {
                             <button
                               onClick={() => markStatus(b.id, 'attended')}
                               disabled={busy}
-                              className="px-3 py-1 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-50"
+                              className="px-3 py-1 bg-brand-600 text-white rounded-lg text-xs font-medium hover:bg-brand-700 disabled:opacity-50"
                             >
                               参加済
                             </button>

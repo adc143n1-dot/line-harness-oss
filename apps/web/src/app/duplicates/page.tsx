@@ -142,7 +142,7 @@ export default function DuplicatesPage() {
                 type="button"
                 onClick={() => load({ forceRefresh: true })}
                 disabled={refreshing}
-                className="rounded-md border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                className="rounded-lg border border-edge bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
               >
                 {refreshing ? '再計算中…' : '再計算'}
               </button>

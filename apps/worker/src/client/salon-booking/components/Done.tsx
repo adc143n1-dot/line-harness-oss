@@ -20,7 +20,7 @@ export default function Done() {
       <div className="sb-card text-center">
         <div
           className="w-16 h-16 mx-auto rounded-full flex items-center justify-center text-white text-3xl font-bold"
-          style={{ background: '#06C755' }}
+          style={{ background: '#059669' }}
         >
           ✓
         </div>
@@ -34,14 +34,14 @@ export default function Done() {
           <button
             onClick={gotoHistory}
             className="py-3 rounded-xl font-semibold text-sm border-2 sb-line-green-text"
-            style={{ borderColor: '#06C755' }}
+            style={{ borderColor: '#2563eb' }}
           >
             予約履歴
           </button>
           <button
             onClick={close}
             className="py-3 rounded-xl font-semibold text-sm text-white"
-            style={{ background: '#06C755' }}
+            style={{ background: '#2563eb' }}
           >
             閉じる
           </button>

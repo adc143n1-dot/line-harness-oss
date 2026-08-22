@@ -11,7 +11,7 @@ const STATUS_LABEL: Record<Webinar['status'], string> = {
 
 const STATUS_BADGE: Record<Webinar['status'], string> = {
   draft: 'bg-gray-100 text-gray-600',
-  active: 'bg-green-100 text-green-700',
+  active: 'bg-emerald-50 text-emerald-700',
   archived: 'bg-amber-100 text-amber-700',
 }
 
@@ -74,7 +74,7 @@ export default function WebinarsPage() {
         action={
           <Link
             href="/webinars/new"
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+            className="px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700"
           >
             ＋ 新しいウェビナー
           </Link>
@@ -99,7 +99,7 @@ export default function WebinarsPage() {
             </p>
             <Link
               href="/webinars/new"
-              className="inline-block px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+              className="inline-block px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700"
             >
               最初のウェビナーを作成
             </Link>

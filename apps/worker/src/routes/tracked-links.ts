@@ -18,6 +18,7 @@ import { isLinkPreviewBot } from '../lib/og-bot.js';
 import { buildOgHtml } from '../lib/og-html.js';
 import { resolveOgForTrackedLink } from '../lib/og-resolver.js';
 import { resolveTrackedLinkBaseUrl } from '../lib/link-base-url.js';
+import { pageShell } from '../lib/page-shell.js';
 import { awardActivityMileage } from '../services/activity-mileage.js';
 
 const trackedLinks = new Hono<Env>();
@@ -257,15 +258,11 @@ function buildAppRedirectHtml(destinationUrl: string): string {
     : null;
   const intentEscaped = intentUrl ? intentUrl.replace(/&/g, '&amp;').replace(/"/g, '&quot;') : '';
 
-  return `<!DOCTYPE html>
-<html><head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Redirecting...</title>
-<style>body{display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:system-ui;color:#64748b;background:#f8fafc}p{font-size:14px}</style>
-</head><body>
-<p>Opening app...</p>
-<script>
+  return pageShell({
+    title: 'アプリを開いています…',
+    extraCss: `.msg{margin-bottom:0}`,
+    body: `<p class="msg">アプリを開いています…</p>`,
+    extraBodyEnd: `<script>
 (function(){
   var isAndroid = /Android/i.test(navigator.userAgent);
   if(isAndroid && "${intentEscaped}"){
@@ -275,8 +272,8 @@ function buildAppRedirectHtml(destinationUrl: string): string {
   }
 })();
 </script>
-<noscript><meta http-equiv="refresh" content="0;url=${escaped}"></noscript>
-</body></html>`;
+<noscript><meta http-equiv="refresh" content="0;url=${escaped}"></noscript>`,
+  });
 }
 
 // GET /t/:linkId — click tracking redirect (no auth, fast redirect)

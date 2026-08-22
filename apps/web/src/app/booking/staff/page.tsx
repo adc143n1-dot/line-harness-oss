@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import Header from '@/components/layout/header'
+import Button from '@/components/ui/button'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 import ImageUploader from '@/components/shared/image-uploader'
 import { bookingApi, type BookingStaff } from '@/lib/api'
 import { useAccount } from '@/contexts/account-context'
@@ -19,6 +21,7 @@ const EMPTY: Partial<BookingStaff> = {
 }
 
 export default function BookingStaffPage() {
+  const { confirm: confirmDialog } = useConfirm()
   const { selectedAccountId } = useAccount()
   const [items, setItems] = useState<BookingStaff[]>([])
   const [editing, setEditing] = useState<Partial<BookingStaff> | null>(null)
@@ -58,7 +61,12 @@ export default function BookingStaffPage() {
 
   async function remove(id: string) {
     if (!selectedAccountId) return
-    if (!confirm('このスタッフを削除しますか？（既存予約は維持されます）')) return
+    if (!(await confirmDialog({
+      title: 'スタッフを削除',
+      message: 'このスタッフを削除しますか？（既存予約は維持されます）',
+      tone: 'danger',
+      confirmLabel: '削除する',
+    }))) return
     await bookingApi.deleteStaff(selectedAccountId, id)
     await load()
   }
@@ -69,14 +77,9 @@ export default function BookingStaffPage() {
         title="予約スタッフ"
         description="予約担当スタッフの管理（指名なし枠も含む）"
         action={
-          <button
-            onClick={() => setEditing(EMPTY)}
-            disabled={!selectedAccountId}
-            className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90 disabled:opacity-50"
-            style={{ backgroundColor: '#06C755' }}
-          >
+          <Button onClick={() => setEditing(EMPTY)} disabled={!selectedAccountId}>
             + 新規スタッフ
-          </button>
+          </Button>
         }
       />
 
@@ -147,7 +150,7 @@ export default function BookingStaffPage() {
                     <td className="px-4 py-3 text-sm text-right tabular-nums text-gray-500">{s.sort_order}</td>
                     <td className="px-4 py-3 text-center">
                       {s.is_active ? (
-                        <span className="inline-block px-2 py-0.5 rounded bg-green-100 text-green-800 text-xs">ON</span>
+                        <span className="inline-block px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-xs">ON</span>
                       ) : (
                         <span className="inline-block px-2 py-0.5 rounded bg-gray-100 text-gray-500 text-xs">OFF</span>
                       )}
@@ -215,7 +218,7 @@ function Modal({
               type="text"
               value={form.name ?? ''}
               onChange={(e) => set('name', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
               placeholder="例: yamada-taro"
             />
           </Field>
@@ -224,7 +227,7 @@ function Modal({
               type="text"
               value={form.display_name ?? ''}
               onChange={(e) => set('display_name', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
               placeholder="顧客に表示される名前"
             />
           </Field>
@@ -233,7 +236,7 @@ function Modal({
               type="text"
               value={form.role ?? ''}
               onChange={(e) => set('role', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
               placeholder="例: トップスタイリスト"
             />
           </Field>
@@ -247,7 +250,7 @@ function Modal({
             <textarea
               value={form.bio ?? ''}
               onChange={(e) => set('bio', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-y"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 resize-y"
               rows={2}
             />
           </Field>
@@ -256,7 +259,7 @@ function Modal({
               type="number"
               value={form.sort_order ?? 0}
               onChange={(e) => set('sort_order', Number(e.target.value))}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 tabular-nums"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 tabular-nums"
             />
           </Field>
           <label className="flex items-center gap-2 text-sm">
@@ -280,20 +283,12 @@ function Modal({
           {err && <p className="text-xs text-red-600">{err}</p>}
         </div>
         <div className="px-6 py-4 border-t border-gray-200 flex gap-2 justify-end">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg"
-          >
+          <Button variant="secondary" onClick={onClose}>
             キャンセル
-          </button>
-          <button
-            onClick={submit}
-            disabled={saving}
-            className="px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50"
-            style={{ backgroundColor: '#06C755' }}
-          >
+          </Button>
+          <Button onClick={submit} disabled={saving}>
             {saving ? '保存中…' : '保存'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

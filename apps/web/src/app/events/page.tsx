@@ -50,7 +50,7 @@ export default function EventsListPage() {
           </div>
           <Link
             href="/events/new"
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+            className="px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700"
           >
             ＋ 新しいイベント
           </Link>
@@ -74,7 +74,7 @@ export default function EventsListPage() {
             </p>
             <Link
               href="/events/new"
-              className="inline-block px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+              className="inline-block px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700"
             >
               最初のイベントを作成
             </Link>
@@ -94,14 +94,14 @@ export default function EventsListPage() {
                     className="w-full h-32 object-cover bg-gray-100"
                   />
                 ) : (
-                  <div className="w-full h-32 bg-gradient-to-br from-blue-100 to-blue-200" />
+                  <div className="w-full h-32 bg-gradient-to-br from-brand-50 to-brand-100" />
                 )}
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-2 mb-1">
                     <div className="font-semibold text-gray-900 line-clamp-2 flex-1">{e.name}</div>
                     <div className="flex flex-col gap-1 shrink-0 items-end">
                       {e.is_published === 1 ? (
-                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                        <span className="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">
                           公開中
                         </span>
                       ) : (
@@ -116,7 +116,7 @@ export default function EventsListPage() {
                             ? (() => { try { return JSON.parse(e.account_ids) as string[] } catch { return [] } })()
                             : []
                         return (
-                          <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
+                          <span className="text-xs bg-violet-50 text-violet-700 px-2 py-0.5 rounded-full">
                             横断 {ids.length} アカ
                           </span>
                         )
@@ -132,7 +132,7 @@ export default function EventsListPage() {
                       {e.total_capacity != null && <span className="text-gray-400"> / {e.total_capacity}</span>}
                     </span>
                     {e.pending_count > 0 && (
-                      <span className="bg-yellow-100 text-yellow-800 text-xs font-bold px-2 py-0.5 rounded-full">
+                      <span className="bg-amber-50 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">
                         承認待ち {e.pending_count}
                       </span>
                     )}

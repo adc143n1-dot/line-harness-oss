@@ -5,6 +5,7 @@ import type { Tag } from '@line-crm/shared'
 import { api, ApiError } from '@/lib/api'
 import Header from '@/components/layout/header'
 import TagBadge from '@/components/friends/tag-badge'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 
 const PRESET_COLORS = [
   '#3B82F6', // blue (server default)
@@ -59,7 +60,7 @@ function TagMileageEditor({ tag, onSaved }: { tag: Tag; onSaved: () => void }) {
           step={1}
           value={reward}
           onChange={(e) => setReward(e.target.value)}
-          className="w-20 px-2 py-1.5 text-sm border border-gray-300 rounded-md tabular-nums"
+          className="w-20 px-2 py-1.5 text-sm border border-gray-300 rounded-lg tabular-nums"
         />
       </td>
       <td className="px-3 py-3">
@@ -70,7 +71,7 @@ function TagMileageEditor({ tag, onSaved }: { tag: Tag; onSaved: () => void }) {
           step={1}
           value={referralReward}
           onChange={(e) => setReferralReward(e.target.value)}
-          className="w-20 px-2 py-1.5 text-sm border border-gray-300 rounded-md tabular-nums"
+          className="w-20 px-2 py-1.5 text-sm border border-gray-300 rounded-lg tabular-nums"
         />
       </td>
       <td className="px-3 py-3">
@@ -84,7 +85,7 @@ function TagMileageEditor({ tag, onSaved }: { tag: Tag; onSaved: () => void }) {
             placeholder="なし"
             value={multiplier}
             onChange={(e) => setMultiplier(e.target.value)}
-            className="w-20 px-2 py-1.5 text-sm border border-gray-300 rounded-md tabular-nums"
+            className="w-20 px-2 py-1.5 text-sm border border-gray-300 rounded-lg tabular-nums"
           />
           <span className="text-xs text-gray-400">倍</span>
         </div>
@@ -97,14 +98,14 @@ function TagMileageEditor({ tag, onSaved }: { tag: Tag; onSaved: () => void }) {
           max={1000}
           value={priority}
           onChange={(e) => setPriority(e.target.value)}
-          className="w-16 px-2 py-1.5 text-sm border border-gray-300 rounded-md tabular-nums"
+          className="w-16 px-2 py-1.5 text-sm border border-gray-300 rounded-lg tabular-nums"
         />
       </td>
       <td className="px-3 py-3 text-right whitespace-nowrap">
         <button
           onClick={save}
           disabled={saving}
-          className="px-2.5 py-1 text-xs font-medium text-green-700 hover:bg-green-50 rounded-md disabled:opacity-40"
+          className="px-2.5 py-1 text-xs font-medium text-brand-600 hover:bg-brand-50 rounded-lg disabled:opacity-40"
         >
           {saving ? '保存中' : 'マイル保存'}
         </button>
@@ -114,6 +115,7 @@ function TagMileageEditor({ tag, onSaved }: { tag: Tag; onSaved: () => void }) {
 }
 
 export default function TagsPage() {
+  const { confirm: confirmDialog } = useConfirm()
   const [items, setItems] = useState<Tag[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -170,7 +172,13 @@ export default function TagsPage() {
     const message = count > 0
       ? `タグ「${tag.name}」は ${count} 人の友だちに付与されています。\n削除すると全員からこのタグが外れます。よろしいですか？`
       : `タグ「${tag.name}」を削除しますか？`
-    if (!confirm(message)) return
+    const ok = await confirmDialog({
+      title: 'タグを削除',
+      message,
+      confirmLabel: '削除する',
+      tone: 'danger',
+    })
+    if (!ok) return
     setError('')
     try {
       await api.tags.delete(tag.id)
@@ -192,8 +200,7 @@ export default function TagsPage() {
         action={
           <button
             onClick={() => { setCreating(!creating); setError('') }}
-            className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90"
-            style={{ backgroundColor: '#06C755' }}
+            className="px-4 py-2 text-sm font-medium text-white rounded-lg bg-brand-600 hover:bg-brand-700 transition-colors"
           >
             + 新規タグ
           </button>
@@ -218,7 +225,7 @@ export default function TagsPage() {
                 onKeyDown={(e) => { if (e.key === 'Enter') handleCreate() }}
                 placeholder="例: 見込み客"
                 autoFocus
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
               />
             </div>
             <div>
@@ -246,8 +253,7 @@ export default function TagsPage() {
               <button
                 onClick={handleCreate}
                 disabled={saving || !newName.trim()}
-                className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90 disabled:opacity-40"
-                style={{ backgroundColor: '#06C755' }}
+                className="px-4 py-2 text-sm font-medium text-white rounded-lg bg-brand-600 hover:bg-brand-700 transition-colors disabled:opacity-40"
               >
                 {saving ? '作成中...' : '作成'}
               </button>
@@ -300,7 +306,7 @@ export default function TagsPage() {
                     <td className="px-4 py-3 text-right whitespace-nowrap">
                       <button
                         onClick={() => handleDelete(t)}
-                        className="px-2.5 py-1 text-xs font-medium text-red-500 hover:bg-red-50 rounded-md"
+                        className="px-2.5 py-1 text-xs font-medium text-red-500 hover:bg-red-50 rounded-lg"
                       >
                         削除
                       </button>

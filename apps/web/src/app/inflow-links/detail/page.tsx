@@ -34,7 +34,7 @@ export default function InflowLinkDetailPage() {
     return (
       <div className="p-12 text-center">
         <p className="text-red-600">{error || 'リンクが見つかりません'}</p>
-        <Link href="/inflow-links" className="text-sm text-blue-600 hover:underline mt-2 inline-block">
+        <Link href="/inflow-links" className="text-sm text-brand-600 hover:underline mt-2 inline-block">
           ← 一覧に戻る
         </Link>
       </div>
@@ -49,7 +49,7 @@ export default function InflowLinkDetailPage() {
 
       <Link
         href="/inflow-links"
-        className="inline-block text-sm text-blue-600 hover:underline mb-4"
+        className="inline-block text-sm text-brand-600 hover:underline mb-4"
       >
         ← 一覧に戻る
       </Link>
@@ -85,7 +85,7 @@ function FunnelView({ funnel }: { funnel: EntryRouteFunnel }) {
   ]
 
   return (
-    <div className="bg-white border border-gray-200 rounded p-4">
+    <div className="bg-white border border-gray-200 rounded-lg p-4">
       <h3 className="text-sm font-medium mb-3">ファネル</h3>
       <div className="flex items-stretch gap-2 text-sm">
         {stages.map((s, i) => {
@@ -93,9 +93,9 @@ function FunnelView({ funnel }: { funnel: EntryRouteFunnel }) {
             s.prev !== null && s.prev > 0 ? ((s.value / s.prev) * 100).toFixed(1) : null
           return (
             <div key={s.label} className="flex-1 flex flex-col">
-              <div className="bg-blue-50 rounded p-3 text-center flex-1 flex flex-col justify-center">
+              <div className="bg-brand-50 rounded-lg p-3 text-center flex-1 flex flex-col justify-center">
                 <div className="text-xs text-gray-600">{s.label}</div>
-                <div className="text-2xl font-bold text-blue-700 mt-1">
+                <div className="text-2xl font-bold text-brand-700 mt-1">
                   {s.value.toLocaleString()}
                 </div>
                 {pct !== null && (

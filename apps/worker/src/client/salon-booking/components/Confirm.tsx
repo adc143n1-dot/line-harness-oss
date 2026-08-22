@@ -76,7 +76,7 @@ export default function Confirm({
         <textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-y bg-white"
+          className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 resize-y bg-white"
           rows={3}
           placeholder="髪型の希望、アレルギー、その他"
         />
@@ -90,7 +90,7 @@ export default function Confirm({
         onClick={handleSubmit}
         disabled={submitting}
         className="w-full text-white py-3.5 rounded-xl font-bold disabled:opacity-50"
-        style={{ background: '#06C755', boxShadow: '0 1px 3px rgba(6, 199, 85, 0.3)' }}
+        style={{ background: '#2563eb', boxShadow: '0 1px 3px rgba(37, 99, 235, 0.3)' }}
       >
         {submitting ? '送信中…' : '予約をリクエスト'}
       </button>

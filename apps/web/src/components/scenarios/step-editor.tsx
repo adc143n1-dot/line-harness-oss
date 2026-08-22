@@ -83,7 +83,7 @@ export default function StepEditor({ step, stepOrder, onSave, onCancel }: StepEd
             <input
               type="number"
               min={0}
-              className="w-16 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 text-center"
+              className="w-16 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 text-center"
               value={days}
               onChange={(e) => setDays(Math.max(0, parseInt(e.target.value) || 0))}
             />
@@ -94,7 +94,7 @@ export default function StepEditor({ step, stepOrder, onSave, onCancel }: StepEd
               type="number"
               min={0}
               max={23}
-              className="w-16 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 text-center"
+              className="w-16 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 text-center"
               value={hours}
               onChange={(e) => setHours(Math.min(23, Math.max(0, parseInt(e.target.value) || 0)))}
             />
@@ -105,7 +105,7 @@ export default function StepEditor({ step, stepOrder, onSave, onCancel }: StepEd
               type="number"
               min={0}
               max={59}
-              className="w-16 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 text-center"
+              className="w-16 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 text-center"
               value={mins}
               onChange={(e) => setMins(Math.min(59, Math.max(0, parseInt(e.target.value) || 0)))}
             />
@@ -126,9 +126,9 @@ export default function StepEditor({ step, stepOrder, onSave, onCancel }: StepEd
               key={type}
               type="button"
               onClick={() => setMessageType(type)}
-              className={`px-3 py-1.5 min-h-[44px] text-xs font-medium rounded-md border transition-colors ${
+              className={`px-3 py-1.5 min-h-[44px] text-xs font-medium rounded-lg border transition-colors ${
                 messageType === type
-                  ? 'border-green-500 text-green-700 bg-green-50'
+                  ? 'border-brand-500 text-brand-700 bg-brand-50'
                   : 'border-gray-300 text-gray-600 bg-white hover:border-gray-400'
               }`}
             >
@@ -157,7 +157,7 @@ export default function StepEditor({ step, stepOrder, onSave, onCancel }: StepEd
                 <label className="block text-xs text-gray-500 mb-1">元画像URL (originalContentUrl)</label>
                 <input
                   type="url"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
                   placeholder="https://example.com/image.png"
                   value={parsed.originalContentUrl ?? ''}
                   onChange={(e) => {
@@ -171,7 +171,7 @@ export default function StepEditor({ step, stepOrder, onSave, onCancel }: StepEd
                 <label className="block text-xs text-gray-500 mb-1">プレビュー画像URL (previewImageUrl)</label>
                 <input
                   type="url"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
                   placeholder="https://example.com/preview.png (空欄で元画像と同じ)"
                   value={parsed.previewImageUrl ?? ''}
                   onChange={(e) => {
@@ -185,7 +185,7 @@ export default function StepEditor({ step, stepOrder, onSave, onCancel }: StepEd
         })()}
 
         <textarea
-          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-y"
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 resize-y"
           rows={messageType === 'flex' ? 8 : messageType === 'image' ? 3 : 4}
           placeholder={
             messageType === 'text'
@@ -213,8 +213,7 @@ export default function StepEditor({ step, stepOrder, onSave, onCancel }: StepEd
         <button
           onClick={handleSave}
           disabled={saving}
-          className="px-4 py-2 min-h-[44px] text-sm font-medium text-white rounded-lg disabled:opacity-50 transition-opacity"
-          style={{ backgroundColor: '#06C755' }}
+          className="px-4 py-2 min-h-[44px] text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg disabled:opacity-50 transition-opacity"
         >
           {saving ? '保存中...' : '保存'}
         </button>

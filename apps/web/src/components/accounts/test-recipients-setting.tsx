@@ -113,7 +113,7 @@ export default function TestRecipientsSetting({ accountId }: TestRecipientsSetti
           className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
         />
         {searching && <span className="absolute right-2 top-1.5 text-xs text-gray-400">検索中...</span>}
-        {saving && <span className="absolute right-2 top-1.5 text-xs text-green-500">保存中...</span>}
+        {saving && <span className="absolute right-2 top-1.5 text-xs text-brand-500">保存中...</span>}
 
         {searchResults.length > 0 && (
           <ul className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">

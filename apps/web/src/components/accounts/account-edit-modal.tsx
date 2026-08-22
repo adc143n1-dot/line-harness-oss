@@ -202,8 +202,7 @@ export default function AccountEditModal({
             <button
               type="submit"
               disabled={saving}
-              className="px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
-              style={{ backgroundColor: '#06C755' }}
+              className="px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium disabled:opacity-50"
             >
               {saving ? '保存中...' : '保存'}
             </button>

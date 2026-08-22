@@ -20,6 +20,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { api } from '@/lib/api'
 import { countryFlag } from '@/lib/country-flag'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 
 interface AccountItem {
   id: string
@@ -61,6 +62,7 @@ function SortableRow({ account }: { account: AccountItem }) {
 export default function ReorderMode({ accounts, onClose, onSaved }: Props) {
   const [items, setItems] = useState<AccountItem[]>(accounts)
   const [saving, setSaving] = useState(false)
+  const { alert: alertDialog } = useConfirm()
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -86,7 +88,7 @@ export default function ReorderMode({ accounts, onClose, onSaved }: Props) {
       onSaved()
       onClose()
     } else {
-      alert('保存失敗: ' + (res.error || 'unknown'))
+      await alertDialog({ title: '保存に失敗しました', message: res.error || 'unknown' })
     }
   }
 
@@ -109,8 +111,7 @@ export default function ReorderMode({ accounts, onClose, onSaved }: Props) {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-3 py-1.5 rounded-lg text-xs text-white disabled:opacity-50"
-            style={{ backgroundColor: '#06C755' }}
+            className="px-3 py-1.5 rounded-lg text-xs text-white bg-brand-600 hover:bg-brand-700 disabled:opacity-50"
           >
             {saving ? '保存中...' : '保存'}
           </button>

@@ -6,6 +6,7 @@ import { eventsApi, type EventDetail, type EventSlot } from '@/lib/api'
 import ImageUploader from '@/components/shared/image-uploader'
 import OgEditor from '@/components/shared/og-editor'
 import { useAccount } from '@/contexts/account-context'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 import { generateBulkSlots, type BulkSlotInput } from './bulk-slot-generator'
 
 type Tab = 'overview' | 'slots' | 'publish'
@@ -241,7 +242,7 @@ export default function EventForm({ accountId, eventId }: EventFormProps) {
 
       {/* toast */}
       {toast && (
-        <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg text-green-800 text-sm">
+        <div className="mb-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 text-sm">
           ✓ {toast}
         </div>
       )}
@@ -659,6 +660,7 @@ function SlotsTab({
   const [err, setErr] = useState<string | null>(null)
   const [showAdd, setShowAdd] = useState(false)
   const [showBulk, setShowBulk] = useState(false)
+  const { confirm: confirmDialog, alert: alertDialog } = useConfirm()
 
   if (!eventId) {
     return (
@@ -676,7 +678,13 @@ function SlotsTab({
 
   async function deleteSlot(slotId: string) {
     if (!eventId) return
-    if (!confirm('この枠を削除しますか？（既存予約があると削除できません）')) return
+    const ok = await confirmDialog({
+      title: 'この枠を削除しますか？',
+      message: '既存予約があると削除できません',
+      tone: 'danger',
+      confirmLabel: '削除',
+    })
+    if (!ok) return
     setBusy(true)
     setErr(null)
     try {
@@ -749,7 +757,7 @@ function SlotsTab({
                       onClick={() => toggleActive(s)}
                       disabled={busy}
                       className={`text-xs px-2 py-1 rounded-full font-medium ${
-                        s.is_active === 1 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+                        s.is_active === 1 ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600'
                       }`}
                     >
                       {s.is_active === 1 ? '有効' : '停止'}
@@ -788,10 +796,15 @@ function SlotsTab({
           onSubmit={async (input) => {
             const generated = generateBulkSlots(input)
             if (generated.length === 0) {
-              alert('生成される枠が0件でした。条件を確認してください。')
+              await alertDialog({ title: '生成される枠が0件でした', message: '条件を確認してください。' })
               return
             }
-            if (!confirm(`${generated.length}件の枠を生成します。よろしいですか？`)) return
+            const ok = await confirmDialog({
+              title: `${generated.length}件の枠を生成します`,
+              message: 'よろしいですか？',
+              confirmLabel: '生成する',
+            })
+            if (!ok) return
             await eventsApi.createSlots(accountId, eventId, generated)
             await refresh()
             setShowBulk(false)
@@ -1197,8 +1210,8 @@ function PublishTab({
             onClick={() => update('is_published', 1)}
             className={`p-3 border-2 rounded-lg text-left transition-colors ${
               draft.is_published === 1
-                ? 'border-green-500 bg-green-50'
-                : 'border-gray-200 bg-white hover:border-green-300'
+                ? 'border-brand-500 bg-brand-50'
+                : 'border-gray-200 bg-white hover:border-brand-300'
             }`}
           >
             <div className="text-sm font-bold text-gray-900">公開する</div>

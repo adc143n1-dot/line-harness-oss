@@ -234,7 +234,7 @@ export default function FormSubmissionsPage() {
                     onClick={() => setFormFilter(value)}
                     className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
                       formFilter === value
-                        ? 'bg-gray-900 text-white'
+                        ? 'bg-brand-600 text-white'
                         : 'border border-gray-200 bg-white text-gray-500 hover:bg-gray-50'
                     }`}
                   >
@@ -249,7 +249,7 @@ export default function FormSubmissionsPage() {
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="フォーム名・アカウントで検索"
-                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none placeholder:text-gray-300 focus:border-[#06C755] sm:w-64"
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none placeholder:text-gray-300 focus:border-brand-500 sm:w-64"
                 />
               </div>
             </div>
@@ -286,14 +286,14 @@ export default function FormSubmissionsPage() {
                     type="button"
                     onClick={() => handleSelectForm(form.id)}
                     aria-pressed={isSelected}
-                    className={`w-full cursor-pointer rounded-xl border p-4 text-left transition-all focus:outline-none focus:ring-2 focus:ring-[#06C755]/30 ${
+                    className={`w-full cursor-pointer rounded-xl border p-4 text-left transition-all focus:outline-none focus:ring-2 focus:ring-brand-500/30 ${
                       isSelected
-                        ? 'border-[#06C755] bg-[#F1FBF5] shadow-sm'
+                        ? 'border-brand-600 bg-brand-50 shadow-sm'
                         : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
                     }`}
                   >
                   <div className="mb-2 flex items-start gap-2 pr-7">
-                    <h3 className={`text-sm font-semibold leading-snug ${isSelected ? 'text-[#06C755]' : 'text-gray-900'}`}>
+                    <h3 className={`text-sm font-semibold leading-snug ${isSelected ? 'text-brand-700' : 'text-gray-900'}`}>
                       {normalizedName}
                     </h3>
                   </div>
@@ -412,7 +412,7 @@ export default function FormSubmissionsPage() {
                             <Link
                               href={`/chats?friend=${encodeURIComponent(sub.friendId)}`}
                               onClick={(e) => e.stopPropagation()}
-                              className="text-[#06C755] hover:underline"
+                              className="text-brand-600 hover:underline"
                             >
                               {sub.friendName || '不明'}
                             </Link>
@@ -494,7 +494,7 @@ export default function FormSubmissionsPage() {
                 {detailSubmission.friendId ? (
                   <Link
                     href={`/chats?friend=${encodeURIComponent(detailSubmission.friendId)}`}
-                    className="inline-flex items-center gap-2 text-sm text-[#06C755] hover:underline"
+                    className="inline-flex items-center gap-2 text-sm text-brand-600 hover:underline"
                   >
                     <span className="font-medium">{detailSubmission.friendName || '不明'}</span>
                     <span className="text-[11px] text-gray-400">→ チャットを開く</span>
@@ -563,7 +563,7 @@ export default function FormSubmissionsPage() {
                 onKeyDown={(event) => {
                   if (event.key === 'Enter') void saveName()
                 }}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-[#06C755]"
+                className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-brand-500"
               />
             </label>
             {renameError && <p className="mt-2 text-xs text-red-500">{renameError}</p>}
@@ -580,7 +580,7 @@ export default function FormSubmissionsPage() {
                 type="button"
                 onClick={() => void saveName()}
                 disabled={!editingName.trim() || savingName}
-                className="rounded-lg bg-[#06C755] px-4 py-2 text-sm font-medium text-white hover:bg-[#05b64d] disabled:opacity-50"
+                className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
               >
                 {savingName ? '保存中...' : '保存'}
               </button>

@@ -38,7 +38,7 @@ interface Props {
 }
 
 const inputCls =
-  'w-20 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500'
+  'w-20 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500'
 
 export default function ScheduleInput({ mode, value, onChange }: Props) {
   if (mode === 'relative') {
@@ -113,7 +113,7 @@ export default function ScheduleInput({ mode, value, onChange }: Props) {
         <span className="text-sm text-gray-700">日後の</span>
         <input
           type="time"
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
           value={value.deliveryTime}
           onChange={(e) => onChange({ ...value, deliveryTime: e.target.value })}
         />

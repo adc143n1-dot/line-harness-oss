@@ -1,6 +1,7 @@
 'use client'
 
 import InboxRow, { type InboxRowData } from './inbox-row'
+import EmptyState from '@/components/ui/empty-state'
 
 const fmt = new Intl.NumberFormat('ja-JP')
 
@@ -31,9 +32,7 @@ export default function InboxList({
   return (
     <div className="overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-gray-200">
       {rows.length === 0 && !loading ? (
-        <div className="px-4 py-12 text-center text-sm text-gray-400">
-          未対応はありません 🎉
-        </div>
+        <EmptyState title="未対応はありません 🎉" description="すべての会話に人間が返信済みです" />
       ) : (
         <div>
           {rows.map((row) => (
@@ -51,7 +50,7 @@ export default function InboxList({
               type="button"
               onClick={() => onPageChange(page - 1)}
               disabled={page <= 1 || loading}
-              className="rounded-md border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              className="rounded-lg border border-edge bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
             >
               前へ
             </button>
@@ -62,7 +61,7 @@ export default function InboxList({
               type="button"
               onClick={() => onPageChange(page + 1)}
               disabled={page >= totalPages || loading}
-              className="rounded-md border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              className="rounded-lg border border-edge bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
             >
               次へ
             </button>

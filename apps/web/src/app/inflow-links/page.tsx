@@ -356,7 +356,7 @@ export default function InflowLinksPage() {
           </div>
           <div className="bg-white rounded-xl p-5 border border-gray-100">
             <p className="text-sm text-gray-500">ref 経由</p>
-            <p className="text-3xl font-bold text-green-600 mt-1">{summary.friendsWithRef}</p>
+            <p className="text-3xl font-bold text-emerald-600 mt-1">{summary.friendsWithRef}</p>
           </div>
           <div className="bg-white rounded-xl p-5 border border-gray-100">
             <p className="text-sm text-gray-500">ref 不明</p>
@@ -364,7 +364,7 @@ export default function InflowLinksPage() {
           </div>
           <div className="bg-white rounded-xl p-5 border border-gray-100">
             <p className="text-sm text-gray-500">リンク数</p>
-            <p className="text-3xl font-bold text-blue-600 mt-1">{routes.length}</p>
+            <p className="text-3xl font-bold text-brand-600 mt-1">{routes.length}</p>
           </div>
         </div>
       )}
@@ -378,7 +378,7 @@ export default function InflowLinksPage() {
         </span>
         <button
           onClick={() => setEditing('new')}
-          className="px-3 py-1.5 rounded bg-blue-600 text-white text-sm hover:bg-blue-700"
+          className="px-3 py-1.5 rounded-lg bg-brand-600 text-white text-sm hover:bg-brand-700"
         >
           + 新規リンク
         </button>
@@ -461,7 +461,7 @@ export default function InflowLinksPage() {
                       {r.source === 'entry_route' && r.entryRouteId ? (
                         <Link
                           href={`/inflow-links/detail?id=${r.entryRouteId}`}
-                          className="text-blue-600 hover:underline"
+                          className="text-brand-600 hover:underline"
                           onClick={(e) => e.stopPropagation()}
                         >
                           {r.name}
@@ -488,7 +488,7 @@ export default function InflowLinksPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-sm font-mono text-blue-600 break-all">
+                    <td className="px-4 py-3 text-sm font-mono text-brand-600 break-all">
                       {r.refCode}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700">
@@ -550,7 +550,7 @@ export default function InflowLinksPage() {
                     <td className="px-4 py-3 text-sm" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={() => onCopy(r.refCode, r.refCode)}
-                        className="text-xs text-blue-500 hover:text-blue-700"
+                        className="text-xs text-brand-600 hover:text-brand-700"
                       >
                         {copiedId === r.refCode ? 'コピー済' : 'コピー'}
                       </button>
@@ -573,7 +573,7 @@ export default function InflowLinksPage() {
                       ) : (
                         <button
                           onClick={() => setEditing({ register: r.refCode })}
-                          className="text-xs text-blue-600 hover:underline"
+                          className="text-xs text-brand-600 hover:underline"
                           title="未登録 ref を entry_routes に登録します。流入実績はそのまま引き継がれます。"
                         >
                           登録
@@ -661,7 +661,7 @@ function FragmentRow({
                     <Link
                       key={f.id}
                       href={`/chats?friend=${f.id}`}
-                      className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-gray-100 hover:border-blue-300"
+                      className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-gray-100 hover:border-brand-300"
                     >
                       <span className="text-sm text-gray-800 font-medium truncate">
                         {f.displayName}

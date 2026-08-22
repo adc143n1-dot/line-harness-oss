@@ -105,7 +105,7 @@ export default function EmergencyPage() {
     switch (status) {
       case 'done':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700">
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
@@ -114,13 +114,13 @@ export default function EmergencyPage() {
         )
       case 'executing':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700">
             実行中...
           </span>
         )
       case 'error':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700">
             エラー
           </span>
         )
@@ -154,13 +154,13 @@ export default function EmergencyPage() {
         {actions.map((action) => (
           <div
             key={action.id}
-            className="bg-white rounded-lg shadow-sm border-2 border-red-200 p-5 flex flex-col"
+            className="bg-surface rounded-lg shadow-sm border-2 border-red-200 p-5 flex flex-col"
           >
             <div className="flex items-start justify-between mb-2">
-              <h3 className="text-sm font-bold text-gray-900">{action.label}</h3>
+              <h3 className="text-sm font-bold text-ink">{action.label}</h3>
               {getStatusBadge(action.status)}
             </div>
-            <p className="text-xs text-gray-500 mb-4 flex-1">{action.description}</p>
+            <p className="text-xs text-ink-muted mb-4 flex-1">{action.description}</p>
 
             {action.errorMessage && (
               <p className="text-xs text-red-600 mb-3">{action.errorMessage}</p>
@@ -178,7 +178,7 @@ export default function EmergencyPage() {
                   </button>
                   <button
                     onClick={() => handleCancel(action.id)}
-                    className="flex-1 px-3 py-2 min-h-[44px] text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                    className="flex-1 px-3 py-2 min-h-[44px] text-sm font-medium text-ink-muted bg-surface-alt hover:bg-gray-200 rounded-lg transition-colors"
                   >
                     キャンセル
                   </button>
@@ -198,20 +198,20 @@ export default function EmergencyPage() {
       </div>
 
       {/* Current status section */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-sm font-semibold text-gray-800 mb-3">現在のステータス</h2>
+      <div className="bg-surface rounded-lg shadow-sm border border-edge p-6">
+        <h2 className="text-sm font-semibold text-ink mb-3">現在のステータス</h2>
         <div className="space-y-2">
           {actions.map((action) => (
             <div key={action.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-              <span className="text-sm text-gray-600">{action.label}</span>
+              <span className="text-sm text-ink-muted">{action.label}</span>
               <span className={`text-xs font-medium ${
                 action.status === 'done'
-                  ? 'text-green-600'
+                  ? 'text-emerald-600'
                   : action.status === 'error'
                   ? 'text-red-600'
                   : action.status === 'executing'
-                  ? 'text-yellow-600'
-                  : 'text-gray-400'
+                  ? 'text-amber-600'
+                  : 'text-ink-faint'
               }`}>
                 {action.status === 'idle' && '未実行'}
                 {action.status === 'confirming' && '確認待ち'}

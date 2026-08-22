@@ -84,7 +84,7 @@ export default function UsersTable({
             type="button"
             onClick={() => onPageChange(page - 1)}
             disabled={page <= 1 || loading}
-            className="rounded-md border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            className="rounded-lg border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           >
             前へ
           </button>
@@ -95,7 +95,7 @@ export default function UsersTable({
             type="button"
             onClick={() => onPageChange(page + 1)}
             disabled={page >= totalPages || loading}
-            className="rounded-md border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            className="rounded-lg border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           >
             次へ
           </button>

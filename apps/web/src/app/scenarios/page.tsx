@@ -131,8 +131,7 @@ export default function ScenariosPage() {
         action={
           <button
             onClick={() => setPickerOpen(true)}
-            className="px-4 py-2 min-h-[44px] text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90"
-            style={{ backgroundColor: '#06C755' }}
+            className="px-4 py-2 min-h-[44px] text-sm font-medium text-white rounded-lg bg-brand-600 hover:bg-brand-700 transition-colors"
           >
             + 新規シナリオ
           </button>

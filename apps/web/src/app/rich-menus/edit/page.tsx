@@ -7,6 +7,7 @@ import Header from '@/components/layout/header'
 import { api } from '@/lib/api'
 import { CanvasEditor, type Area } from '@/components/rich-menus/canvas-editor'
 import { AreaProperties } from '@/components/rich-menus/area-properties'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 
 type Page = {
   id: string
@@ -77,6 +78,7 @@ function Editor({
   groupId: string
   router: ReturnType<typeof useRouter>
 }) {
+  const { confirm: confirmDialog, alert: alertDialog } = useConfirm()
   const [group, setGroup] = useState<Group | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -183,9 +185,9 @@ function Editor({
     setSelectedAreaId(null)
   }
 
-  function removePage(pageId: string) {
+  async function removePage(pageId: string) {
     if (pages.length <= 1) {
-      alert('最低 1 ページは必要です。')
+      await alertDialog({ title: 'ページを削除できません', message: '最低 1 ページは必要です。' })
       return
     }
     // 削除しようとしているページが他 page の richmenuswitch から参照されてないか確認。
@@ -200,12 +202,19 @@ function Editor({
         ),
       )
     if (referrers.length > 0) {
-      alert(
-        `このページは ${referrers.map((p) => `「${p.name}」`).join(', ')} のタブ切替アクションから参照されています。先に各 area の遷移先を変更してから削除してください。`,
-      )
+      await alertDialog({
+        title: 'ページを削除できません',
+        message: `このページは ${referrers.map((p) => `「${p.name}」`).join(', ')} のタブ切替アクションから参照されています。先に各 area の遷移先を変更してから削除してください。`,
+      })
       return
     }
-    if (!confirm('このページを削除しますか？')) return
+    const ok = await confirmDialog({
+      title: 'ページを削除',
+      message: 'このページを削除しますか？',
+      confirmLabel: '削除する',
+      tone: 'danger',
+    })
+    if (!ok) return
     const remaining = pages
       .filter((p) => p.id !== pageId)
       .map((p, i) => ({ ...p, orderIndex: i }))
@@ -255,19 +264,26 @@ function Editor({
   }
 
   async function handlePublish() {
-    if (!confirm(
-      'このリッチメニューを LINE 公式アカウントに登録します。\n\n' +
+    const ok = await confirmDialog({
+      title: 'LINE に登録',
+      message:
+        'このリッチメニューを LINE 公式アカウントに登録します。\n\n' +
         '※ この操作だけでは友だちのトーク画面にはまだ表示されません。\n' +
         '友だちに見せるには、登録後に一覧画面の「友だちに表示」を実行してください。\n\n' +
         '続行しますか？',
-    )) return
+      confirmLabel: '登録する',
+    })
+    if (!ok) return
     setPublishing(true)
     setError(null)
     try {
       await persistDraft()
       const res = await api.richMenuGroups.publish(groupId)
       if (!res.success) throw new Error(res.error ?? 'LINE 登録失敗')
-      alert('LINE への登録が完了しました。\n\n友だちに表示するには、一覧画面の「友だちに表示」を実行してください。')
+      await alertDialog({
+        title: '登録完了',
+        message: 'LINE への登録が完了しました。\n\n友だちに表示するには、一覧画面の「友だちに表示」を実行してください。',
+      })
       await reload()
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -277,12 +293,17 @@ function Editor({
   }
 
   async function handleUnpublish() {
-    if (!confirm(
-      'このリッチメニューを LINE から取り下げます。\n\n' +
+    const ok = await confirmDialog({
+      title: 'LINE から取り下げ',
+      message:
+        'このリッチメニューを LINE から取り下げます。\n\n' +
         '・LINE 公式アカウント上のメニュー登録 (alias / richmenu) をすべて削除\n' +
         '・現在このメニューを見ている友だちのトーク画面からも消えます\n\n' +
         '取り下げ後はもう一度「LINE に登録」すれば再公開できます。\n\n続行しますか？',
-    )) return
+      confirmLabel: '取り下げる',
+      tone: 'danger',
+    })
+    if (!ok) return
     setUnpublishing(true)
     setError(null)
     try {
@@ -290,9 +311,9 @@ function Editor({
       if (!res.success) throw new Error(res.error ?? '取り下げ失敗')
       const warnings = res.data?.warnings ?? []
       if (warnings.length > 0) {
-        alert(`取り下げ完了 (一部 warnings あり):\n\n${warnings.join('\n')}`)
+        await alertDialog({ title: '取り下げ完了', message: `取り下げ完了 (一部 warnings あり):\n\n${warnings.join('\n')}` })
       } else {
-        alert('LINE 上のメニュー登録を取り下げました。')
+        await alertDialog({ title: '取り下げ完了', message: 'LINE 上のメニュー登録を取り下げました。' })
       }
       await reload()
     } catch (e) {
@@ -305,10 +326,12 @@ function Editor({
   async function handleDelete() {
     if (!group) return
     if (group.status === 'published') {
-      alert(
-        'このリッチメニューは LINE に登録中です。\n\n' +
+      await alertDialog({
+        title: '削除できません',
+        message:
+          'このリッチメニューは LINE に登録中です。\n\n' +
           '先に「LINE から取り下げ」を実行してから削除してください。',
-      )
+      })
       return
     }
     // 二重確認: メニュー名を入力してもらう
@@ -317,7 +340,7 @@ function Editor({
     )
     if (typed === null) return
     if (typed !== group.name) {
-      alert('入力が一致しませんでした。削除をキャンセルしました。')
+      await alertDialog({ title: '削除をキャンセルしました', message: '入力が一致しませんでした。削除をキャンセルしました。' })
       return
     }
     try {
@@ -325,13 +348,13 @@ function Editor({
       if (!res.success) throw new Error(res.error ?? '削除失敗')
       router.push('/rich-menus')
     } catch (e) {
-      alert(e instanceof Error ? e.message : String(e))
+      await alertDialog({ title: 'エラー', message: e instanceof Error ? e.message : String(e) })
     }
   }
 
   async function handleImageUpload(pageId: string, file: File) {
     if (pageId.startsWith('tmp-')) {
-      alert('まず Save Draft でページを保存してから画像を upload してください。')
+      await alertDialog({ title: '画像をアップロードできません', message: 'まず Save Draft でページを保存してから画像を upload してください。' })
       return
     }
     setBusy(true)
@@ -344,7 +367,7 @@ function Editor({
       })
       setImageVersion((v) => v + 1)
     } catch (e) {
-      alert(e instanceof Error ? e.message : String(e))
+      await alertDialog({ title: 'エラー', message: e instanceof Error ? e.message : String(e) })
     } finally {
       setBusy(false)
     }
@@ -404,8 +427,7 @@ function Editor({
             <button
               onClick={handlePublish}
               disabled={saving || publishing || unpublishing || busy}
-              className="px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50 transition-opacity hover:opacity-90"
-              style={{ backgroundColor: '#06C755' }}
+              className="px-4 py-2 text-sm font-medium text-white rounded-lg bg-line hover:bg-line-dark disabled:opacity-50 transition-colors"
             >
               {publishing
                 ? 'LINE 登録中...'
@@ -443,10 +465,9 @@ function Editor({
               }}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                 active
-                  ? 'text-white'
+                  ? 'bg-brand-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
-              style={active ? { backgroundColor: '#06C755' } : undefined}
             >
               {p.name}
               {p.id.startsWith('tmp-') && (
@@ -488,7 +509,10 @@ function Editor({
                     setSelectedAreaId(null)
                   }
                 } else {
-                  alert(`action: ${area.actionType}\n${JSON.stringify(area.actionData)}`)
+                  alertDialog({
+                    title: 'アクション',
+                    message: `action: ${area.actionType}\n${JSON.stringify(area.actionData)}`,
+                  })
                 }
               }}
             />
@@ -507,7 +531,7 @@ function Editor({
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
               />
               <p className="mt-1 text-[11px] text-gray-500">管理画面でだけ使う名前 (友だちには見えない)</p>
             </label>
@@ -517,7 +541,7 @@ function Editor({
                 value={chatBarText}
                 onChange={(e) => setChatBarText(e.target.value)}
                 maxLength={14}
-                className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
               />
               <p className="mt-1 text-[11px] text-gray-500">14 文字以内 (友だちのトーク画面でメニューを開く前に表示)</p>
             </label>
@@ -550,7 +574,7 @@ function Editor({
                   onChange={(e) =>
                     updatePage(activePage.id, { name: e.target.value })
                   }
-                  className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
               </label>
               <div>
@@ -665,8 +689,7 @@ function Editor({
             </div>
             <button
               onClick={handleDelete}
-              className="shrink-0 px-3 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90"
-              style={{ backgroundColor: '#dc2626' }}
+              className="shrink-0 px-3 py-2 text-sm font-medium text-white rounded-lg bg-danger hover:bg-red-700 transition-colors"
             >
               削除
             </button>

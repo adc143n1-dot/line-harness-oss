@@ -4,6 +4,9 @@ import { useState, useEffect, useCallback } from 'react'
 import { api } from '@/lib/api'
 import { useAccount } from '@/contexts/account-context'
 import Header from '@/components/layout/header'
+import Button from '@/components/ui/button'
+import { useConfirm } from '@/components/ui/confirm-dialog'
+import { Icon } from '@/components/ui/icons'
 import EditDialog, { type AutoReplyDraft } from '@/components/auto-replies/edit-dialog'
 
 interface EffectiveAccount {
@@ -36,6 +39,7 @@ interface TemplateLite {
 const matchTypeLabel: Record<'exact' | 'contains', string> = { exact: '完全一致', contains: '包含' }
 
 export default function AutoRepliesPage() {
+  const { confirm: confirmDialog } = useConfirm()
   const { selectedAccountId, accounts } = useAccount()
   const [items, setItems] = useState<AutoReply[]>([])
   const [templates, setTemplates] = useState<TemplateLite[]>([])
@@ -97,10 +101,10 @@ export default function AutoRepliesPage() {
             return (
               <span
                 key={ea.accountId}
-                className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-green-100 text-green-700 font-medium"
+                className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-emerald-50 text-emerald-700 font-medium"
                 title={`${label}: 返信あり (${ea.via === 'automation' ? 'automation 経由' : 'inline'})`}
               >
-                ✓ {label}{ea.via === 'automation' && <span className="text-green-500">⚙</span>}
+                ✓ {label}{ea.via === 'automation' && <span className="text-emerald-500">⚙</span>}
               </span>
             )
           }
@@ -121,23 +125,29 @@ export default function AutoRepliesPage() {
 
   const renderResponseCell = (r: AutoReply) => {
     if (r.responseType === 'silent') return <span className="text-gray-400 text-xs">silent</span>
-    if (r.responseType === 'flex') return <span className="px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 text-[10px] font-medium">📋 flex</span>
-    if (r.responseType === 'image') return <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 text-[10px] font-medium">🖼️ image</span>
-    return <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 text-[10px] font-medium">📝 text</span>
+    if (r.responseType === 'flex') return <span className="px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 text-[10px] font-medium">flex</span>
+    if (r.responseType === 'image') return <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 text-[10px] font-medium">image</span>
+    return <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 text-[10px] font-medium">text</span>
   }
 
   const renderTemplateCell = (r: AutoReply) => {
     if (!r.templateId) return <span className="text-[11px] text-gray-400 italic">(inline)</span>
     const tpl = templateById.get(r.templateId)
     return (
-      <a href="/templates" className="text-blue-600 hover:underline text-xs">
-        🔗 {tpl?.name ?? `(未知 ${r.templateId.slice(0, 6)})`}
+      <a href="/templates" className="inline-flex items-center gap-1 text-brand-600 hover:underline text-xs">
+        <Icon name="link" className="w-3 h-3" />
+        {tpl?.name ?? `(未知 ${r.templateId.slice(0, 6)})`}
       </a>
     )
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('このルールを削除しますか？')) return
+    if (!(await confirmDialog({
+      title: 'ルールを削除',
+      message: 'このルールを削除しますか？',
+      tone: 'danger',
+      confirmLabel: '削除する',
+    }))) return
     try {
       await api.autoReplies.delete(id)
       load()
@@ -151,7 +161,7 @@ export default function AutoRepliesPage() {
       <Header
         title="自動返信ルール"
         action={
-          <button
+          <Button
             onClick={() => setEditing({
               keyword: '',
               matchType: 'exact',
@@ -161,11 +171,9 @@ export default function AutoRepliesPage() {
               lineAccountId: selectedAccountId,
               isActive: true,
             })}
-            className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90"
-            style={{ backgroundColor: '#06C755' }}
           >
             + 新規ルール
-          </button>
+          </Button>
         }
       />
 
@@ -176,7 +184,7 @@ export default function AutoRepliesPage() {
       )}
 
       <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800 space-y-1">
-        <p><span className="inline-flex items-center px-1.5 py-0.5 rounded bg-green-100 text-green-700">✓ アカ名</span> 返信あり (inline) / <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-green-100 text-green-700">✓ アカ名 ⚙</span> automation 経由</p>
+        <p><span className="inline-flex items-center px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700">✓ アカ名</span> 返信あり (inline) / <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700">✓ アカ名 ⚙</span> automation 経由</p>
         <p><span className="inline-flex items-center px-1.5 py-0.5 rounded bg-amber-50 text-amber-700">⚠ アカ名</span> silent rule のみ — match するが返信しない (同 keyword の automation rule 未登録)</p>
         <p><span className="inline-flex items-center px-1.5 py-0.5 rounded bg-gray-50 text-gray-300 line-through">アカ名</span> 適用外 (line_account_id が別アカに固定)</p>
       </div>
@@ -209,7 +217,7 @@ export default function AutoRepliesPage() {
                     <td className="px-4 py-3">{renderTemplateCell(r)}</td>
                     <td className="px-4 py-3">{renderEffectiveCell(r)}</td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${r.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${r.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
                         {r.isActive ? '有効' : '無効'}
                       </span>
                     </td>
@@ -225,13 +233,13 @@ export default function AutoRepliesPage() {
                           lineAccountId: r.lineAccountId,
                           isActive: r.isActive,
                         })}
-                        className="px-2.5 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded-md"
+                        className="px-2.5 py-1 text-xs font-medium text-brand-600 hover:bg-brand-50 rounded-lg"
                       >
                         編集
                       </button>
                       <button
                         onClick={() => handleDelete(r.id)}
-                        className="ml-1 px-2.5 py-1 text-xs font-medium text-red-500 hover:bg-red-50 rounded-md"
+                        className="ml-1 px-2.5 py-1 text-xs font-medium text-red-500 hover:bg-red-50 rounded-lg"
                       >
                         削除
                       </button>

@@ -136,7 +136,7 @@ export default function UsersPage() {
           type="button"
           onClick={() => setPendingForceRefresh(true)}
           disabled={refreshing}
-          className="mt-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          className="mt-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           title="worker キャッシュをバイパスして再集計"
         >
           {refreshing ? '再計算中…' : '再計算'}

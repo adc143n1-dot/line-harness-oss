@@ -5,14 +5,14 @@ import Header from '@/components/layout/header'
 import { GUIDE_GROUPS, type Callout, type ScreenBadge } from '@/data/guide-content'
 
 const BADGE_STYLE: Record<ScreenBadge, { label: string; className: string }> = {
-  new: { label: 'NEW', className: 'bg-green-100 text-green-700' },
-  owner: { label: 'オーナー限定', className: 'bg-yellow-100 text-yellow-800' },
-  admin: { label: '管理者以上', className: 'bg-blue-100 text-blue-800' },
-  danger: { label: '危険操作', className: 'bg-red-100 text-red-700' },
+  new: { label: 'NEW', className: 'bg-brand-100 text-brand-700' },
+  owner: { label: 'オーナー限定', className: 'bg-amber-50 text-amber-700' },
+  admin: { label: '管理者以上', className: 'bg-sky-50 text-sky-700' },
+  danger: { label: '危険操作', className: 'bg-red-50 text-red-700' },
 }
 
 const CALLOUT_STYLE: Record<Callout['kind'], string> = {
-  info: 'bg-gray-50 border-gray-200 text-gray-600',
+  info: 'bg-surface-alt border-edge text-ink-muted',
   caution: 'bg-amber-50 border-amber-200 text-amber-700',
   danger: 'bg-red-50 border-red-200 text-red-700',
 }
@@ -50,26 +50,26 @@ export default function GuidePage() {
             href="/staff-guide.html"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-gray-300 hover:bg-gray-50 whitespace-nowrap"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-edge text-ink hover:bg-surface-alt whitespace-nowrap"
           >
             スタッフに共有用リンクを開く ↗
           </a>
         }
       />
 
-      <div className="rounded-lg border border-gray-200 bg-white p-4">
-        <p className="text-xs text-gray-500 mb-3">
+      <div className="rounded-lg border border-edge bg-surface p-4">
+        <p className="text-xs text-ink-muted mb-3">
           共有用リンク（ログイン不要・そのままURLをスタッフに送れます）:{' '}
-          <code className="text-[11px] bg-gray-100 px-1.5 py-0.5 rounded">/staff-guide.html</code>
+          <code className="text-[11px] bg-surface-alt px-1.5 py-0.5 rounded">/staff-guide.html</code>
         </p>
         <input
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="画面名やキーワードで検索…"
-          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+          className="w-full border border-edge rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-brand-500"
         />
-        <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3 text-xs text-gray-500">
+        <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3 text-xs text-ink-muted">
           <span className="inline-flex items-center gap-1.5"><ScreenBadgePill badge="new" />今回追加された新機能</span>
           <span className="inline-flex items-center gap-1.5"><ScreenBadgePill badge="owner" />オーナー権限でしか開けない</span>
           <span className="inline-flex items-center gap-1.5"><ScreenBadgePill badge="admin" />スタッフには表示されない</span>
@@ -78,34 +78,34 @@ export default function GuidePage() {
       </div>
 
       {filteredGroups.length === 0 ? (
-        <div className="rounded-lg border border-gray-200 bg-white p-8 text-center text-sm text-gray-400">
+        <div className="rounded-lg border border-edge bg-surface p-8 text-center text-sm text-ink-faint">
           「{query}」に一致する画面がありません
         </div>
       ) : (
         filteredGroups.map((group) => (
           <section key={group.key} className="space-y-3">
-            <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider pt-2">{group.label}</h2>
+            <h2 className="text-sm font-bold text-brand-600 uppercase tracking-wider pt-2">{group.label}</h2>
 
             {group.screens.map((screen) => (
-              <article key={screen.id} className="rounded-lg border border-gray-200 bg-white p-5">
+              <article key={screen.id} className="rounded-lg border border-edge bg-surface p-5">
                 <div className="flex items-start justify-between gap-3 flex-wrap">
-                  <h3 className="text-sm font-bold text-gray-900">{screen.title}</h3>
+                  <h3 className="text-sm font-bold text-ink">{screen.title}</h3>
                   {screen.badges && screen.badges.length > 0 && (
                     <div className="flex gap-1.5 flex-wrap">
                       {screen.badges.map((b) => <ScreenBadgePill key={b} badge={b} />)}
                     </div>
                   )}
                 </div>
-                <p className="text-xs text-gray-500 mt-1.5">{screen.purpose}</p>
+                <p className="text-xs text-ink-muted mt-1.5">{screen.purpose}</p>
 
                 {screen.blocks && screen.blocks.length > 0 && (
                   <div className="mt-3 space-y-3">
                     {screen.blocks.map((block, i) => (
                       <div key={i}>
                         {block.label && (
-                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1.5">{block.label}</p>
+                          <p className="text-[10px] font-bold text-ink-faint uppercase tracking-wide mb-1.5">{block.label}</p>
                         )}
-                        <ul className="list-disc list-outside pl-4 space-y-1 text-xs text-gray-700">
+                        <ul className="list-disc list-outside pl-4 space-y-1 text-xs text-ink">
                           {block.items.map((item, j) => <li key={j}>{item}</li>)}
                         </ul>
                       </div>
@@ -124,11 +124,11 @@ export default function GuidePage() {
                 )}
 
                 {screen.flow && screen.flow.length > 0 && (
-                  <div className="mt-3 flex flex-wrap items-center gap-1.5 text-[11px] text-gray-500">
+                  <div className="mt-3 flex flex-wrap items-center gap-1.5 text-[11px] text-ink-muted">
                     {screen.flow.map((step, i) => (
                       <span key={i} className="inline-flex items-center gap-1.5">
-                        <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded-md whitespace-nowrap">{step}</span>
-                        {i < screen.flow!.length - 1 && <span className="text-gray-300">→</span>}
+                        <span className="bg-surface-alt text-ink px-2 py-1 rounded-md whitespace-nowrap">{step}</span>
+                        {i < screen.flow!.length - 1 && <span className="text-ink-faint">→</span>}
                       </span>
                     ))}
                   </div>

@@ -91,7 +91,7 @@ export default function StaffList({
                   style={{
                     background: s.is_designation_optional
                       ? '#9CA3AF'
-                      : 'linear-gradient(135deg, #06C755 0%, #04a046 100%)',
+                      : 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
                   }}
                 >
                   {s.is_designation_optional ? '指' : s.display_name.slice(0, 1)}

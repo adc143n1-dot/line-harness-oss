@@ -324,7 +324,7 @@ function AffiliatorsTab() {
       <div className="mb-4 flex justify-end">
         <button
           onClick={() => setCreateOpen(true)}
-          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md"
+          className="px-4 py-2 text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg"
         >
           + 新規作成
         </button>
@@ -383,7 +383,7 @@ function AffiliatorsTab() {
                       <td className="px-4 py-3 text-sm font-mono text-blue-600">{row.code}</td>
                       <td className="px-4 py-3 text-sm text-center">
                         {row.friendId
-                          ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">あり</span>
+                          ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700">あり</span>
                           : <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">なし</span>
                         }
                       </td>
@@ -396,7 +396,7 @@ function AffiliatorsTab() {
                       <td className="px-4 py-3 text-sm text-right text-gray-500">{row.commissionRate}%</td>
                       <td className="px-4 py-3 text-sm">
                         {row.isActive
-                          ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">有効</span>
+                          ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700">有効</span>
                           : <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">無効</span>
                         }
                       </td>
@@ -545,7 +545,7 @@ function AffiliatorsTab() {
                                             <td className="py-1 pr-4 text-right font-semibold text-gray-900">{link.click_count.toLocaleString()}</td>
                                             <td className="py-1">
                                               {link.is_active
-                                                ? <span className="text-xs text-green-600">有効</span>
+                                                ? <span className="text-xs text-emerald-600">有効</span>
                                                 : <span className="text-xs text-gray-400">無効</span>
                                               }
                                             </td>
@@ -606,7 +606,7 @@ function AffiliatorsTab() {
                                       <button
                                         onClick={() => { void loadMoreJourneys(row.id) }}
                                         disabled={journeyLoadingMore}
-                                        className="mt-3 px-4 py-2 text-sm text-blue-700 hover:bg-blue-100 disabled:opacity-50 rounded-md border border-blue-200"
+                                        className="mt-3 px-4 py-2 text-sm text-brand-700 hover:bg-brand-100 disabled:opacity-50 rounded-lg border border-brand-200"
                                       >
                                         {journeyLoadingMore ? '読み込み中...' : 'さらに読み込む'}
                                       </button>
@@ -748,11 +748,11 @@ function CreateAffiliateModal({
               <input
                 readOnly
                 value={issuedUrl}
-                className="flex-1 px-3 py-2 text-sm font-mono border border-gray-300 rounded-md bg-gray-50 text-gray-800"
+                className="flex-1 px-3 py-2 text-sm font-mono border border-gray-300 rounded-lg bg-gray-50 text-gray-800"
               />
               <button
                 onClick={() => { void handleCopy() }}
-                className="px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md whitespace-nowrap"
+                className="px-3 py-2 text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg whitespace-nowrap"
               >
                 {copied ? 'コピー済' : 'コピー'}
               </button>
@@ -760,7 +760,7 @@ function CreateAffiliateModal({
             <div className="flex justify-end">
               <button
                 onClick={onClose}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg"
               >
                 閉じる
               </button>
@@ -775,7 +775,7 @@ function CreateAffiliateModal({
                 LINE 友だち <span className="text-red-500">*</span>
               </label>
               {selected ? (
-                <div className="flex items-center justify-between px-3 py-2 border border-gray-300 rounded-md bg-gray-50">
+                <div className="flex items-center justify-between px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
                   <span className="text-sm text-gray-800">
                     {selected.displayName ?? <span className="text-gray-400 italic">不明</span>}
                   </span>
@@ -792,7 +792,7 @@ function CreateAffiliateModal({
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="名前で検索..."
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:outline-none"
                   />
                   {(searching || options.length > 0) && search.trim() && (
                     <div className="absolute z-10 mt-1 w-full max-h-56 overflow-y-auto bg-white border border-gray-200 rounded-md shadow-lg">
@@ -830,7 +830,7 @@ function CreateAffiliateModal({
                   value={commissionRate}
                   onChange={(e) => setCommissionRate(e.target.value)}
                   placeholder="例: 10"
-                  className="w-full px-3 py-2 pr-8 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  className="w-full px-3 py-2 pr-8 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:outline-none"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">%</span>
               </div>
@@ -850,14 +850,14 @@ function CreateAffiliateModal({
             <div className="flex justify-end gap-2 pt-2">
               <button
                 onClick={onClose}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md"
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg"
               >
                 キャンセル
               </button>
               <button
                 onClick={() => { void handleSubmit() }}
                 disabled={submitting || !selected}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-md"
+                className="px-4 py-2 text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 disabled:opacity-50 rounded-lg"
               >
                 {submitting ? '作成中...' : '作成'}
               </button>
@@ -1015,7 +1015,7 @@ function OfferFormModal({ initial, accounts, tags, scenarios, onClose, onSaved }
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="例: 無料体験申込"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
 
@@ -1026,7 +1026,7 @@ function OfferFormModal({ initial, accounts, tags, scenarios, onClose, onSaved }
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
               placeholder="案件の説明（任意）"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
             />
           </div>
 
@@ -1039,7 +1039,7 @@ function OfferFormModal({ initial, accounts, tags, scenarios, onClose, onSaved }
               value={rewardAmount}
               onChange={(e) => setRewardAmount(e.target.value)}
               placeholder="例: 3000"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
 
@@ -1052,7 +1052,7 @@ function OfferFormModal({ initial, accounts, tags, scenarios, onClose, onSaved }
               value={rewardMiles}
               onChange={(e) => setRewardMiles(e.target.value)}
               placeholder="例: 500"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
             <p className="mt-1 text-[11px] text-gray-400">承認された紹介1件ごとに紹介者へ付与します</p>
           </div>
@@ -1062,7 +1062,7 @@ function OfferFormModal({ initial, accounts, tags, scenarios, onClose, onSaved }
             <select
               value={lineAccountId}
               onChange={(e) => setLineAccountId(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             >
               <option value="">— 選択しない —</option>
               {accounts.map((acc) => (
@@ -1078,7 +1078,7 @@ function OfferFormModal({ initial, accounts, tags, scenarios, onClose, onSaved }
             <select
               value={tagId}
               onChange={(e) => setTagId(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             >
               <option value="">— 選択しない —</option>
               {tags.map((tag) => (
@@ -1094,7 +1094,7 @@ function OfferFormModal({ initial, accounts, tags, scenarios, onClose, onSaved }
             <select
               value={scenarioId}
               onChange={(e) => setScenarioId(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             >
               <option value="">— 選択しない —</option>
               {scenarios.map((s) => (
@@ -1111,7 +1111,7 @@ function OfferFormModal({ initial, accounts, tags, scenarios, onClose, onSaved }
                 type="button"
                 onClick={() => setIsActive((v) => !v)}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  isActive ? 'bg-blue-600' : 'bg-gray-200'
+                  isActive ? 'bg-brand-600' : 'bg-gray-200'
                 }`}
               >
                 <span
@@ -1135,7 +1135,7 @@ function OfferFormModal({ initial, accounts, tags, scenarios, onClose, onSaved }
           <button
             onClick={() => { void handleSubmit() }}
             disabled={submitting}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg"
+            className="px-4 py-2 text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 disabled:opacity-50 rounded-lg"
           >
             {submitting ? '保存中...' : isEdit ? '更新' : '作成'}
           </button>
@@ -1219,7 +1219,7 @@ function ApprovalQueue() {
             onClick={() => setStatus(s)}
             className={`px-4 py-1.5 text-sm rounded-full font-medium transition-colors ${
               status === s
-                ? 'bg-blue-600 text-white'
+                ? 'bg-brand-600 text-white'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
@@ -1300,14 +1300,14 @@ function ApprovalQueue() {
                         <button
                           onClick={() => { void handleApprove(item.eventId) }}
                           disabled={actioning === item.eventId}
-                          className="px-3 py-1 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-md"
+                          className="px-3 py-1 text-xs font-medium text-white bg-brand-600 hover:bg-brand-700 disabled:opacity-50 rounded-lg"
                         >
                           承認
                         </button>
                         <button
                           onClick={() => { void handleReject(item.eventId) }}
                           disabled={actioning === item.eventId}
-                          className="px-3 py-1 text-xs font-medium text-white bg-red-500 hover:bg-red-600 disabled:opacity-50 rounded-md"
+                          className="px-3 py-1 text-xs font-medium text-white bg-red-500 hover:bg-red-600 disabled:opacity-50 rounded-lg"
                         >
                           却下
                         </button>
@@ -1409,7 +1409,7 @@ function OffersList({
                   </td>
                   <td className="px-4 py-3 text-center">
                     {offer.isActive ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">有効</span>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700">有効</span>
                     ) : (
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">無効</span>
                     )}
@@ -1504,7 +1504,7 @@ function OffersTab() {
       <div className="mb-4 flex justify-end">
         <button
           onClick={handleOpenCreate}
-          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md"
+          className="px-4 py-2 text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg"
         >
           + 新規案件
         </button>

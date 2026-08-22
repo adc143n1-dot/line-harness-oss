@@ -27,7 +27,7 @@ export default function InboxFilters({
         value={q}
         onChange={(e) => onChange({ q: e.target.value })}
         placeholder="名前で検索"
-        className="min-w-[240px] flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm"
+        className="min-w-[240px] flex-1 rounded-lg border border-edge px-3 py-2 text-sm"
       />
       <label className="flex items-center gap-2 text-sm text-gray-700">
         <input
@@ -40,7 +40,7 @@ export default function InboxFilters({
       <select
         value={account}
         onChange={(e) => onChange({ account: e.target.value })}
-        className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+        className="rounded-lg border border-edge px-3 py-2 text-sm"
       >
         <option value="">全アカウント</option>
         {accountOptions.map((a) => (

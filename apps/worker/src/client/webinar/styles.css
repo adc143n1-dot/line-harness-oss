@@ -4,6 +4,7 @@
  */
 @import "tailwindcss/theme.css";
 @import "tailwindcss/utilities.css";
+@import '../design-tokens.css';
 
 /* index.html の friend-add 用 inline (body flex センタリング + #app 幅制限) を
  * フルスクリーンのライブビューアでは解除する。 */
@@ -97,7 +98,7 @@ body.wb-active #app {
 }
 :where(body.wb-active) input[type='radio'],
 :where(body.wb-active) input[type='checkbox'] {
-  accent-color: #06c755;
+  accent-color: #2563eb;
   width: 18px;
   height: 18px;
 }

@@ -196,7 +196,7 @@ export default function MultiAccountDedupSection({
       <div>
         <p className="text-xs font-medium text-gray-700 mb-2">タグ絞込 (任意)</p>
         <select
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
           value={targetTagId ?? ''}
           onChange={(e) => onTargetTagIdChange(e.target.value || null)}
         >
@@ -254,7 +254,7 @@ export default function MultiAccountDedupSection({
               <span className="text-gray-700">ユニーク配信</span>
               <span>{preview.uniqueRecipients.toLocaleString()} 通</span>
             </div>
-            <div className="flex justify-between text-green-700">
+            <div className="flex justify-between text-emerald-700">
               <span>削減</span>
               <span>{preview.reduction.toLocaleString()} 通 ({(preview.reductionRate * 100).toFixed(1)}%)</span>
             </div>

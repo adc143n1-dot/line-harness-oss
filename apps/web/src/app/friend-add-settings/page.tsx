@@ -7,6 +7,7 @@ import type { Scenario, LineAccount } from '@line-crm/shared'
 import { api } from '@/lib/api'
 import { useAccount } from '@/contexts/account-context'
 import Header from '@/components/layout/header'
+import { Icon } from '@/components/ui/icons'
 
 type ScenarioWithCount = Scenario & {
   stepCount?: number
@@ -182,7 +183,7 @@ export default function FriendAddSettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-app">
       <Header
         title="友だち追加時設定"
         description="各 LINE アカウントに友だち追加した瞬間に何が配信されるかを管理します。アクティブなシナリオが0件のアカウントは新規友だちに何も届きません。"
@@ -240,7 +241,10 @@ function OrphanSection({
   return (
     <div className="bg-white border border-amber-200 rounded-lg overflow-hidden">
       <div className="px-4 py-3 border-b border-amber-200 bg-amber-50">
-        <h2 className="font-semibold text-amber-900">⚠ 孤児シナリオ (削除済みアカウント所属)</h2>
+        <h2 className="font-semibold text-amber-900 flex items-center gap-1.5">
+          <Icon name="warning" className="w-4 h-4 shrink-0" />
+          孤児シナリオ (削除済みアカウント所属)
+        </h2>
         <p className="text-xs text-amber-700 mt-1">
           所属していた LINE アカウントが削除されたシナリオです。webhook は元の line_account_id でしか発火しないため実質配信されません。残しておく理由がなければ削除推奨。
         </p>
@@ -289,12 +293,13 @@ function AccountSection({
           <span className="text-xs text-gray-400">{row.account.channelId}</span>
         </div>
         {isHealthy ? (
-          <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 font-medium">
+          <span className="text-xs px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 font-medium">
             アクティブ {activeCount} 件
           </span>
         ) : (
-          <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-700 font-medium">
-            ⚠ アクティブ 0 件 — 新規友だちに何も届きません
+          <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-red-50 text-red-700 font-medium">
+            <Icon name="warning" className="w-3.5 h-3.5 shrink-0" />
+            アクティブ 0 件 — 新規友だちに何も届きません
           </span>
         )}
       </div>
@@ -309,7 +314,7 @@ function AccountSection({
           <button
             type="button"
             onClick={onCreate}
-            className="ml-2 text-green-700 underline hover:text-green-800"
+            className="ml-2 text-brand-600 underline hover:text-brand-700"
           >
             このアカウントでシナリオを作成
           </button>
@@ -325,7 +330,7 @@ function AccountSection({
                     {scenario.isGlobal && (
                       <span
                         title="このシナリオは line_account_id=NULL のため全アカウント共通で発火します"
-                        className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-medium"
+                        className="text-[10px] px-1.5 py-0.5 rounded bg-brand-100 text-brand-700 font-medium"
                       >
                         全アカ共通
                       </span>
@@ -367,7 +372,7 @@ function Toggle({
       onClick={onClick}
       disabled={disabled}
       className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
-        value ? 'bg-green-500' : 'bg-gray-300'
+        value ? 'bg-emerald-500' : 'bg-gray-300'
       } ${disabled ? 'opacity-50 cursor-wait' : 'cursor-pointer'}`}
       aria-label={value ? '無効化' : '有効化'}
     >

@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import Header from '@/components/layout/header'
+import Button from '@/components/ui/button'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 import { api, bookingApi, type BookingMenu } from '@/lib/api'
 import type { Tag } from '@line-crm/shared'
 import { useAccount } from '@/contexts/account-context'
@@ -20,6 +22,7 @@ const EMPTY: Partial<BookingMenu> = {
 }
 
 export default function MenusPage() {
+  const { confirm: confirmDialog } = useConfirm()
   const { selectedAccountId, selectedAccount } = useAccount()
   const [items, setItems] = useState<BookingMenu[]>([])
   const [editing, setEditing] = useState<Partial<BookingMenu> | null>(null)
@@ -96,7 +99,12 @@ export default function MenusPage() {
 
   async function remove(id: string) {
     if (!selectedAccountId) return
-    if (!confirm('このメニューを削除しますか？（既存予約は維持されます）')) return
+    if (!(await confirmDialog({
+      title: 'メニューを削除',
+      message: 'このメニューを削除しますか？（既存予約は維持されます）',
+      tone: 'danger',
+      confirmLabel: '削除する',
+    }))) return
     await bookingApi.deleteMenu(selectedAccountId, id)
     await load()
   }
@@ -107,14 +115,9 @@ export default function MenusPage() {
         title="メニュー"
         description="予約メニューの登録・編集"
         action={
-          <button
-            onClick={() => setEditing(EMPTY)}
-            disabled={!selectedAccountId}
-            className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-opacity hover:opacity-90 disabled:opacity-50"
-            style={{ backgroundColor: '#06C755' }}
-          >
+          <Button onClick={() => setEditing(EMPTY)} disabled={!selectedAccountId}>
             + 新規メニュー
-          </button>
+          </Button>
         }
       />
 
@@ -172,7 +175,7 @@ export default function MenusPage() {
                     <td className="px-4 py-3 text-sm text-right tabular-nums text-gray-500">{m.sort_order}</td>
                     <td className="px-4 py-3 text-center">
                       {m.is_active ? (
-                        <span className="inline-block px-2 py-0.5 rounded bg-green-100 text-green-800 text-xs">ON</span>
+                        <span className="inline-block px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-xs">ON</span>
                       ) : (
                         <span className="inline-block px-2 py-0.5 rounded bg-gray-100 text-gray-500 text-xs">OFF</span>
                       )}
@@ -261,7 +264,7 @@ function Modal({
               type="text"
               value={form.name ?? ''}
               onChange={(e) => set('name', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
               placeholder="例: カット"
             />
           </Field>
@@ -270,7 +273,7 @@ function Modal({
               type="text"
               value={form.category_label ?? ''}
               onChange={(e) => set('category_label', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
               placeholder="例: カット / カラー / パーマ"
             />
           </Field>
@@ -278,7 +281,7 @@ function Modal({
             <textarea
               value={form.description ?? ''}
               onChange={(e) => set('description', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-y"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 resize-y"
               rows={2}
               placeholder="顧客に表示される説明文"
             />
@@ -311,7 +314,7 @@ function Modal({
             <select
               value={form.auto_tag_id ?? ''}
               onChange={(e) => set('auto_tag_id', e.target.value === '' ? null : e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             >
               <option value="">— なし —</option>
               {tags.map((t) => (
@@ -336,20 +339,12 @@ function Modal({
           {err && <p className="text-xs text-red-600">{err}</p>}
         </div>
         <div className="px-6 py-4 border-t border-gray-200 flex gap-2 justify-end">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg"
-          >
+          <Button variant="secondary" onClick={onClose}>
             キャンセル
-          </button>
-          <button
-            onClick={submit}
-            disabled={saving}
-            className="px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50"
-            style={{ backgroundColor: '#06C755' }}
-          >
+          </Button>
+          <Button onClick={submit} disabled={saving}>
             {saving ? '保存中…' : '保存'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -380,7 +375,7 @@ function NumField({
         type="number"
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 tabular-nums"
+        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 tabular-nums"
       />
     </Field>
   )

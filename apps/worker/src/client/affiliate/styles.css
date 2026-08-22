@@ -5,6 +5,7 @@
  */
 @import "tailwindcss/theme.css";
 @import "tailwindcss/utilities.css";
+@import '../design-tokens.css';
 
 /* ─── affiliate namespace の inline 上書き ─────────────
  * index.html の friend-add 用 inline:
@@ -99,9 +100,9 @@ body.af-active #app {
  * ボタン・バッジの流儀を一致させ、予約フォームと同じ見た目にする。
  */
 
-/* LINE 緑テーマ */
-.af-line-green { background-color: #06C755; }
-.af-line-green-text { color: #06C755; }
+/* ブランド青テーマ (旧 LINE 緑。クラス名は markup 互換のため据え置き) */
+.af-line-green { background-color: #2563eb; }
+.af-line-green-text { color: #1d4ed8; }
 
 /* fade-in / slide-up アニメーション (salon-booking と同じ言語) */
 @keyframes af-fade-in {
@@ -120,8 +121,8 @@ body.af-active #app {
 @keyframes af-spin { to { transform: rotate(360deg); } }
 .af-spinner {
   width: 32px; height: 32px;
-  border: 3px solid #e5e7eb;
-  border-top-color: #06C755;
+  border: 3px solid #dae3ee;
+  border-top-color: #2563eb;
   border-radius: 9999px;
   animation: af-spin 0.8s linear infinite;
 }
@@ -173,7 +174,7 @@ body.af-active #app {
 .af-mileage-empty {
   padding: 18px 10px 6px;
   text-align: center;
-  color: #9ca3af;
+  color: #8695ac;
   font-size: 12px;
   line-height: 1.6;
 }
@@ -192,8 +193,8 @@ body.af-active #app {
   width: 8px;
   height: 8px;
   flex-shrink: 0;
-  border-right: 2px solid #9ca3af;
-  border-bottom: 2px solid #9ca3af;
+  border-right: 2px solid #8695ac;
+  border-bottom: 2px solid #8695ac;
   transform: rotate(45deg) translateY(-2px);
   transition: transform 0.18s ease;
 }
@@ -202,20 +203,20 @@ body.af-active #app {
 }
 .af-history-content { margin-top: 14px; }
 
-.af-history-list { border-top: 1px solid #f3f4f6; }
+.af-history-list { border-top: 1px solid #ecf2f9; }
 .af-history-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   padding: 12px 0;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid #ecf2f9;
 }
 .af-history-row:last-child { border-bottom: 0; padding-bottom: 0; }
 .af-history-row.is-void { opacity: 0.48; }
 .af-history-amount {
   flex-shrink: 0;
-  color: #06C755;
+  color: #059669; /* 獲得マイル = セマンティック success なので緑を維持 */
   font-size: 14px;
 }
 .af-history-amount.is-minus { color: #dc2626; }
@@ -239,10 +240,10 @@ body.af-active #app {
   gap: 4px;
   padding: 11px 4px;
   border-radius: 10px;
-  background: #f9fafb;
+  background: #ecf2f9;
 }
-.af-referral-grid strong { color: #111827; font-size: 18px; }
-.af-referral-grid span { color: #6b7280; font-size: 10px; }
+.af-referral-grid strong { color: #17212f; font-size: 18px; }
+.af-referral-grid span { color: #53637a; font-size: 10px; }
 
 .af-opportunity-live {
   flex-shrink: 0;
@@ -274,17 +275,17 @@ body.af-active #app {
   pointer-events: none;
 }
 .af-opportunity-card.is-completed {
-  border-color: #bbf7d0;
-  background: linear-gradient(145deg, #f0fdf4 0%, #fff 72%);
-  box-shadow: 0 2px 8px rgba(22, 163, 74, 0.08);
+  border-color: #a7f3d0;
+  background: linear-gradient(145deg, #ecfdf5 0%, #fff 72%);
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.08);
 }
-.af-opportunity-card.is-completed::after { background: rgba(34, 197, 94, 0.1); }
-.af-opportunity-card.is-completed .af-opportunity-kind { color: #16a34a; }
+.af-opportunity-card.is-completed::after { background: rgba(5, 150, 105, 0.1); }
+.af-opportunity-card.is-completed .af-opportunity-kind { color: #059669; }
 .af-opportunity-card.is-completed .af-opportunity-reward {
-  background: #16a34a;
-  box-shadow: 0 2px 5px rgba(22, 163, 74, 0.22);
+  background: #059669;
+  box-shadow: 0 2px 5px rgba(5, 150, 105, 0.22);
 }
-.af-opportunity-card.is-completed p { color: #15803d; }
+.af-opportunity-card.is-completed p { color: #047857; }
 .af-opportunity-kind {
   color: #d97706;
   font-size: 9px;
@@ -339,8 +340,8 @@ body.af-active #app {
   margin-top: 13px;
   padding: 10px 12px;
   border-radius: 11px;
-  background: #dcfce7;
-  color: #15803d;
+  background: #ecfdf5;
+  color: #047857;
   font-size: 13px;
   font-weight: 800;
 }
@@ -354,7 +355,7 @@ body.af-active #app {
   font-weight: 600;
 }
 
-/* プライマリ CTA (LINE 緑、salon-booking の予約ボタンと同じ流儀) */
+/* プライマリ CTA (ブランド青、salon-booking の予約ボタンと同じ流儀) */
 .af-primary-btn {
   width: 100%;
   padding: 12px;
@@ -362,28 +363,28 @@ body.af-active #app {
   font-weight: 700;
   font-size: 14px;
   color: #fff;
-  background: #06C755;
-  box-shadow: 0 1px 3px rgba(6, 199, 85, 0.3);
+  background: #2563eb;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.3);
   transition: transform 0.1s, background-color 0.15s, opacity 0.15s;
 }
 .af-primary-btn:active { transform: scale(0.98); }
 .af-primary-btn:disabled { opacity: 0.5; }
 
-/* セカンダリ CTA (この案件用のリンクを追加 等、緑の輪郭ボタン) */
+/* セカンダリ CTA (この案件用のリンクを追加 等、青の輪郭ボタン) */
 .af-secondary-btn {
   width: 100%;
   padding: 10px;
   border-radius: 12px;
   font-weight: 600;
   font-size: 13px;
-  background: #ecfdf5;
-  color: #06C755;
-  border: 1.5px solid #06C755;
+  background: #e4edfc;
+  color: #2563eb;
+  border: 1.5px solid #2563eb;
   transition: transform 0.1s, background-color 0.15s, color 0.15s;
 }
 .af-secondary-btn:active {
   transform: scale(0.98);
-  background-color: #06C755;
+  background-color: #2563eb;
   color: #fff;
 }
 .af-secondary-btn:disabled { opacity: 0.5; }
@@ -393,35 +394,35 @@ body.af-active #app {
   flex-shrink: 0;
   font-size: 12px;
   font-weight: 600;
-  color: #06C755;
-  background: #ecfdf5;
+  color: #2563eb;
+  background: #e4edfc;
   padding: 6px 12px;
   border-radius: 9999px;
   transition: background-color 0.15s;
 }
-.af-copy-btn:active { background: #d1fae5; }
+.af-copy-btn:active { background: #c7dbfa; }
 
-/* テキスト入力 (フォーカス時は LINE 緑リング) */
+/* テキスト入力 (フォーカス時はブランド青リング) */
 .af-input {
   width: 100%;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #dae3ee;
   border-radius: 10px;
   padding: 10px 12px;
   font-size: 14px;
-  color: #111827;
+  color: #17212f;
   background: #fff;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .af-input:focus {
   outline: none;
-  border-color: #06C755;
-  box-shadow: 0 0 0 3px rgba(6, 199, 85, 0.15);
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
 /* リンク行 (カード内のネストされたリンク) */
 .af-link-row {
-  border: 1px solid #f0f0f0;
+  border: 1px solid #dae3ee;
   border-radius: 10px;
   padding: 12px;
-  background: #fafafa;
+  background: #f6f9fc;
 }

@@ -124,7 +124,7 @@ export default function ScenarioModePicker({ open, onClose, onCreate }: Props) {
                 <div className="text-2xl mb-2">🕐</div>
                 <h3 className="font-semibold text-gray-900 mb-1">毎日◯時に配信</h3>
                 <p className="text-sm text-gray-600 mb-2">例: 翌日 朝 9:00</p>
-                <p className="text-xs text-green-700">✅ 深夜配信なし</p>
+                <p className="text-xs text-emerald-700">✅ 深夜配信なし</p>
               </button>
               <button
                 onClick={() => {
@@ -182,7 +182,7 @@ export default function ScenarioModePicker({ open, onClose, onCreate }: Props) {
                 <input
                   type="text"
                   autoFocus
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
                   placeholder="例: 友だち追加ウェルカム"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -200,7 +200,7 @@ export default function ScenarioModePicker({ open, onClose, onCreate }: Props) {
                       key={opt.value}
                       className={`flex items-start gap-2 p-2 rounded-lg border cursor-pointer transition-colors ${
                         triggerType === opt.value
-                          ? 'border-green-500 bg-green-50'
+                          ? 'border-brand-500 bg-brand-50'
                           : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >
@@ -227,7 +227,7 @@ export default function ScenarioModePicker({ open, onClose, onCreate }: Props) {
                     トリガータグ <span className="text-red-500">*</span>
                   </label>
                   <select
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
                     value={triggerTagId}
                     onChange={(e) => setTriggerTagId(e.target.value)}
                   >
@@ -258,8 +258,7 @@ export default function ScenarioModePicker({ open, onClose, onCreate }: Props) {
               <button
                 onClick={handleCreate}
                 disabled={submitting}
-                className="px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50"
-                style={{ backgroundColor: '#06C755' }}
+                className="px-4 py-2 text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg disabled:opacity-50"
               >
                 {submitting ? '作成中...' : '作成して編集へ'}
               </button>

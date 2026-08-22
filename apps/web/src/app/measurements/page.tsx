@@ -52,7 +52,7 @@ export default function MeasurementsPage() {
         <span className="text-sm text-gray-500">{rows.length} アカウント</span>
         <button
           onClick={load}
-          className="px-3 py-1.5 rounded bg-blue-600 text-white text-sm hover:bg-blue-700"
+          className="px-3 py-1.5 rounded-lg bg-brand-600 text-white text-sm hover:bg-brand-700"
         >
           更新
         </button>
