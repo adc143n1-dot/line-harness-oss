@@ -1,6 +1,9 @@
 import { jstNow } from './utils.js';
 export interface Friend {
   id: string;
+  // 081: DB上は nullable (Telegram等の非LINE連絡先は line_user_id を持たない)。
+  // 型は当面 string のまま。チャネル判定は channel 列で行い、LINE送信経路は
+  // channel='line' でガードする (送信ディスパッチ導入フェーズで型を厳密化)。
   line_user_id: string;
   display_name: string | null;
   picture_url: string | null;
@@ -15,6 +18,11 @@ export interface Friend {
   line_account_id: string | null;
   metadata: string;
   first_tracked_link_id: string | null;
+  // 081: マルチチャネル
+  channel?: string;
+  telegram_user_id?: string | null;
+  telegram_chat_id?: string | null;
+  telegram_account_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -303,4 +311,94 @@ export async function getFriendCount(db: D1Database): Promise<number> {
     .prepare(`SELECT COUNT(*) as count FROM friends`)
     .first<{ count: number }>();
   return row?.count ?? 0;
+}
+
+// ── Telegram channel friends (081) ───────────────────────────────────────────
+
+export interface UpsertTelegramFriendInput {
+  telegramAccountId: string;
+  telegramUserId: string;
+  telegramChatId: string;
+  displayName?: string | null;
+  pictureUrl?: string | null;
+}
+
+/** 指定Bot(telegram_account_id)配下のTelegramユーザーで連絡先を検索。 */
+export async function getFriendByTelegramUserId(
+  db: D1Database,
+  telegramAccountId: string,
+  telegramUserId: string,
+): Promise<Friend | null> {
+  const row = await db
+    .prepare(
+      `SELECT * FROM friends
+       WHERE telegram_account_id = ? AND telegram_user_id = ? AND channel = 'telegram'`,
+    )
+    .bind(telegramAccountId, telegramUserId)
+    .first<Friend>();
+  return row ?? null;
+}
+
+/**
+ * Telegram連絡先の作成/更新。line_user_id は持たず channel='telegram'。
+ * chat_id は送信先として必ず最新化する。
+ */
+export async function upsertTelegramFriend(
+  db: D1Database,
+  input: UpsertTelegramFriendInput,
+): Promise<Friend> {
+  const now = jstNow();
+  const existing = await getFriendByTelegramUserId(
+    db,
+    input.telegramAccountId,
+    input.telegramUserId,
+  );
+
+  if (existing) {
+    await db
+      .prepare(
+        `UPDATE friends
+         SET display_name = COALESCE(?, display_name),
+             picture_url = COALESCE(?, picture_url),
+             telegram_chat_id = ?,
+             is_following = 1,
+             updated_at = ?
+         WHERE id = ?`,
+      )
+      .bind(
+        input.displayName ?? null,
+        input.pictureUrl ?? null,
+        input.telegramChatId,
+        now,
+        existing.id,
+      )
+      .run();
+    return (await getFriendByTelegramUserId(db, input.telegramAccountId, input.telegramUserId))!;
+  }
+
+  const id = crypto.randomUUID();
+  await db
+    .prepare(
+      `INSERT INTO friends
+         (id, line_user_id, display_name, picture_url, is_following,
+          channel, telegram_user_id, telegram_chat_id, telegram_account_id,
+          first_followed_at, current_follow_started_at, last_followed_at,
+          created_at, updated_at)
+       VALUES (?, NULL, ?, ?, 1, 'telegram', ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .bind(
+      id,
+      input.displayName ?? null,
+      input.pictureUrl ?? null,
+      input.telegramUserId,
+      input.telegramChatId,
+      input.telegramAccountId,
+      now,
+      now,
+      now,
+      now,
+      now,
+    )
+    .run();
+  return (await getFriendByTelegramUserId(db, input.telegramAccountId, input.telegramUserId))!;
 }

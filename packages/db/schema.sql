@@ -6,7 +6,9 @@
 -- ============================================================
 CREATE TABLE IF NOT EXISTS friends (
   id               TEXT PRIMARY KEY,
-  line_user_id     TEXT UNIQUE NOT NULL,
+  -- 081: line_user_id は LINE 連絡先のみ非NULL。Telegram など他チャネルの連絡先は
+  -- line_user_id を持たない (channel 列が真のチャネル識別子)。
+  line_user_id     TEXT UNIQUE,
   display_name     TEXT,
   picture_url      TEXT,
   status_message   TEXT,
@@ -27,6 +29,11 @@ CREATE TABLE IF NOT EXISTS friends (
   -- 072: LINE↔Telegram 同一人物紐付け
   telegram_user_id TEXT,
   tg_verified_at   TEXT,
+  -- 081: マルチチャネル対応。channel が連絡先のプラットフォーム。Telegram 連絡先は
+  -- telegram_chat_id (送信先) と telegram_account_id (どの Bot 経由か) を持つ。
+  channel             TEXT NOT NULL DEFAULT 'line' CHECK (channel IN ('line', 'telegram')),
+  telegram_chat_id    TEXT,
+  telegram_account_id TEXT REFERENCES telegram_accounts (id),
   -- 075: 副業マッチング自動化 (Phase A)。本人確認書類関連の列は追加しない
   -- (要件確定前に個人情報を集める列だけ先に用意しない方針)。
   q1_answer         TEXT,
@@ -50,8 +57,11 @@ CREATE INDEX IF NOT EXISTS idx_friends_user_id ON friends (user_id);
 CREATE INDEX IF NOT EXISTS idx_friends_ig_igsid ON friends (ig_igsid);
 CREATE INDEX IF NOT EXISTS idx_friends_follow_tenure ON friends(is_following, current_follow_started_at);
 CREATE INDEX IF NOT EXISTS idx_friends_source ON friends (source);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_friends_telegram_user_id
-  ON friends (telegram_user_id) WHERE telegram_user_id IS NOT NULL;
+-- 081: 複数Bot対応。同一Telegramユーザーが別Botに来たら別連絡先なので、
+-- 一意性は (telegram_account_id, telegram_user_id) の複合とする。
+CREATE UNIQUE INDEX IF NOT EXISTS idx_friends_telegram_account_user
+  ON friends (telegram_account_id, telegram_user_id) WHERE telegram_user_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_friends_channel ON friends (channel);
 CREATE INDEX IF NOT EXISTS idx_friends_lead_temperature ON friends (lead_temperature);
 -- 076: リード一覧画面の絞り込み高速化
 CREATE INDEX IF NOT EXISTS idx_friends_job_matching_state ON friends (job_matching_conversation_state);
@@ -239,6 +249,8 @@ CREATE TABLE IF NOT EXISTS messages_log (
   -- 070_chat_multi_staff: 手動送信を行ったスタッフ (自動送信は NULL)
   sent_by_staff_id TEXT REFERENCES staff_members (id) ON DELETE SET NULL,
   line_account_id  TEXT,
+  -- 081: マルチチャネル。既存行は全てLINEなので既定 'line'。
+  channel          TEXT NOT NULL DEFAULT 'line',
   created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
 );
 
@@ -326,6 +338,25 @@ CREATE TABLE IF NOT EXISTS line_accounts (
   created_at             TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
   updated_at             TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
 );
+
+-- ============================================================
+-- Telegram Bot accounts (081) — line_accounts のTelegram版。
+-- 複数Botをブランド/用途別に登録し、チャット管理から双方向にやり取りする。
+-- bot_token は line_accounts.channel_access_token と同じ平文列方針。
+-- ============================================================
+CREATE TABLE IF NOT EXISTS telegram_accounts (
+  id             TEXT PRIMARY KEY,
+  bot_token      TEXT NOT NULL,
+  bot_username   TEXT NOT NULL,
+  webhook_secret TEXT NOT NULL,
+  name           TEXT NOT NULL,
+  is_active      INTEGER NOT NULL DEFAULT 1,
+  country        TEXT,
+  display_order  INTEGER NOT NULL DEFAULT 0,
+  created_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
+  updated_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_telegram_accounts_username ON telegram_accounts (bot_username);
 
 CREATE INDEX IF NOT EXISTS idx_line_accounts_display_order
   ON line_accounts (display_order, created_at);

@@ -84,7 +84,8 @@
     "077_discord_link.sql",
     "078_chat_team_ops.sql",
     "079_chat_snooze.sql",
-    "080_job_matching_q3_q4.sql"
+    "080_job_matching_q3_q4.sql",
+    "081_telegram_channel.sql"
   ],
-  "migrationCount": 85
+  "migrationCount": 86
 }

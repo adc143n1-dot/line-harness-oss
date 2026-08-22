@@ -8,6 +8,7 @@ export * from './scenario-resolve';
 export * from './broadcasts';
 export * from './users';
 export * from './line-accounts';
+export * from './telegram-accounts';
 export * from './conversions';
 export * from './affiliates';
 export * from './webhooks';
