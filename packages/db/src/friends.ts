@@ -1,9 +1,9 @@
 import { jstNow } from './utils.js';
 export interface Friend {
   id: string;
-  // 081: DB上は nullable (Telegram等の非LINE連絡先は line_user_id を持たない)。
-  // 型は当面 string のまま。チャネル判定は channel 列で行い、LINE送信経路は
-  // channel='line' でガードする (送信ディスパッチ導入フェーズで型を厳密化)。
+  // line_user_id はチャネル固有ID。LINEは 'U...'、Telegram等は衝突しない合成ID
+  // 'tg:<telegram_account_id>:<telegram_user_id>'。真のチャネル判定は channel 列。
+  // LINE送信経路は channel='line' でガードする。
   line_user_id: string;
   display_name: string | null;
   picture_url: string | null;
@@ -377,6 +377,9 @@ export async function upsertTelegramFriend(
   }
 
   const id = crypto.randomUUID();
+  // 合成 line_user_id。LINEの 'U...' と衝突しない。UNIQUE(line_user_id) が
+  // (Bot, Telegramユーザー) の一意性も同時に担保する。
+  const syntheticLineUserId = `tg:${input.telegramAccountId}:${input.telegramUserId}`;
   await db
     .prepare(
       `INSERT INTO friends
@@ -384,10 +387,11 @@ export async function upsertTelegramFriend(
           channel, telegram_user_id, telegram_chat_id, telegram_account_id,
           first_followed_at, current_follow_started_at, last_followed_at,
           created_at, updated_at)
-       VALUES (?, NULL, ?, ?, 1, 'telegram', ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, 1, 'telegram', ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
       id,
+      syntheticLineUserId,
       input.displayName ?? null,
       input.pictureUrl ?? null,
       input.telegramUserId,

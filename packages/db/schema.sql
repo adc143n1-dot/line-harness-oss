@@ -6,9 +6,11 @@
 -- ============================================================
 CREATE TABLE IF NOT EXISTS friends (
   id               TEXT PRIMARY KEY,
-  -- 081: line_user_id は LINE 連絡先のみ非NULL。Telegram など他チャネルの連絡先は
-  -- line_user_id を持たない (channel 列が真のチャネル識別子)。
-  line_user_id     TEXT UNIQUE,
+  -- line_user_id は連絡先のチャネル固有ID。LINEは 'U...'、Telegram等の非LINE連絡先は
+  -- 衝突しない合成ID 'tg:<telegram_account_id>:<telegram_user_id>' を入れる
+  -- (D1はテーブル再構築(NOT NULL解除)が D1_RESET_DO で不可のため、NOT NULLを維持し
+  --  合成IDで汎用連絡先を表現する)。真のチャネル識別子は channel 列。
+  line_user_id     TEXT UNIQUE NOT NULL,
   display_name     TEXT,
   picture_url      TEXT,
   status_message   TEXT,

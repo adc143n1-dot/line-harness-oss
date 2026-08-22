@@ -491,9 +491,13 @@ CREATE TABLE friend_tags (
   PRIMARY KEY (friend_id, tag_id)
 );
 
-CREATE TABLE "friends" (
+CREATE TABLE friends (
   id               TEXT PRIMARY KEY,
-  line_user_id     TEXT UNIQUE,
+  -- line_user_id は連絡先のチャネル固有ID。LINEは 'U...'、Telegram等の非LINE連絡先は
+  -- 衝突しない合成ID 'tg:<telegram_account_id>:<telegram_user_id>' を入れる
+  -- (D1はテーブル再構築(NOT NULL解除)が D1_RESET_DO で不可のため、NOT NULLを維持し
+  --  合成IDで汎用連絡先を表現する)。真のチャネル識別子は channel 列。
+  line_user_id     TEXT UNIQUE NOT NULL,
   display_name     TEXT,
   picture_url      TEXT,
   status_message   TEXT,
@@ -508,29 +512,34 @@ CREATE TABLE "friends" (
   last_followed_at TEXT,
   last_unfollowed_at TEXT,
   unfollow_count   INTEGER NOT NULL DEFAULT 0,
+  -- 072: 友だち追加 URL の `?lp=xxx` から採取する流入元 (初回のみ記録)。
+  -- 事前登録が要る entry_routes / ref_code とは別系統の軽量な導線ラベル。
   source           TEXT,
+  -- 072: LINE↔Telegram 同一人物紐付け
   telegram_user_id TEXT,
   tg_verified_at   TEXT,
+  -- 081: マルチチャネル対応。channel が連絡先のプラットフォーム。Telegram 連絡先は
+  -- telegram_chat_id (送信先) と telegram_account_id (どの Bot 経由か) を持つ。
   channel             TEXT NOT NULL DEFAULT 'line' CHECK (channel IN ('line', 'telegram')),
   telegram_chat_id    TEXT,
   telegram_account_id TEXT REFERENCES telegram_accounts (id),
+  -- 075: 副業マッチング自動化 (Phase A)。本人確認書類関連の列は追加しない
+  -- (要件確定前に個人情報を集める列だけ先に用意しない方針)。
   q1_answer         TEXT,
   q2_answer         TEXT,
+  -- 080: 追加ヒアリング (Q3=稼働時間帯 / Q4=開始希望時期)。診断後に聞く
   q3_answer         TEXT,
   q4_answer         TEXT,
   lead_score        INTEGER,
   lead_temperature  TEXT CHECK (lead_temperature IN ('hot', 'warm', 'cold')),
   job_matching_conversation_state TEXT
     CHECK (job_matching_conversation_state IN ('awaiting_q1', 'awaiting_q2', 'diagnosed')),
+  -- 077: LINE↔Discord 同一人物紐付け (副業マッチング Phase C)
   discord_user_id     TEXT,
   discord_verified_at TEXT,
   created_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
-  updated_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours')),
-  ref_code         TEXT,
-  metadata         TEXT NOT NULL DEFAULT '{}',
-  line_account_id  TEXT REFERENCES line_accounts (id),
-  first_tracked_link_id TEXT REFERENCES tracked_links (id) ON DELETE SET NULL
-);
+  updated_at       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now', '+9 hours'))
+, ref_code TEXT, metadata TEXT NOT NULL DEFAULT '{}', line_account_id TEXT REFERENCES line_accounts(id), first_tracked_link_id TEXT REFERENCES tracked_links (id) ON DELETE SET NULL);
 
 CREATE TABLE google_calendar_connections (
   id            TEXT PRIMARY KEY,
