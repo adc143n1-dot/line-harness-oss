@@ -66,7 +66,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
         <Modal
           open
           onClose={() => close(false)}
-          title={dialog.kind === 'confirm' ? dialog.options.title : dialog.options.title}
+          title={dialog.options.title}
           maxWidth="max-w-sm"
           footer={
             dialog.kind === 'confirm' ? (

@@ -1,4 +1,4 @@
-import { describe, expect, test, vi } from 'vitest';
+import { describe, expect, test, vi, beforeEach } from 'vitest';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { authMiddleware } from './auth.js';
@@ -6,12 +6,19 @@ import { resolveCorsOrigin } from './admin-auth-config.js';
 import { adminAuth } from '../routes/admin-auth.js';
 import type { Env } from '../index.js';
 
-vi.mock('@line-crm/db', () => ({
+const dbMock = vi.hoisted(() => ({
   getStaffByApiKey: vi.fn(async (_db: unknown, token: string) => {
     if (token !== 'staff-key') return null;
     return { id: 'staff-1', name: 'Staff One', role: 'admin' };
   }),
+  // 既定は「IP許可リスト無効」。各テストで必要に応じて上書きする。
+  getAdminIpAllowlist: vi.fn(async () => ({ enabled: false, entries: [] as string[] })),
 }));
+vi.mock('@line-crm/db', () => dbMock);
+
+beforeEach(() => {
+  dbMock.getAdminIpAllowlist.mockResolvedValue({ enabled: false, entries: [] });
+});
 
 const PAGES = 'https://your-admin.pages.dev';
 const WORKERS = 'https://your-worker.your-subdomain.workers.dev';
@@ -293,6 +300,100 @@ describe('session endpoint', () => {
     const body = await res.json() as { csrfToken: string };
     expect(body.csrfToken).toBeTruthy();
     expect(cookieFor(res, 'lh_csrf') ?? '').toContain(`lh_csrf=${body.csrfToken}`);
+  });
+});
+
+describe('admin IP allowlist enforcement', () => {
+  const ALLOWED = '203.0.113.5';
+  const BLOCKED = '198.51.100.9';
+
+  function enable(entries: string[]) {
+    dbMock.getAdminIpAllowlist.mockResolvedValue({ enabled: true, entries });
+  }
+
+  test('disabled (default): admin API works from any IP', async () => {
+    const res = await app().request('/api/protected', {
+      headers: { Authorization: 'Bearer env-key', 'CF-Connecting-IP': BLOCKED },
+    }, crossSiteEnv());
+    expect(res.status).toBe(200);
+  });
+
+  test('enabled + matching IP: admin API allowed', async () => {
+    enable([ALLOWED, '10.0.0.0/8']);
+    const res = await app().request('/api/protected', {
+      headers: { Authorization: 'Bearer env-key', 'CF-Connecting-IP': ALLOWED },
+    }, crossSiteEnv());
+    expect(res.status).toBe(200);
+  });
+
+  test('enabled + non-matching IP: admin API refused with 403 (before auth)', async () => {
+    enable([ALLOWED]);
+    const res = await app().request('/api/protected', {
+      headers: { Authorization: 'Bearer env-key', 'CF-Connecting-IP': BLOCKED },
+    }, crossSiteEnv());
+    expect(res.status).toBe(403);
+    expect((await res.json() as { error: string }).error).toMatch(/アクセスできません/);
+  });
+
+  test('enabled + non-matching IP: login itself is blocked (stolen key cannot be used off-network)', async () => {
+    enable([ALLOWED]);
+    const res = await app().request('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ apiKey: 'staff-key' }),
+      headers: { 'Content-Type': 'application/json', 'CF-Connecting-IP': BLOCKED },
+    }, crossSiteEnv());
+    expect(res.status).toBe(403);
+    expect(cookieFor(res, 'lh_admin_session')).toBeUndefined();
+  });
+
+  test('enabled + non-matching IP: authenticated GET /api/forms/:id (admin representation) is gated', async () => {
+    enable([ALLOWED]);
+    const res = await app().request('/api/forms/form-1', {
+      headers: { Authorization: 'Bearer env-key', 'CF-Connecting-IP': BLOCKED },
+    }, crossSiteEnv());
+    expect(res.status).toBe(403);
+  });
+
+  test('enabled + non-matching IP: UNauthenticated GET /api/forms/:id (public LIFF) still works', async () => {
+    enable([ALLOWED]);
+    // 友だち(LIFF閲覧者)は許可リスト外のIPから来るのが当たり前。公開表現は必ず返す。
+    const res = await app().request('/api/forms/form-1', {
+      headers: { 'CF-Connecting-IP': BLOCKED },
+    }, crossSiteEnv());
+    expect(res.status).toBe(200);
+    expect((await res.json() as { staff: unknown }).staff).toBeNull();
+  });
+
+  test('enabled + missing CF-Connecting-IP: fail closed (403)', async () => {
+    enable([ALLOWED]);
+    const res = await app().request('/api/protected', {
+      headers: { Authorization: 'Bearer env-key' },
+    }, crossSiteEnv());
+    expect(res.status).toBe(403);
+  });
+
+  test('CIDR entry matches an address in range', async () => {
+    enable(['203.0.113.0/24']);
+    const res = await app().request('/api/protected', {
+      headers: { Authorization: 'Bearer env-key', 'CF-Connecting-IP': '203.0.113.200' },
+    }, crossSiteEnv());
+    expect(res.status).toBe(200);
+  });
+
+  test('bypass env disables enforcement entirely', async () => {
+    enable([ALLOWED]);
+    const res = await app().request('/api/protected', {
+      headers: { Authorization: 'Bearer env-key', 'CF-Connecting-IP': BLOCKED },
+    }, env({ ADMIN_ORIGIN: PAGES, ADMIN_ALLOW_CROSS_SITE: 'true', ADMIN_IP_ALLOWLIST_BYPASS: 'true' }));
+    expect(res.status).toBe(200);
+  });
+
+  test('fail-open: a config-read error does not brick the admin panel', async () => {
+    dbMock.getAdminIpAllowlist.mockRejectedValueOnce(new Error('D1 down'));
+    const res = await app().request('/api/protected', {
+      headers: { Authorization: 'Bearer env-key', 'CF-Connecting-IP': BLOCKED },
+    }, crossSiteEnv());
+    expect(res.status).toBe(200);
   });
 });
 

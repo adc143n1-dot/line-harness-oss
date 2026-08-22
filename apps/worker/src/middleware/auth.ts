@@ -219,7 +219,14 @@ export async function authMiddleware(c: Context<Env>, next: Next): Promise<Respo
   if (isPublicFormDefinition) {
     const token = bearerToken(c) ?? cookieToken(c);
     const staff = await authenticateApiToken(c, token);
-    if (staff) c.set('staff', staff);
+    if (staff) {
+      // 認証済み = 管理者向けフル表現を返す経路。ここは他の管理APIと同様に
+      // IP許可リストの対象にする (許可外IPからは管理者表現を出さない)。
+      // 無認証の LIFF 閲覧者 (token なし) は従来どおり公開表現を受け取る。
+      const denied = await enforceAdminIpAllowlist(c);
+      if (denied) return denied;
+      c.set('staff', staff);
+    }
     return next();
   }
 
