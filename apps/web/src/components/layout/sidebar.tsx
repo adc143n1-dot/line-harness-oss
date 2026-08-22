@@ -261,6 +261,7 @@ export default function Sidebar() {
                 if (item.href === '/staff' && staffRole !== 'owner') return false
                 if (item.href === '/security' && staffRole !== 'owner') return false
                 if (item.href === '/accounts' && staffRole === 'staff') return false
+                if (item.href === '/telegram-accounts' && staffRole === 'staff') return false
                 return true
               }).map((item) => {
                 const active = isActive(item.href)

@@ -75,6 +75,7 @@ export const menuSections: NavSection[] = [
       { href: '/staff', label: 'スタッフ管理', icon: 'user-group' },
       { href: '/security', label: 'アクセス制限', icon: 'lock' },
       { href: '/accounts', label: 'LINEアカウント', icon: 'building' },
+      { href: '/telegram-accounts', label: 'Telegramアカウント', icon: 'chat' },
       { href: '/pools', label: 'プール管理', icon: 'rows' },
       { href: '/measurements', label: '計測データ', icon: 'chart-bar' },
       { href: '/users', label: 'ユーザー一覧', icon: 'identity' },

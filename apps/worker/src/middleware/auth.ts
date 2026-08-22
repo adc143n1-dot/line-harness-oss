@@ -274,6 +274,9 @@ export async function authMiddleware(c: Context<Env>, next: Next): Promise<Respo
     // setWebhook の secret_token (X-Telegram-Bot-Api-Secret-Token) を
     // ルート側で検証する。
     path === '/api/telegram/webhook' ||
+    // 複数Bot対応の Telegram webhook。アカウントごとの webhook_secret で検証する
+    // ためミドルウェア認証・IP許可リストの対象外 (公開受信)。
+    path.startsWith('/api/telegram/webhook/') ||
     path.match(/^\/api\/webhooks\/incoming\/[^/]+\/receive$/) ||
     path === '/api/meet-callback' || // Meet Harness completion callback
     // Google OAuth redirects without admin headers. Route verifies a signed, expiring state.

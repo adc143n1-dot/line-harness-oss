@@ -346,6 +346,20 @@ export type AutomationCandidate = {
   count: number
 }
 
+export interface TelegramAccountItem {
+  id: string
+  name: string
+  botUsername: string
+  isActive: boolean
+  country: string | null
+  displayOrder: number
+  botTokenSet: boolean
+  botTokenLast4: string | null
+  webhookUrl: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 export const api = {
   team: {
     /** チーム全体の担当状況 (スタッフ別の未完了内訳・本日解決・平均初動、未割当バックログ等) */
@@ -663,6 +677,24 @@ export const api = {
       }),
   },
 
+  telegramAccounts: {
+    list: () =>
+      fetchApi<ApiResponse<TelegramAccountItem[]>>('/api/telegram-accounts'),
+    create: (data: { name: string; botToken: string; botUsername: string; country?: string | null }) =>
+      fetchApi<ApiResponse<{ account: TelegramAccountItem; webhookRegistered: boolean }>>('/api/telegram-accounts', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    update: (id: string, data: { name?: string; botToken?: string; botUsername?: string; isActive?: boolean; country?: string | null }) =>
+      fetchApi<ApiResponse<{ account: TelegramAccountItem | null; webhookRegistered: boolean | null }>>(`/api/telegram-accounts/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    registerWebhook: (id: string) =>
+      fetchApi<ApiResponse<{ webhookRegistered: boolean }>>(`/api/telegram-accounts/${id}/register-webhook`, { method: 'POST' }),
+    remove: (id: string) =>
+      fetchApi<ApiResponse<null>>(`/api/telegram-accounts/${id}`, { method: 'DELETE' }),
+  },
   security: {
     /** 管理画面アクセスのIP許可リスト設定と、いまアクセス中の自分のIP (owner のみ) */
     getIpAllowlist: () =>
