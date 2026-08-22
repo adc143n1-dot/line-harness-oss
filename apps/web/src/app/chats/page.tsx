@@ -32,6 +32,8 @@ interface Chat {
   outcome: 'converted' | 'lost' | null
   /** 友だち追加 URL の `?lp=xxx` から採取した流入元 */
   source: string | null
+  /** 連絡先のチャネル (line / telegram)。081 マルチチャネル */
+  channel: 'line' | 'telegram'
   /** 紐付け済みの Telegram ユーザー ID (未連携なら null) */
   telegramUserId: string | null
   /** 紐付け済みの Discord ユーザー ID (未連携なら null) */
@@ -691,6 +693,7 @@ export default function ChatsPage() {
         status: chatDetail.status,
         outcome: chatDetail.outcome ?? null,
         source: chatDetail.source ?? null,
+        channel: chatDetail.channel ?? 'line',
         telegramUserId: chatDetail.telegramUserId ?? null,
         discordUserId: chatDetail.discordUserId ?? null,
         version: chatDetail.version ?? 0,
@@ -1395,6 +1398,9 @@ export default function ChatsPage() {
                                 <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" aria-label="未読" />
                               )}
                               <p className="text-sm font-medium text-gray-900 truncate">{chat.friendName}</p>
+                              {chat.channel === 'telegram' && (
+                                <span className="flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-700 font-medium">Telegram</span>
+                              )}
                             </div>
                             <span className="text-[10px] text-gray-400 flex-shrink-0">{formatDatetime(chat.lastMessageAt)}</span>
                           </div>
@@ -1513,9 +1519,14 @@ export default function ChatsPage() {
                     <img src={chatDetail.friendPictureUrl} alt="" className="w-8 h-8 rounded-full flex-shrink-0" />
                   )}
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {chatDetail.friendName}
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {chatDetail.friendName}
+                      </p>
+                      {(chats.find((c) => c.id === chatDetail.id)?.channel ?? chatDetail.channel) === 'telegram' && (
+                        <span className="flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-700 font-medium">Telegram</span>
+                      )}
+                    </div>
                     <span
                       className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium mt-1 ${statusConfig[chatDetail.status].className}`}
                     >

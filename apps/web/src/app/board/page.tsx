@@ -20,6 +20,7 @@ interface Chat {
   friendName: string
   operatorId: string | null
   status: BoardStatus
+  channel?: 'line' | 'telegram'
   lastMessageAt: string | null
   lastMessageContent: string | null
 }
@@ -63,7 +64,12 @@ function BoardCard({
       className={`bg-white rounded-lg border border-gray-200 p-3 cursor-grab active:cursor-grabbing shadow-sm hover:shadow transition-shadow ${isDragging ? 'opacity-40' : ''}`}
     >
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-medium text-gray-900 truncate">{chat.friendName}</p>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <p className="text-sm font-medium text-gray-900 truncate">{chat.friendName}</p>
+          {chat.channel === 'telegram' && (
+            <span className="flex-shrink-0 text-[9px] px-1 py-0.5 rounded-full bg-sky-50 text-sky-700 font-medium">TG</span>
+          )}
+        </div>
         <span className="text-[10px] text-gray-400 whitespace-nowrap">{formatElapsed(chat.lastMessageAt)}</span>
       </div>
       <p className="text-xs text-gray-500 truncate mt-1">
