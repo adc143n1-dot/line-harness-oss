@@ -1,7 +1,8 @@
 import type { Context, Next } from 'hono';
-import { getStaffByApiKey } from '@line-crm/db';
+import { getStaffByApiKey, getAdminIpAllowlist } from '@line-crm/db';
 import type { Env } from '../index.js';
 import type { AdminSameSite } from './admin-auth-config.js';
+import { ipMatchesAny } from '../lib/ip-allowlist.js';
 
 export const ADMIN_AUTH_COOKIE = 'lh_admin_session';
 export const CSRF_COOKIE = 'lh_csrf';
@@ -147,6 +148,42 @@ export async function authenticateApiToken(
   return null;
 }
 
+/**
+ * IP許可リストの enforcement。管理画面(ログイン + 認証必須API)への
+ * アクセスを、設定された送信元IP(社内固定IP等)に限定する。
+ *
+ * - env.ADMIN_IP_ALLOWLIST_BYPASS === 'true' は緊急脱出用の全解除。
+ * - 設定が無効 / entries が空なら制限しない (既定)。
+ * - 設定読み込みに失敗したときは fail-open (D1 の一時障害で管理画面全体が
+ *   ロックされるのを避ける)。ただし設定が読めて IP が一致しない場合は 403。
+ * - CF-Connecting-IP は Cloudflare 経由の実クライアントIP。
+ *
+ * ロックアウト時の復旧: 保存API側で「現在のIPを含まない有効化」を拒否して
+ * いるが、万一締め出された場合は D1 を直接編集して解除できる:
+ *   wrangler d1 execute <DB> --remote --command \
+ *     "DELETE FROM account_settings WHERE line_account_id='__global__' AND key='admin_ip_allowlist'"
+ * もしくは env に ADMIN_IP_ALLOWLIST_BYPASS='true' を設定して再デプロイ。
+ */
+async function enforceAdminIpAllowlist(c: Context<Env>): Promise<Response | null> {
+  if (c.env.ADMIN_IP_ALLOWLIST_BYPASS === 'true') return null;
+
+  let config: { enabled: boolean; entries: string[] };
+  try {
+    config = await getAdminIpAllowlist(c.env.DB);
+  } catch {
+    return null; // fail-open on transient config-read failure
+  }
+  if (!config.enabled || config.entries.length === 0) return null;
+
+  const ip = c.req.header('CF-Connecting-IP') || '';
+  if (ip && ipMatchesAny(ip, config.entries)) return null;
+
+  return c.json(
+    { success: false, error: 'このIPアドレスからは管理画面にアクセスできません' },
+    403,
+  );
+}
+
 export async function authMiddleware(c: Context<Env>, next: Next): Promise<Response | void> {
   // Skip auth for the LINE webhook endpoint — it uses signature verification instead
   // Skip auth for OpenAPI docs — public documentation
@@ -196,6 +233,14 @@ export async function authMiddleware(c: Context<Env>, next: Next): Promise<Respo
       /^\/api\/forms\/[^/]+\/partial$/.test(path));
   if (isPublicFormAction) return next();
 
+  // Admin login is in the public skip list below (no session yet), but it is
+  // still part of the admin control plane — enforce the IP allowlist here so an
+  // off-network caller cannot even attempt to log in with a stolen key.
+  if (path === '/api/auth/login') {
+    const denied = await enforceAdminIpAllowlist(c);
+    if (denied) return denied;
+  }
+
   if (
     path === '/webhook' ||
     path === '/docs' ||
@@ -233,6 +278,12 @@ export async function authMiddleware(c: Context<Env>, next: Next): Promise<Respo
   ) {
     return next();
   }
+
+  // Everything from here on is the authenticated admin control plane. Enforce
+  // the IP allowlist before authenticating so off-network requests are refused
+  // regardless of credentials.
+  const ipDenied = await enforceAdminIpAllowlist(c);
+  if (ipDenied) return ipDenied;
 
   const bearer = bearerToken(c);
   const cookie = cookieToken(c);

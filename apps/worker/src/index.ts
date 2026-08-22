@@ -82,6 +82,7 @@ import { staff } from './routes/staff.js';
 import { capabilities } from './routes/capabilities.js';
 import { images } from './routes/images.js';
 import { accountSettings } from './routes/account-settings.js';
+import { security } from './routes/security.js';
 import { setup } from './routes/setup.js';
 import { autoReplies } from './routes/auto-replies.js';
 import { adminAuth } from './routes/admin-auth.js';
@@ -119,6 +120,8 @@ export type Env = {
     LINE_CHANNEL_ACCESS_TOKEN: string;
     API_KEY: string;
     LEGACY_API_KEY?: string;
+    // 'true' で管理画面IP許可リストを全解除する緊急脱出用スイッチ (締め出し時の復旧)。
+    ADMIN_IP_ALLOWLIST_BYPASS?: string;
     TELEGRAM_BOT_TOKEN?: string;      // secret: wrangler secret put TELEGRAM_BOT_TOKEN
     TELEGRAM_BOT_USERNAME?: string;   // var: @ を除いた Bot ユーザー名
     TELEGRAM_WEBHOOK_SECRET?: string; // secret: setWebhook の secret_token と同値
@@ -272,6 +275,7 @@ app.route('/', measurements);
 app.route('/', booking);
 app.route('/', events);
 app.route('/', accountSettings);
+app.route('/', security);
 app.route('/', meetCallback);
 app.route('/', messageTemplates);
 app.route('/', dedupPreview);

@@ -259,6 +259,7 @@ export default function Sidebar() {
               )}
               {!isCollapsed && section.items.filter((item) => {
                 if (item.href === '/staff' && staffRole !== 'owner') return false
+                if (item.href === '/security' && staffRole !== 'owner') return false
                 if (item.href === '/accounts' && staffRole === 'staff') return false
                 return true
               }).map((item) => {

@@ -663,6 +663,19 @@ export const api = {
       }),
   },
 
+  security: {
+    /** 管理画面アクセスのIP許可リスト設定と、いまアクセス中の自分のIP (owner のみ) */
+    getIpAllowlist: () =>
+      fetchApi<ApiResponse<{ config: { enabled: boolean; entries: string[] }; currentIp: string | null }>>(
+        '/api/security/ip-allowlist',
+      ),
+    /** IP許可リストを保存 (現在のIPを含まない有効化はサーバー側で拒否される) */
+    setIpAllowlist: (data: { enabled: boolean; entries: string[] }) =>
+      fetchApi<ApiResponse<{ config: { enabled: boolean; entries: string[] }; currentIp: string | null }>>(
+        '/api/security/ip-allowlist',
+        { method: 'PUT', body: JSON.stringify(data) },
+      ),
+  },
   accountSettings: {
     getTestRecipients: (accountId: string) =>
       fetchApi<{ success: boolean; data: Array<{ id: string; displayName: string; pictureUrl: string | null }> }>(`/api/account-settings/test-recipients?accountId=${accountId}`),

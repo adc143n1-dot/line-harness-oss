@@ -145,3 +145,45 @@ export async function setTrackedLinkBaseUrl(
 ): Promise<void> {
   return setUrlSetting(db, accountId, TRACKED_LINK_BASE_URL_KEY, value);
 }
+
+// ── admin_ip_allowlist (global setting, stored under sentinel '__global__') ────
+// 管理画面 (ログイン + 認証必須の管理API) へのアクセスを、許可した送信元IP
+// (社内固定IP/VPN等) に限定するための設定。entries は IP または CIDR の文字列。
+// enabled=false または entries が空なら制限なし (既定)。値の妥当性検証は
+// worker 側 (lib/ip-allowlist.ts) が担当し、ここは JSON の入出力だけを行う。
+
+const ADMIN_IP_ALLOWLIST_KEY = 'admin_ip_allowlist';
+
+export interface AdminIpAllowlist {
+  enabled: boolean;
+  entries: string[];
+}
+
+export async function getAdminIpAllowlist(db: D1Database): Promise<AdminIpAllowlist> {
+  const raw = await getAccountSetting(db, '__global__', ADMIN_IP_ALLOWLIST_KEY);
+  if (!raw) return { enabled: false, entries: [] };
+  try {
+    const parsed = JSON.parse(raw) as Partial<AdminIpAllowlist>;
+    return {
+      enabled: parsed.enabled === true,
+      entries: Array.isArray(parsed.entries)
+        ? parsed.entries.filter((e): e is string => typeof e === 'string')
+        : [],
+    };
+  } catch {
+    // 壊れた値は「制限なし」として扱う (締め出しを避けるフェイルセーフ)
+    return { enabled: false, entries: [] };
+  }
+}
+
+export async function setAdminIpAllowlist(
+  db: D1Database,
+  config: AdminIpAllowlist,
+): Promise<void> {
+  await setAccountSetting(
+    db,
+    '__global__',
+    ADMIN_IP_ALLOWLIST_KEY,
+    JSON.stringify({ enabled: config.enabled === true, entries: config.entries }),
+  );
+}

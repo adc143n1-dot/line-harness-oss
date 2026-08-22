@@ -73,6 +73,7 @@ export const menuSections: NavSection[] = [
     label: '設定',
     items: [
       { href: '/staff', label: 'スタッフ管理', icon: 'user-group' },
+      { href: '/security', label: 'アクセス制限', icon: 'lock' },
       { href: '/accounts', label: 'LINEアカウント', icon: 'building' },
       { href: '/pools', label: 'プール管理', icon: 'rows' },
       { href: '/measurements', label: '計測データ', icon: 'chart-bar' },
