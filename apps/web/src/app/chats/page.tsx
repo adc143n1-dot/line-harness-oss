@@ -650,6 +650,18 @@ export default function ChatsPage() {
     loadChats()
   }, [loadChats])
 
+  // 軽量ポーリング (081): タブ表示中のみ30秒ごとに一覧だけ再取得し、新着 (LINE/
+  // Telegram) を手動更新なしで反映する。開いているスレッド (chatDetail) は
+  // 触らないので、返信の入力・スクロールを妨げない。
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        loadChats()
+      }
+    }, 30_000)
+    return () => clearInterval(id)
+  }, [loadChats])
+
   // Deep-link from other pages (e.g. /form-submissions): ?friend=<friendId>
   // chat list returns id = friend_id, so selectedChatId === friendId is correct.
   // If no chat exists yet, loadChatDetail will fail and the user can fall back to
