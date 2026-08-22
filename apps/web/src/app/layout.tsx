@@ -1,6 +1,16 @@
 import type { Metadata } from 'next'
+import { Noto_Sans_JP } from 'next/font/google'
 import './globals.css'
 import AppShell from '@/components/app-shell'
+
+// 日本語フォントはビルド時にセルフホスト化される (実行時の外部依存なし)
+const notoSansJP = Noto_Sans_JP({
+  weight: ['400', '500', '700'],
+  subsets: ['latin'],
+  display: 'swap',
+  preload: false,
+  variable: '--font-noto',
+})
 
 export const metadata: Metadata = {
   title: 'L Harness',
@@ -13,8 +23,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="ja">
-      <body className="bg-gray-50 text-gray-900 antialiased" style={{ fontFamily: "'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', system-ui, sans-serif" }}>
+    <html lang="ja" className={notoSansJP.variable}>
+      <body className="bg-app text-ink antialiased font-sans">
         <AppShell>
           {children}
         </AppShell>

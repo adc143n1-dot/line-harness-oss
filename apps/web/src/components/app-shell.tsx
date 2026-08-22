@@ -4,18 +4,20 @@ import Sidebar from './layout/sidebar'
 import { UpdateBanner } from './update/update-banner'
 import AuthGuard from './auth-guard'
 import { AccountProvider } from '@/contexts/account-context'
+import { ConfirmProvider } from '@/components/ui/confirm-dialog'
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
   if (pathname === '/login') {
-    return <>{children}</>
+    return <ConfirmProvider>{children}</ConfirmProvider>
   }
 
   return (
     <AuthGuard>
       <AccountProvider>
-        <div className="flex min-h-screen flex-col">
+        <ConfirmProvider>
+          <div className="flex min-h-screen flex-col">
           {/* Phase 6: banner above sidebar+header so it pins to the top of the
               admin shell. Renders nothing while loading; one of latest/fork/
               upgrade once /admin/version + manifest resolve. */}
@@ -27,8 +29,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 {children}
               </div>
             </main>
+            </div>
           </div>
-        </div>
+        </ConfirmProvider>
       </AccountProvider>
     </AuthGuard>
   )

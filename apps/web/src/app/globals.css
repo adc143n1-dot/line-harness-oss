@@ -1,1 +1,40 @@
 @import "tailwindcss";
+
+/*
+ * デザイントークン (staff-guide.html の白+青セットを全体の公式トークンに昇格)
+ * - ブランドは青 (brand-600 = #2563EB)。
+ * - LINEグリーンは「LINEで開く」「友だち追加」などLINE操作ボタン専用 (--color-line)。
+ *   それ以外の用途でLINE緑を使わないこと。
+ */
+@theme {
+  --font-sans: var(--font-noto), "Noto Sans JP", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+
+  /* ブランド (青) */
+  --color-brand-50: #eff5fe;
+  --color-brand-100: #e4edfc;
+  --color-brand-200: #c7dbfa;
+  --color-brand-300: #93b8f5;
+  --color-brand-400: #60a5fa;
+  --color-brand-500: #3b82f6;
+  --color-brand-600: #2563eb;
+  --color-brand-700: #1d4ed8;
+  --color-brand-800: #1e40af;
+
+  /* LINE操作ボタン専用 */
+  --color-line: #06c755;
+  --color-line-dark: #05b64d;
+
+  /* 面と文字 */
+  --color-app: #f6f9fc;
+  --color-surface: #ffffff;
+  --color-surface-alt: #ecf2f9;
+  --color-edge: #dae3ee;
+  --color-ink: #17212f;
+  --color-ink-muted: #53637a;
+  --color-ink-faint: #8695ac;
+
+  /* セマンティック */
+  --color-success: #059669;
+  --color-warn: #d97706;
+  --color-danger: #dc2626;
+}
