@@ -4,10 +4,71 @@ import {
   getTelegramAccountById,
   upsertTelegramFriend,
   upsertChatOnMessage,
+  getChatByFriendId,
 } from '@line-crm/db';
+import type { Friend, AutoReply } from '@line-crm/db';
 import { TelegramClient } from '../services/telegram/client.js';
 import { fireEvent } from '../services/event-bus.js';
+import { keywordMatches } from '../services/auto-reply.js';
+import { maybeSendAiReply } from '../services/ai-reply/index.js';
+import { deliverToFriend } from '../services/messaging/dispatch.js';
+import type { LineClient } from '@line-crm/line-sdk';
 import type { Env } from '../index.js';
+
+/**
+ * Telegram 受信テキストに対する自動化 (自動返信キーワード + AI応答)。
+ * - キーワード自動返信は text 応答のみ対応 (flex/LIFF は LINE専用なのでスキップ)。
+ *   マッチしたら AI 応答はしない。
+ * - AI 応答は既存の maybeSendAiReply を再利用し、送信だけ Telegram に差し替える
+ *   (pushTextMessage を Telegram 送信に読み替えるシム)。有人割当中は内部で抑止される。
+ */
+async function runTelegramTextAutomation(
+  env: Env['Bindings'],
+  friend: Friend,
+  chatId: string,
+  incomingText: string,
+  client: TelegramClient,
+): Promise<void> {
+  // 1) キーワード自動返信 (グローバルルールのみ = line_account_id IS NULL)
+  try {
+    const rules = await env.DB
+      .prepare(
+        `SELECT * FROM auto_replies WHERE is_active = 1 AND line_account_id IS NULL ORDER BY created_at ASC`,
+      )
+      .all<AutoReply>();
+    const rule = rules.results.find((r) => keywordMatches(r, incomingText));
+    if (rule && rule.response_type !== 'silent') {
+      if (rule.response_type === 'text' && rule.response_content) {
+        await deliverToFriend(env, friend, { type: 'text', content: rule.response_content }, { source: 'auto_reply' });
+        return; // マッチしたら AI 応答はしない
+      }
+      // text 以外 (flex等) は Telegram 非対応。AI 応答に委ねる。
+    }
+  } catch (err) {
+    console.error('[telegram] auto-reply failed:', err);
+  }
+
+  // 2) AI 応答 (送信を Telegram に差し替えたシムで既存ロジックを再利用)
+  try {
+    const chat = await getChatByFriendId(env.DB, friend.id);
+    const shim = {
+      pushTextMessage: async (_userId: string, text: string) => {
+        await client.sendText(chatId, text);
+      },
+    } as unknown as LineClient;
+    await maybeSendAiReply(
+      env.DB,
+      shim,
+      friend,
+      { operator_id: chat?.operator_id ?? null },
+      incomingText,
+      env,
+      { lineAccountId: null },
+    );
+  } catch (err) {
+    console.error('[telegram] ai-reply failed:', err);
+  }
+}
 
 const telegram = new Hono<Env>();
 
@@ -228,6 +289,10 @@ telegram.post('/api/telegram/webhook/:accountId', async (c) => {
     .run();
   await upsertChatOnMessage(c.env.DB, friend.id);
   await fireEvent(c.env.DB, 'message_received', { friendId: friend.id });
+  // 実テキスト受信時のみ自動化 (ラベル化した非テキストでは走らせない)
+  if (text) {
+    await runTelegramTextAutomation(c.env, friend, String(tgChatId), text, client);
+  }
   return c.json({ ok: true });
 });
 
