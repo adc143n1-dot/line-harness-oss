@@ -25,7 +25,14 @@ export interface TelegramStoredImage {
 }
 
 export class TelegramClient {
-  constructor(private readonly botToken: string, private readonly fetcher: typeof fetch = fetch) {}
+  private readonly fetcher: typeof fetch;
+
+  constructor(private readonly botToken: string, fetcher?: typeof fetch) {
+    // Cloudflare Workers では global fetch を `this.fetcher(...)` のように別の
+    // レシーバー経由で呼ぶと "Illegal invocation" になる。グローバルを正しい
+    // this で呼ぶラッパーを既定にする (テストは注入した fetcher をそのまま使う)。
+    this.fetcher = fetcher ?? ((input: RequestInfo | URL, init?: RequestInit) => fetch(input, init));
+  }
 
   private async call<T = unknown>(method: string, body: Record<string, unknown>): Promise<T | null> {
     try {

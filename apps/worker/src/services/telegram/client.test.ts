@@ -43,6 +43,20 @@ describe('TelegramClient', () => {
     });
   });
 
+  it('uses global fetch when no fetcher is injected (Workers Illegal-invocation regression)', async () => {
+    // fetcher未指定=本番経路。global fetch を正しい this で呼べること。
+    const globalMock = vi.fn(async (_url: string, _init?: RequestInit) => okJson({ message_id: 9 }));
+    vi.stubGlobal('fetch', globalMock);
+    try {
+      const client = new TelegramClient('BOT123');
+      const ok = await client.sendText('7', 'hi');
+      expect(ok).toBe(true);
+      expect(globalMock).toHaveBeenCalledOnce();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('returns false on API error', async () => {
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => ({ ok: false, status: 400, text: async () => 'bad' }) as unknown as Response);
     const client = new TelegramClient('BOT123', fetchMock as unknown as typeof fetch);
