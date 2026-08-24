@@ -24,6 +24,18 @@ export interface TelegramStoredImage {
   previewImageUrl: string;
 }
 
+export interface TelegramWebhookInfo {
+  url?: string;
+  has_custom_certificate?: boolean;
+  pending_update_count?: number;
+  ip_address?: string;
+  last_error_date?: number;
+  last_error_message?: string;
+  last_synchronization_error_date?: number;
+  max_connections?: number;
+  allowed_updates?: string[];
+}
+
 export class TelegramClient {
   private readonly fetcher: typeof fetch;
 
@@ -75,6 +87,11 @@ export class TelegramClient {
       allowed_updates: ['message'],
     });
     return r !== null;
+  }
+
+  /** Telegram側のWebフック状態(URL・保留件数・最終エラー等)。診断用。 */
+  async getWebhookInfo(): Promise<TelegramWebhookInfo | null> {
+    return this.call<TelegramWebhookInfo>('getWebhookInfo', {});
   }
 
   private async getFilePath(fileId: string): Promise<string | null> {

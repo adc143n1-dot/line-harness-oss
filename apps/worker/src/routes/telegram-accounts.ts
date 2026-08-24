@@ -124,6 +124,26 @@ telegramAccounts.post('/api/telegram-accounts/:id/register-webhook', requireRole
   return c.json({ success: ok, data: { webhookRegistered: ok } });
 });
 
+// GET Webフック診断 (owner) — Telegram側の getWebhookInfo をサーバー側で叩いて返す。
+// トークンは露出せず、URL・保留件数・最終エラーを可視化する(受信不具合の切り分け用)。
+telegramAccounts.get('/api/telegram-accounts/:id/webhook-info', requireRole('owner'), async (c) => {
+  const id = c.req.param('id')!;
+  const account = await getTelegramAccountById(c.env.DB, id);
+  if (!account) return c.json({ success: false, error: 'not found' }, 404);
+  const base = (c.env.WORKER_URL ?? '').replace(/\/$/, '');
+  const expectedUrl = base ? `${base}/api/telegram/webhook/${id}` : null;
+  const client = new TelegramClient(account.bot_token);
+  const info = await client.getWebhookInfo();
+  return c.json({
+    success: true,
+    data: {
+      expectedUrl,
+      urlMatches: info?.url === expectedUrl,
+      info,
+    },
+  });
+});
+
 // DELETE (owner のみ)
 telegramAccounts.delete('/api/telegram-accounts/:id', requireRole('owner'), async (c) => {
   await deleteTelegramAccount(c.env.DB, c.req.param('id')!);
