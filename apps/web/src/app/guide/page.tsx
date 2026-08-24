@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import Header from '@/components/layout/header'
-import { GUIDE_GROUPS, type Callout, type ScreenBadge } from '@/data/guide-content'
+import { GUIDE_GROUPS, type Callout, type ScreenBadge } from '@line-crm/shared'
 
 const BADGE_STYLE: Record<ScreenBadge, { label: string; className: string }> = {
   new: { label: 'NEW', className: 'bg-brand-100 text-brand-700' },

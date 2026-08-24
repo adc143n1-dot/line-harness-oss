@@ -677,6 +677,14 @@ export const api = {
       }),
   },
 
+  assistant: {
+    /** 管理画面AIアシスタント。使い方・データ集計・分析の質問に答える(全スタッフ可) */
+    ask: (data: { question: string; history?: { role: 'user' | 'assistant'; content: string }[] }) =>
+      fetchApi<ApiResponse<{ answer: string }>>('/api/assistant/ask', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+  },
   telegramAccounts: {
     list: () =>
       fetchApi<ApiResponse<TelegramAccountItem[]>>('/api/telegram-accounts'),

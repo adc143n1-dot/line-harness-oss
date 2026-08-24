@@ -695,3 +695,40 @@ export const GUIDE_GROUPS: GuideGroup[] = [
     ],
   },
 ]
+
+// ── AIアシスタントの grounding 用 Markdown 化 ────────────────────────────────
+// 管理画面の各画面の「使い方」を、AIに渡せる形に直列化する。
+// compact(既定): グループ見出し + 「画面名 — 目的」の1行(トークン節約)。
+// full: blocks(操作項目)と callouts(注意)も含めた詳細版。
+
+export interface GuideToMarkdownOptions {
+  /** true(既定)は画面ごと1行の要約。false は blocks/callouts も含む詳細。 */
+  compact?: boolean
+}
+
+export function guideToMarkdown(options: GuideToMarkdownOptions = {}): string {
+  const compact = options.compact ?? true
+  const lines: string[] = ['# 管理画面の使い方(画面リファレンス)']
+
+  for (const group of GUIDE_GROUPS) {
+    lines.push('', `## ${group.label}`)
+    for (const s of group.screens) {
+      if (compact) {
+        lines.push(`- **${s.title}** — ${s.purpose}`)
+        continue
+      }
+      lines.push('', `### ${s.title}`, s.purpose)
+      for (const block of s.blocks ?? []) {
+        if (block.label) lines.push(`**${block.label}**`)
+        for (const item of block.items) lines.push(`- ${item}`)
+      }
+      for (const c of s.callouts ?? []) {
+        const mark = c.kind === 'danger' ? '⚠️ ' : c.kind === 'caution' ? '注意: ' : ''
+        lines.push(`> ${mark}${c.text}`)
+      }
+      if (s.flow && s.flow.length > 0) lines.push(`流れ: ${s.flow.join(' → ')}`)
+    }
+  }
+
+  return lines.join('\n')
+}

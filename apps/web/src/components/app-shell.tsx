@@ -5,6 +5,7 @@ import { UpdateBanner } from './update/update-banner'
 import AuthGuard from './auth-guard'
 import { AccountProvider } from '@/contexts/account-context'
 import { ConfirmProvider } from '@/components/ui/confirm-dialog'
+import AssistantPanel from '@/components/assistant/assistant-panel'
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -31,6 +32,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </main>
             </div>
           </div>
+          <AssistantPanel />
         </ConfirmProvider>
       </AccountProvider>
     </AuthGuard>
