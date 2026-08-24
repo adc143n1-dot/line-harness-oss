@@ -57,14 +57,19 @@ export async function buildOperationsSnapshot(
 
   const [staffCounts, resolved7d, leads, automationInventory, repeatedManual, cv, broadcastEff, mileage, unanswered] =
     await Promise.all([
+      // chats には line_account_id が無い (migration 071 の再構築で消えた) ので、
+      // アカウント絞りは friends 経由で行う。
       db.prepare(
-        `SELECT operator_id AS k, COUNT(*) AS cnt FROM chats
-          WHERE operator_id IS NOT NULL AND status != 'resolved'${accWhere()} GROUP BY operator_id`,
+        `SELECT c.operator_id AS k, COUNT(*) AS cnt
+           FROM chats c JOIN friends f ON f.id = c.friend_id
+          WHERE c.operator_id IS NOT NULL AND c.status != 'resolved'${acc ? ' AND f.line_account_id = ?' : ''}
+          GROUP BY c.operator_id`,
       ).bind(...b()).all<CountRow>(),
       db.prepare(
-        `SELECT operator_id AS k, COUNT(*) AS cnt FROM chats
-          WHERE resolved_at >= datetime('now', '-7 days', '+9 hours') AND operator_id IS NOT NULL${accWhere()}
-          GROUP BY operator_id`,
+        `SELECT c.operator_id AS k, COUNT(*) AS cnt
+           FROM chats c JOIN friends f ON f.id = c.friend_id
+          WHERE c.resolved_at >= datetime('now', '-7 days', '+9 hours') AND c.operator_id IS NOT NULL${acc ? ' AND f.line_account_id = ?' : ''}
+          GROUP BY c.operator_id`,
       ).bind(...b()).all<CountRow>(),
       db.prepare(
         `SELECT COALESCE(lead_temperature, 'none') AS k, COUNT(*) AS cnt FROM friends
