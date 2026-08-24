@@ -7,6 +7,9 @@ import { UNANSWERED_REFRESH_EVENT } from '@/lib/events'
 import { useAccount } from '@/contexts/account-context'
 import Header from '@/components/layout/header'
 import { Icon } from '@/components/ui/icons'
+import Button from '@/components/ui/button'
+import EmptyState from '@/components/ui/empty-state'
+import { LoadingState } from '@/components/ui/spinner'
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import CcPromptButton from '@/components/cc-prompt-button'
 import FlexPreviewComponent from '@/components/flex-preview'
@@ -157,6 +160,44 @@ function sameYmd(aIso: string, bIso: string): boolean {
 function formatYmdSlash(iso: string): string {
   const d = new Date(iso)
   return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`
+}
+
+// 一覧の相対時刻表示 (チャットアプリ風)。当日=時刻 / 昨日 / 今年=M/D / それ以前=YYYY/M/D。
+function formatRelativeTime(iso: string | null): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const now = new Date()
+  const diffMin = Math.floor((now.getTime() - d.getTime()) / 60000)
+  if (diffMin < 1) return 'たった今'
+  if (diffMin < 60) return `${diffMin}分前`
+  if (sameYmd(iso, now.toISOString())) {
+    return d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+  }
+  const yesterday = new Date(now)
+  yesterday.setDate(yesterday.getDate() - 1)
+  if (sameYmd(iso, yesterday.toISOString())) return '昨日'
+  if (d.getFullYear() === now.getFullYear()) return `${d.getMonth() + 1}/${d.getDate()}`
+  return formatYmdSlash(iso)
+}
+
+// チャネル表示バッジ。LINE=緑ドット / Telegram=スカイ。一覧行・スレッドヘッダーで共通利用。
+function ChannelBadge({ channel, className = '' }: { channel: 'line' | 'telegram'; className?: string }) {
+  if (channel === 'telegram') {
+    return (
+      <span
+        className={`inline-flex items-center gap-1 flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-700 font-medium ${className}`}
+      >
+        <span className="w-1.5 h-1.5 rounded-full bg-sky-500" aria-hidden="true" /> Telegram
+      </span>
+    )
+  }
+  return (
+    <span
+      className={`inline-flex items-center gap-1 flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-medium ${className}`}
+    >
+      <span className="w-1.5 h-1.5 rounded-full bg-line" aria-hidden="true" /> LINE
+    </span>
+  )
 }
 
 const ccPrompts = [
@@ -450,6 +491,12 @@ export default function ChatsPage() {
     if (typeof window === 'undefined') return ''
     return new URLSearchParams(window.location.search).get('operator') ?? ''
   })
+  // 表示上のチャネル絞り込み。クライアント側で読み込み済み chats を絞るだけ (API は変更しない)。
+  const [channelFilter, setChannelFilter] = useState<'all' | 'line' | 'telegram'>('all')
+  // スレッドヘッダーの二次操作をまとめる「その他」メニューの開閉。
+  const [actionsMenuOpen, setActionsMenuOpen] = useState(false)
+  // 送信欄の詳細設定 (入力中ローディング・送信キー) の開閉。
+  const [composerSettingsOpen, setComposerSettingsOpen] = useState(false)
 
   const staffNameOf = useCallback(
     (id: string | null | undefined): string | null => {
@@ -1219,115 +1266,148 @@ export default function ChatsPage() {
 
       <div className="flex gap-4 h-[calc(100vh-120px)] lg:h-[calc(100vh-180px)]">
         {/* Left Panel: Chat List */}
-        <div className={`w-full lg:w-96 lg:flex-shrink-0 bg-white rounded-lg shadow-sm border border-gray-200 flex-col overflow-hidden ${selectedChatId ? 'hidden lg:flex' : 'flex'}`}>
-          {/* タブ (全て / 未読 / 対応中 / 解決済) は意図的に削除。直近メッセージが見やすい LINE 風一覧を優先。 */}
+        <div className={`w-full lg:w-96 lg:flex-shrink-0 bg-surface rounded-xl shadow-sm border border-edge flex-col overflow-hidden ${selectedChatId ? 'hidden lg:flex' : 'flex'}`}>
+          {/* Sticky header: 検索 + フィルタ (「一覧が探しにくい」への対処) */}
+          <div className="flex-shrink-0 border-b border-edge">
+            {/* 全チャット横断検索。ON の間は下の一覧を検索結果に差し替える。 */}
+            <div className="p-3 pb-2">
+              <div className="relative">
+                <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-faint" />
+                <input
+                  type="text"
+                  value={globalSearchQuery}
+                  onChange={(e) => {
+                    setGlobalSearchQuery(e.target.value)
+                    if (!globalSearchMode) setGlobalSearchMode(true)
+                  }}
+                  onFocus={() => setGlobalSearchMode(true)}
+                  placeholder="メッセージを検索 (3文字以上)"
+                  aria-label="全チャットからメッセージを検索"
+                  className="w-full text-sm bg-surface-alt/60 border border-edge rounded-lg pl-9 pr-9 py-2 text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-surface"
+                />
+                {globalSearchMode && (
+                  <button
+                    onClick={() => { setGlobalSearchMode(false); setGlobalSearchQuery(''); setGlobalSearchResults([]) }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full text-ink-faint hover:text-ink hover:bg-surface-alt"
+                    aria-label="検索を閉じる"
+                  >
+                    <Icon name="close" className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
 
-          {/* 全チャット横断検索。ON の間は下の一覧を検索結果に差し替える。 */}
-          <div className="px-3 pt-2 flex items-center gap-2">
-            <div className="relative flex-1">
-              <input
-                type="text"
-                value={globalSearchQuery}
-                onChange={(e) => {
-                  setGlobalSearchQuery(e.target.value)
-                  if (!globalSearchMode) setGlobalSearchMode(true)
-                }}
-                onFocus={() => setGlobalSearchMode(true)}
-                placeholder="全チャットからメッセージを検索 (3文字以上)"
-                className="w-full text-xs border border-edge rounded-lg pl-3 pr-7 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand-500"
-              />
-              {globalSearchMode && (
+            {/* チャネル絞り込み (クライアント側のみ・API は変更しない) */}
+            <div className="px-3 pb-2">
+              <div className="flex items-center gap-1 rounded-lg bg-surface-alt p-0.5">
+                {([
+                  { key: 'all', label: 'すべて' },
+                  { key: 'line', label: 'LINE' },
+                  { key: 'telegram', label: 'Telegram' },
+                ] as const).map((c) => (
+                  <button
+                    key={c.key}
+                    onClick={() => setChannelFilter(c.key)}
+                    aria-pressed={channelFilter === c.key}
+                    className={`flex-1 inline-flex items-center justify-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+                      channelFilter === c.key ? 'bg-surface text-ink shadow-sm' : 'text-ink-muted hover:text-ink'
+                    }`}
+                  >
+                    {c.key === 'line' && <span className="w-1.5 h-1.5 rounded-full bg-line" aria-hidden="true" />}
+                    {c.key === 'telegram' && <span className="w-1.5 h-1.5 rounded-full bg-sky-500" aria-hidden="true" />}
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* ステータスフィルタ + 未対応のみ */}
+            <div className="px-3 pb-2 flex flex-wrap items-center gap-1.5">
+              {statusFilters.map((f) => (
                 <button
-                  onClick={() => { setGlobalSearchMode(false); setGlobalSearchQuery(''); setGlobalSearchResults([]) }}
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  aria-label="検索を閉じる"
+                  key={f.key}
+                  onClick={() => setStatusFilter(f.key)}
+                  disabled={unansweredOnly}
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                    statusFilter === f.key
+                      ? 'bg-brand-600 text-white'
+                      : 'bg-surface-alt text-ink-muted hover:bg-edge'
+                  } ${unansweredOnly ? 'opacity-40 cursor-not-allowed' : ''}`}
                 >
-                  ×
+                  {f.label}
                 </button>
+              ))}
+              <label className="flex items-center gap-1.5 text-xs font-medium text-ink-muted whitespace-nowrap ml-auto cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={unansweredOnly}
+                  onChange={(e) => setUnansweredOnly(e.target.checked)}
+                  className="rounded accent-brand-600"
+                />
+                未対応のみ
+              </label>
+            </div>
+
+            {/* 担当フィルタ + プル型分配 */}
+            <div className="px-3 pb-3 flex flex-wrap items-center gap-2">
+              {/* 共有 API キー運用 (myStaffId 不明) では担当の概念が無いので出さない */}
+              {myStaffId && (
+                <label className="flex items-center gap-1.5 text-xs font-medium text-ink-muted whitespace-nowrap cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={myChatsOnly}
+                    onChange={(e) => setMyChatsOnly(e.target.checked)}
+                    className="rounded accent-brand-600"
+                  />
+                  自分の担当
+                </label>
+              )}
+              {/* 担当者フィルタ。「自分の担当」ON中は競合するため無効化 */}
+              {staffRoster.length > 0 && (
+                <select
+                  value={myChatsOnly ? '' : operatorFilter}
+                  onChange={(e) => setOperatorFilter(e.target.value)}
+                  disabled={myChatsOnly}
+                  className={`text-xs border border-edge rounded-lg px-2 py-1 bg-surface text-ink ${myChatsOnly ? 'opacity-40 cursor-not-allowed' : ''}`}
+                  title="担当者で絞り込む"
+                >
+                  <option value="">担当: 全員</option>
+                  <option value="none">担当: 未割当のみ</option>
+                  {staffRoster.filter((s) => s.isActive).map((s) => (
+                    <option key={s.id} value={s.id}>担当: {s.name}</option>
+                  ))}
+                </select>
+              )}
+              {/* プル型分配: 未割当の未対応から次の1件を取る。同時に押しても
+                  原子的claimにより別々のチャットが割り当たる */}
+              {myStaffId && (
+                <Button
+                  size="sm"
+                  onClick={() => { void handleClaimNext() }}
+                  disabled={claimingNext}
+                  className="ml-auto"
+                  title="未割当の未対応 (HOTリード優先・古い順) から次の1件を自分の担当にして開く"
+                >
+                  <Icon name="rocket" className="w-3.5 h-3.5" />
+                  {claimingNext ? '取得中…' : '次の未対応を担当'}
+                </Button>
               )}
             </div>
           </div>
 
-          {/* Filter row */}
-          <div className="px-3 py-2 border-b border-gray-100 flex flex-wrap items-center gap-2">
-            {statusFilters.map((f) => (
-              <button
-                key={f.key}
-                onClick={() => setStatusFilter(f.key)}
-                disabled={unansweredOnly}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                  statusFilter === f.key
-                    ? 'bg-brand-600 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                } ${unansweredOnly ? 'opacity-40 cursor-not-allowed' : ''}`}
-              >
-                {f.label}
-              </button>
-            ))}
-            {/* 共有 API キー運用 (myStaffId 不明) では担当の概念が無いので出さない */}
-            {myStaffId && (
-              <label className="flex items-center gap-1.5 text-xs font-medium whitespace-nowrap cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={myChatsOnly}
-                  onChange={(e) => setMyChatsOnly(e.target.checked)}
-                  className="rounded"
-                />
-                自分の担当
-              </label>
-            )}
-            {/* 担当者フィルタ。「自分の担当」ON中は競合するため無効化 */}
-            {staffRoster.length > 0 && (
-              <select
-                value={myChatsOnly ? '' : operatorFilter}
-                onChange={(e) => setOperatorFilter(e.target.value)}
-                disabled={myChatsOnly}
-                className={`text-xs border border-edge rounded-lg px-1.5 py-1 bg-white ${myChatsOnly ? 'opacity-40 cursor-not-allowed' : ''}`}
-                title="担当者で絞り込む"
-              >
-                <option value="">担当: 全員</option>
-                <option value="none">担当: 未割当のみ</option>
-                {staffRoster.filter((s) => s.isActive).map((s) => (
-                  <option key={s.id} value={s.id}>担当: {s.name}</option>
-                ))}
-              </select>
-            )}
-            <label className="flex items-center gap-1.5 text-xs font-medium whitespace-nowrap ml-auto cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={unansweredOnly}
-                onChange={(e) => setUnansweredOnly(e.target.checked)}
-                className="rounded"
-              />
-              未対応のみ
-            </label>
-            {/* プル型分配: 未割当の未対応から次の1件を取る。同時に押しても
-                原子的claimにより別々のチャットが割り当たる */}
-            {myStaffId && (
-              <button
-                onClick={() => { void handleClaimNext() }}
-                disabled={claimingNext}
-                className="px-2.5 py-1 text-xs font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg transition-colors disabled:opacity-50 whitespace-nowrap"
-                title="未割当の未対応 (HOTリード優先・古い順) から次の1件を自分の担当にして開く"
-              >
-                {claimingNext ? '取得中…' : '次の未対応を担当'}
-              </button>
-            )}
-          </div>
-
           {/* Chat List */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto bg-surface">
             {globalSearchMode ? (
               globalSearchQuery.trim().length < MIN_SEARCH_LENGTH ? (
-                <div className="px-4 py-8 text-center text-xs text-gray-400">
+                <div className="px-4 py-8 text-center text-xs text-ink-faint">
                   {MIN_SEARCH_LENGTH}文字以上入力すると検索します
                 </div>
               ) : globalSearching ? (
-                <div className="px-4 py-8 text-center text-xs text-gray-400">検索中...</div>
+                <div className="px-4 py-8 text-center text-xs text-ink-faint">検索中...</div>
               ) : globalSearchError ? (
-                <div className="px-4 py-8 text-center text-xs text-red-500">{globalSearchError}</div>
+                <div className="px-4 py-8 text-center text-xs text-danger">{globalSearchError}</div>
               ) : globalSearchResults.length === 0 ? (
-                <div className="px-4 py-8 text-center text-xs text-gray-400">一致するメッセージがありません</div>
+                <div className="px-4 py-8 text-center text-xs text-ink-faint">一致するメッセージがありません</div>
               ) : (
                 globalSearchResults.map((hit) => (
                   <button
@@ -1338,14 +1418,14 @@ export default function ChatsPage() {
                       setSelectedFriendId(null)
                       handleSelectChat(hit.friendId)
                     }}
-                    className="w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-gray-50"
+                    className="w-full text-left px-4 py-3 border-b border-edge hover:bg-surface-alt focus-visible:outline-none focus-visible:bg-surface-alt"
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-medium text-gray-900 truncate">{hit.friendName}</p>
-                      <span className="text-[10px] text-gray-400 flex-shrink-0">{formatDatetime(hit.createdAt)}</span>
+                      <p className="text-sm font-medium text-ink truncate">{hit.friendName}</p>
+                      <span className="text-[10px] text-ink-faint flex-shrink-0">{formatDatetime(hit.createdAt)}</span>
                     </div>
-                    <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">
-                      {hit.direction === 'outgoing' && <span className="text-gray-400 mr-1">↪</span>}
+                    <p className="text-xs text-ink-muted mt-0.5 line-clamp-2">
+                      {hit.direction === 'outgoing' && <span className="text-ink-faint mr-1">↪</span>}
                       {hit.content}
                     </p>
                   </button>
@@ -1353,150 +1433,184 @@ export default function ChatsPage() {
               )
             ) : loading ? (
               <div>
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="px-4 py-3 border-b border-gray-100 animate-pulse">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="px-4 py-3 border-b border-edge animate-pulse">
                     <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-full bg-surface-alt flex-shrink-0" />
                       <div className="flex-1 space-y-2">
-                        <div className="h-3 bg-gray-200 rounded w-32" />
-                        <div className="h-2 bg-gray-100 rounded w-20" />
+                        <div className="h-3 bg-surface-alt rounded w-32" />
+                        <div className="h-2 bg-surface-alt rounded w-40" />
                       </div>
-                      <div className="h-5 bg-gray-100 rounded-full w-12" />
                     </div>
                   </div>
                 ))}
               </div>
-            ) : (
-              <>
-                {chats.map((chat) => {
-                  const isSelected = selectedChatId === chat.id
-                  // 「真の自発（要対応）」= chat.status='unread'。webhook 側で auto_reply に
-                  // マッチしなかった incoming のみ unread に設定される。auto_reply trigger
-                  // (キーワード "コスト比較" 等) は matched 扱いで unread 化しない。
-                  // bold / 🟥 の表示はこの status を使う。direction だけだと button 押下も
-                  // 強調してしまって S/N 比が悪化する。
-                  const needsAttention = chat.status === 'unread'
-                  // 最新メッセージの本文 preview。flex/image は文字列で見せても意味が薄いので type 表記に置換。
-                  const previewRaw = chat.lastMessageContent ?? ''
-                  const preview = (() => {
-                    if (chat.lastMessageType === 'image') return '[画像]'
-                    if (chat.lastMessageType === 'flex') return '[Flexメッセージ]'
-                    if (chat.lastMessageType === 'sticker') return '[スタンプ]'
-                    if (chat.lastMessageType === 'video') return '[動画]'
-                    if (chat.lastMessageType === 'audio') return '[音声]'
-                    if (chat.lastMessageType === 'file') return '[ファイル]'
-                    if (chat.lastMessageType === 'location') return '[位置情報]'
-                    return previewRaw.replace(/\n+/g, ' ').slice(0, 60)
-                  })()
-                  return (
-                    <button
-                      key={chat.id}
-                      onClick={() => { setSelectedFriendId(null); handleSelectChat(chat.id); }}
-                      className={`w-full text-left px-4 py-3 border-b border-gray-100 transition-colors ${
-                        isSelected && !selectedFriendId ? 'bg-brand-50' : 'hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="flex items-start gap-3">
-                        {chat.friendPictureUrl ? (
-                          <img src={chat.friendPictureUrl} alt="" className="w-10 h-10 rounded-full flex-shrink-0" />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
-                            <span className="text-gray-500 text-sm">{chat.friendName.charAt(0)}</span>
-                          </div>
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                              {chat.status === 'unread' && (
-                                <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" aria-label="未読" />
-                              )}
-                              <p className="text-sm font-medium text-gray-900 truncate">{chat.friendName}</p>
-                              {chat.channel === 'telegram' && (
-                                <span className="flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-700 font-medium">Telegram</span>
-                              )}
-                            </div>
-                            <span className="text-[10px] text-gray-400 flex-shrink-0">{formatDatetime(chat.lastMessageAt)}</span>
-                          </div>
-                          <p
-                            className={`text-xs mt-0.5 truncate ${
-                              needsAttention
-                                ? 'text-gray-900 font-medium'
-                                : 'text-gray-400'
-                            }`}
-                            title={preview}
-                          >
-                            {chat.lastMessageDirection === 'outgoing' && (
-                              <span className="text-gray-400 mr-1">↪</span>
+            ) : (() => {
+              // チャネル絞り込みは読み込み済み chats に対するクライアント側フィルタのみ。
+              // サーバのページングには一切干渉しない (hasMoreChats は chats 全体基準のまま)。
+              const visibleChats = channelFilter === 'all'
+                ? chats
+                : chats.filter((c) => c.channel === channelFilter)
+              if (visibleChats.length === 0) {
+                return (
+                  <EmptyState
+                    icon={<Icon name="chat" className="w-6 h-6" />}
+                    title="チャットがありません"
+                    description={
+                      channelFilter !== 'all'
+                        ? 'このチャネルの会話はまだありません。上のタブで「すべて」に戻せます。'
+                        : 'フィルタ条件に一致する会話がありません。'
+                    }
+                  />
+                )
+              }
+              return (
+                <>
+                  {visibleChats.map((chat) => {
+                    const isSelected = selectedChatId === chat.id
+                    // 「真の自発（要対応）」= chat.status='unread'。webhook 側で auto_reply に
+                    // マッチしなかった incoming のみ unread に設定される。auto_reply trigger
+                    // (キーワード "コスト比較" 等) は matched 扱いで unread 化しない。
+                    // bold / 🟥 の表示はこの status を使う。direction だけだと button 押下も
+                    // 強調してしまって S/N 比が悪化する。
+                    const needsAttention = chat.status === 'unread'
+                    // 最新メッセージの本文 preview。flex/image は文字列で見せても意味が薄いので type 表記に置換。
+                    const previewRaw = chat.lastMessageContent ?? ''
+                    const preview = (() => {
+                      if (chat.lastMessageType === 'image') return '[画像]'
+                      if (chat.lastMessageType === 'flex') return '[Flexメッセージ]'
+                      if (chat.lastMessageType === 'sticker') return '[スタンプ]'
+                      if (chat.lastMessageType === 'video') return '[動画]'
+                      if (chat.lastMessageType === 'audio') return '[音声]'
+                      if (chat.lastMessageType === 'file') return '[ファイル]'
+                      if (chat.lastMessageType === 'location') return '[位置情報]'
+                      return previewRaw.replace(/\n+/g, ' ').slice(0, 60)
+                    })()
+                    return (
+                      <button
+                        key={chat.id}
+                        onClick={() => { setSelectedFriendId(null); handleSelectChat(chat.id); }}
+                        aria-current={isSelected && !selectedFriendId ? 'true' : undefined}
+                        className={`w-full text-left pl-3 pr-4 py-3 border-b border-edge border-l-2 transition-colors focus-visible:outline-none ${
+                          isSelected && !selectedFriendId
+                            ? 'bg-brand-50 border-l-brand-600'
+                            : 'border-l-transparent hover:bg-surface-alt focus-visible:bg-surface-alt'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="relative flex-shrink-0">
+                            {chat.friendPictureUrl ? (
+                              <img src={chat.friendPictureUrl} alt="" className="w-11 h-11 rounded-full object-cover" />
+                            ) : (
+                              <div className="w-11 h-11 rounded-full bg-surface-alt flex items-center justify-center">
+                                <span className="text-ink-muted text-base font-medium">{chat.friendName.charAt(0)}</span>
+                              </div>
                             )}
-                            {preview || <span className="italic text-gray-300">(まだメッセージなし)</span>}
-                          </p>
-                          {(chat.source || chat.telegramUserId || chat.outcome || staffRoster.length > 0) && (
-                            <div className="flex items-center gap-1 mt-1 flex-wrap">
-                              {/* 担当バッジ: 自分=緑 / 他スタッフ=青 (実名) / 未割当=グレー */}
-                              {staffRoster.length > 0 && (
-                                chat.operatorId ? (
+                            {/* チャネル識別ドット (アバター右下)。LINE=緑 / Telegram=スカイ */}
+                            <span
+                              className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full ring-2 ring-surface ${
+                                chat.channel === 'telegram' ? 'bg-sky-500' : 'bg-line'
+                              }`}
+                              aria-hidden="true"
+                            />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                {chat.status === 'unread' && (
+                                  <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" aria-label="未読" />
+                                )}
+                                <p className={`text-sm truncate ${needsAttention ? 'font-bold text-ink' : 'font-medium text-ink'}`}>
+                                  {chat.friendName}
+                                </p>
+                                {chat.channel === 'telegram' && (
+                                  <span className="flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-700 font-medium">Telegram</span>
+                                )}
+                              </div>
+                              <span className={`text-[10px] flex-shrink-0 ${needsAttention ? 'text-brand-600 font-medium' : 'text-ink-faint'}`}>
+                                {formatRelativeTime(chat.lastMessageAt)}
+                              </span>
+                            </div>
+                            <p
+                              className={`text-xs mt-0.5 truncate ${
+                                needsAttention ? 'text-ink font-medium' : 'text-ink-muted'
+                              }`}
+                              title={preview}
+                            >
+                              {chat.lastMessageDirection === 'outgoing' && (
+                                <span className="text-ink-faint mr-1">↪</span>
+                              )}
+                              {preview || <span className="italic text-ink-faint">(まだメッセージなし)</span>}
+                            </p>
+                            {(chat.source || chat.telegramUserId || chat.outcome || staffRoster.length > 0) && (
+                              <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                                {/* 担当バッジ: 自分=青 / 他スタッフ=青(実名) / 未割当=グレー */}
+                                {staffRoster.length > 0 && (
+                                  chat.operatorId ? (
+                                    <span
+                                      className={`px-1.5 py-0.5 text-[10px] rounded ${
+                                        chat.operatorId === myStaffId
+                                          ? 'bg-brand-50 text-brand-700'
+                                          : 'bg-brand-50 text-brand-700'
+                                      }`}
+                                      title={`担当: ${staffNameOf(chat.operatorId)}`}
+                                    >
+                                      {chat.operatorId === myStaffId ? '自分' : staffNameOf(chat.operatorId)}
+                                    </span>
+                                  ) : (
+                                    <span className="px-1.5 py-0.5 text-[10px] rounded bg-surface-alt text-ink-muted">
+                                      未割当
+                                    </span>
+                                  )
+                                )}
+                                {chat.source && (
+                                  <span
+                                    className="px-1.5 py-0.5 text-[10px] rounded bg-violet-50 text-violet-700"
+                                    title={`流入元: ${chat.source}`}
+                                  >
+                                    {chat.source}
+                                  </span>
+                                )}
+                                {chat.telegramUserId && (
+                                  <span className="px-1.5 py-0.5 text-[10px] rounded bg-sky-50 text-sky-700">
+                                    TG
+                                  </span>
+                                )}
+                                {chat.outcome && (
                                   <span
                                     className={`px-1.5 py-0.5 text-[10px] rounded ${
-                                      chat.operatorId === myStaffId
-                                        ? 'bg-brand-50 text-brand-700'
-                                        : 'bg-blue-50 text-blue-700'
+                                      chat.outcome === 'converted'
+                                        ? 'bg-emerald-50 text-emerald-700'
+                                        : 'bg-surface-alt text-ink-muted'
                                     }`}
-                                    title={`担当: ${staffNameOf(chat.operatorId)}`}
                                   >
-                                    {chat.operatorId === myStaffId ? '自分' : staffNameOf(chat.operatorId)}
+                                    {chat.outcome === 'converted' ? '成約' : '離脱'}
                                   </span>
-                                ) : (
-                                  <span className="px-1.5 py-0.5 text-[10px] rounded bg-gray-100 text-gray-500">
-                                    未割当
-                                  </span>
-                                )
-                              )}
-                              {chat.source && (
-                                <span
-                                  className="px-1.5 py-0.5 text-[10px] rounded bg-indigo-50 text-indigo-700"
-                                  title={`流入元: ${chat.source}`}
-                                >
-                                  {chat.source}
-                                </span>
-                              )}
-                              {chat.telegramUserId && (
-                                <span className="px-1.5 py-0.5 text-[10px] rounded bg-sky-50 text-sky-700">
-                                  TG
-                                </span>
-                              )}
-                              {chat.outcome && (
-                                <span
-                                  className={`px-1.5 py-0.5 text-[10px] rounded ${
-                                    chat.outcome === 'converted'
-                                      ? 'bg-emerald-50 text-emerald-700'
-                                      : 'bg-gray-100 text-gray-500'
-                                  }`}
-                                >
-                                  {chat.outcome === 'converted' ? '成約' : '離脱'}
-                                </span>
-                              )}
-                            </div>
-                          )}
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
+                      </button>
+                    )
+                  })}
+                  {hasMoreChats && !unansweredOnly && (
+                    <button
+                      onClick={() => { void loadMoreChats() }}
+                      disabled={loadingMore}
+                      className="w-full px-4 py-3 text-sm font-medium text-brand-700 hover:bg-brand-50 disabled:opacity-50 border-b border-edge"
+                    >
+                      {loadingMore ? '読み込み中...' : 'さらに読み込む'}
                     </button>
-                  )
-                })}
-                {hasMoreChats && !unansweredOnly && (
-                  <button
-                    onClick={() => { void loadMoreChats() }}
-                    disabled={loadingMore}
-                    className="w-full px-4 py-3 text-sm text-brand-700 hover:bg-brand-50 disabled:opacity-50 border-b border-gray-100"
-                  >
-                    {loadingMore ? '読み込み中...' : 'さらに読み込む'}
-                  </button>
-                )}
-              </>
-            )}
+                  )}
+                </>
+              )
+            })()}
           </div>
         </div>
 
         {/* Right Panel: Chat Detail */}
-        <div className={`flex-1 bg-white rounded-lg shadow-sm border border-gray-200 flex-col overflow-hidden ${selectedChatId || selectedFriendId ? 'flex' : 'hidden lg:flex'}`}>
+        <div className={`flex-1 min-w-0 bg-surface rounded-xl shadow-sm border border-edge flex-col overflow-hidden ${selectedChatId || selectedFriendId ? 'flex' : 'hidden lg:flex'}`}>
           {selectedFriendId && !selectedChatId ? (
             /* Direct message to friend without existing chat */
             <DirectMessagePanel
@@ -1506,59 +1620,58 @@ export default function ChatsPage() {
               onSent={() => { setSelectedFriendId(null); loadChats(); }}
             />
           ) : !selectedChatId ? (
-            <div className="flex-1 flex items-center justify-center">
-              <p className="text-gray-400 text-sm">チャットを選択してください</p>
-            </div>
+            <EmptyState
+              className="flex-1"
+              icon={<Icon name="chat" className="w-6 h-6" />}
+              title="チャットを選択してください"
+              description="左の一覧から会話を選ぶと、ここにやり取りが表示されます。"
+            />
           ) : detailLoading ? (
-            <div className="flex-1 flex items-center justify-center">
-              <p className="text-gray-400 text-sm">読み込み中...</p>
-            </div>
+            <LoadingState className="flex-1" />
           ) : chatDetail ? (
             <>
-              {/* Chat Header */}
-              <div className="px-4 py-4 border-b border-gray-200 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
+              {/* Chat Header — 主要操作 (対応状況/担当) はインライン、二次操作は「その他」メニューへ集約 */}
+              <div className="px-3 sm:px-4 py-2.5 border-b border-edge flex items-center justify-between gap-2 bg-surface">
+                <div className="flex items-center gap-2.5 min-w-0">
                   <button
                     onClick={() => setSelectedChatId(null)}
-                    className="lg:hidden flex-shrink-0 p-1 -ml-1 text-gray-500 hover:text-gray-700"
-                    aria-label="戻る"
+                    className="lg:hidden flex-shrink-0 flex items-center justify-center w-9 h-9 -ml-1 rounded-lg text-ink-muted hover:bg-surface-alt hover:text-ink"
+                    aria-label="一覧に戻る"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
                   </button>
-                  {chatDetail.friendPictureUrl && (
-                    <img src={chatDetail.friendPictureUrl} alt="" className="w-8 h-8 rounded-full flex-shrink-0" />
+                  {chatDetail.friendPictureUrl ? (
+                    <img src={chatDetail.friendPictureUrl} alt="" className="w-10 h-10 rounded-full flex-shrink-0 object-cover" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-surface-alt flex items-center justify-center flex-shrink-0">
+                      <span className="text-ink-muted text-base font-medium">{chatDetail.friendName.charAt(0)}</span>
+                    </div>
                   )}
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <p className="text-sm font-medium text-gray-900 truncate">
+                      <p className="text-sm font-semibold text-ink truncate">
                         {chatDetail.friendName}
                       </p>
-                      {(chats.find((c) => c.id === chatDetail.id)?.channel ?? chatDetail.channel) === 'telegram' && (
-                        <span className="flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-700 font-medium">Telegram</span>
+                      <ChannelBadge channel={(chats.find((c) => c.id === chatDetail.id)?.channel ?? chatDetail.channel) === 'telegram' ? 'telegram' : 'line'} />
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${statusConfig[chatDetail.status].className}`}
+                      >
+                        {statusConfig[chatDetail.status].label}
+                      </span>
+                      {chatDetail.snoozeUntil && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-orange-700" title="この時刻に未対応として再浮上します">
+                          <Icon name="clock" className="w-3 h-3" />
+                          {new Date(chatDetail.snoozeUntil).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </span>
                       )}
                     </div>
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium mt-1 ${statusConfig[chatDetail.status].className}`}
-                    >
-                      {statusConfig[chatDetail.status].label}
-                    </span>
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    onClick={() => {
-                      setChatSearchOpen((v) => !v)
-                      if (chatSearchOpen) { setChatSearchQuery(''); setChatSearchResults([]) }
-                    }}
-                    className={`inline-flex items-center gap-1 px-2 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium rounded-lg transition-colors ${
-                      chatSearchOpen ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                    title="この会話の中を検索"
-                  >
-                    <Icon name="search" className="w-3.5 h-3.5" /> 検索
-                  </button>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
                   {unansweredOnly && chats.length > 1 && (
                     <button
                       type="button"
@@ -1572,32 +1685,20 @@ export default function ChatsPage() {
                           setSelectedChatId(next.id)
                         }
                       }}
-                      className="rounded-lg bg-brand-600 px-3 py-1.5 min-h-[44px] lg:min-h-0 text-sm font-medium text-white hover:bg-brand-700"
+                      className="hidden sm:inline-flex rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700"
                       title="次の未対応 friend に進む"
                     >
                       次の未対応 →
                     </button>
                   )}
-                  {/* 進行状態と成果は独立して持つ。VIP は人単位の属性なのでタグで付ける。 */}
+                  {/* 進行状態 (対応状況)。最頻用なのでインライン維持 */}
                   <select
                     value={chatDetail.status}
                     onChange={(e) => handleStatusUpdate(e.target.value as Chat['status'])}
-                    className="px-2 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium border border-edge rounded-lg bg-white"
+                    className="px-2 py-1.5 text-xs font-medium border border-edge rounded-lg bg-surface text-ink"
                     aria-label="進行状態"
                   >
                     {progressOptions.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={chatDetail.outcome ?? ''}
-                    onChange={(e) => handleOutcomeUpdate(e.target.value)}
-                    className="px-2 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium border border-edge rounded-lg bg-white"
-                    aria-label="成果"
-                  >
-                    {outcomeOptions.map((o) => (
                       <option key={o.value} value={o.value}>
                         {o.label}
                       </option>
@@ -1609,14 +1710,14 @@ export default function ChatsPage() {
                     <button
                       onClick={() => handleClaim(false)}
                       disabled={claiming}
-                      className="px-3 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg transition-colors disabled:opacity-50"
+                      className="px-3 py-1.5 text-xs font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg transition-colors disabled:opacity-50 whitespace-nowrap"
                       title="このチャットを自分の担当にする"
                     >
                       {claiming ? '設定中…' : '担当する'}
                     </button>
                   )}
                   {myStaffId && chatDetail.operatorId === myStaffId && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-brand-700 bg-brand-50 rounded-lg">
+                    <span className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-brand-700 bg-brand-50 rounded-lg whitespace-nowrap">
                       自分が担当
                       <button
                         onClick={() => { void handleRelease() }}
@@ -1632,89 +1733,177 @@ export default function ChatsPage() {
                     <button
                       onClick={() => handleClaim(true)}
                       disabled={claiming}
-                      className="px-3 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors disabled:opacity-50"
+                      className="px-3 py-1.5 text-xs font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors disabled:opacity-50 whitespace-nowrap"
                       title={`${staffNameOf(chatDetail.operatorId) ?? '他のスタッフ'}が担当中です`}
                     >
                       {claiming
                         ? '設定中…'
-                        : `${staffNameOf(chatDetail.operatorId) ?? '他スタッフ'}が担当 — 引き取る`}
+                        : `${staffNameOf(chatDetail.operatorId) ?? '他スタッフ'} — 引き取る`}
                     </button>
                   )}
-                  {/* スヌーズ (再連絡予約)。期日に未対応として再浮上する */}
-                  {chatDetail.snoozeUntil ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-orange-700 bg-orange-50 rounded-lg" title="この時刻に未対応として再浮上します">
-                      <Icon name="clock" className="w-3.5 h-3.5" /> {new Date(chatDetail.snoozeUntil).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} に再浮上
-                      <button
-                        onClick={() => { void handleSnooze('clear') }}
-                        disabled={snoozing}
-                        className="ml-0.5 text-orange-600 hover:text-orange-800 underline disabled:opacity-50"
-                      >
-                        解除
-                      </button>
-                    </span>
-                  ) : (
-                    <select
-                      value=""
-                      onChange={(e) => { void handleSnooze(e.target.value) }}
-                      disabled={snoozing}
-                      className="text-xs border border-edge rounded-lg px-1.5 py-1 bg-white disabled:opacity-50"
-                      title="指定した時刻に未対応として再浮上させる (返信待ちの放置防止)"
-                    >
-                      <option value="">再連絡…</option>
-                      <option value="1h">1時間後</option>
-                      <option value="tomorrow9">明日 9:00</option>
-                      <option value="3days9">3日後 9:00</option>
-                    </select>
-                  )}
-                  {/* admin/owner は任意のスタッフへ割り当て(再割当)できる */}
-                  {(myRole === 'owner' || myRole === 'admin') && staffRoster.length > 0 && (
-                    <select
-                      value=""
-                      onChange={(e) => { if (e.target.value) void handleAssign(e.target.value) }}
-                      disabled={claiming}
-                      className="text-xs border border-edge rounded-lg px-1.5 py-1 bg-white disabled:opacity-50"
-                      title="このチャットをスタッフに割り当てる (admin/owner のみ)"
-                    >
-                      <option value="">担当を変更…</option>
-                      {staffRoster.filter((s) => s.isActive).map((s) => (
-                        <option key={s.id} value={s.id}>{s.name}</option>
-                      ))}
-                    </select>
-                  )}
-                  {chatDetail.telegramUserId ? (
-                    <span
-                      className="px-2 py-1 text-xs font-medium text-sky-700 bg-sky-50 rounded-lg"
-                      title={chatDetail.tgVerifiedAt ? `連携日時: ${chatDetail.tgVerifiedAt}` : undefined}
-                    >
-                      TG連携済
-                    </span>
-                  ) : (
+                  {/* その他メニュー: 検索・成果・再連絡・担当変更・誘導リンクをまとめる (ボタンが多すぎ問題への対処) */}
+                  <div className="relative">
                     <button
-                      onClick={handleInviteTelegram}
-                      disabled={invitingTelegram}
-                      className="px-3 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium text-sky-700 bg-sky-50 hover:bg-sky-100 rounded-lg transition-colors disabled:opacity-50"
-                      title="Telegram 誘導リンクを LINE で送る (24時間で失効)"
+                      onClick={() => setActionsMenuOpen((v) => !v)}
+                      aria-haspopup="menu"
+                      aria-expanded={actionsMenuOpen}
+                      aria-label="その他の操作"
+                      className={`inline-flex items-center justify-center w-9 h-9 rounded-lg transition-colors ${
+                        actionsMenuOpen ? 'bg-surface-alt text-ink' : 'text-ink-muted hover:bg-surface-alt hover:text-ink'
+                      }`}
+                      title="その他の操作"
                     >
-                      {invitingTelegram ? '送信中…' : 'Telegramに誘導する'}
+                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <circle cx="12" cy="5" r="1.6" />
+                        <circle cx="12" cy="12" r="1.6" />
+                        <circle cx="12" cy="19" r="1.6" />
+                      </svg>
                     </button>
-                  )}
-                  {chatDetail.discordUserId ? (
-                    <span
-                      className="px-2 py-1 text-xs font-medium text-indigo-700 bg-indigo-50 rounded-lg"
-                      title={chatDetail.discordVerifiedAt ? `連携日時: ${chatDetail.discordVerifiedAt}` : undefined}
-                    >
-                      Discord連携済
-                    </span>
-                  ) : (
-                    <button
-                      onClick={handleInviteDiscord}
-                      disabled={invitingDiscord}
-                      className="px-3 py-1 min-h-[44px] lg:min-h-0 text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors disabled:opacity-50"
-                      title="Discord 誘導リンクを LINE で送る (24時間で失効)"
-                    >
-                      {invitingDiscord ? '送信中…' : 'Discordに誘導する'}
-                    </button>
-                  )}
+                    {actionsMenuOpen && (
+                      <>
+                        <button
+                          type="button"
+                          aria-hidden="true"
+                          tabIndex={-1}
+                          onClick={() => setActionsMenuOpen(false)}
+                          className="fixed inset-0 z-10 cursor-default"
+                        />
+                        <div
+                          role="menu"
+                          className="absolute right-0 top-full mt-1 z-20 w-64 max-h-[70vh] overflow-y-auto rounded-xl border border-edge bg-surface shadow-lg p-1.5"
+                        >
+                          {/* 会話内検索 */}
+                          <button
+                            role="menuitem"
+                            onClick={() => {
+                              setChatSearchOpen((v) => !v)
+                              if (chatSearchOpen) { setChatSearchQuery(''); setChatSearchResults([]) }
+                              setActionsMenuOpen(false)
+                            }}
+                            className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-sm text-ink hover:bg-surface-alt"
+                          >
+                            <Icon name="search" className="w-4 h-4 text-ink-muted" />
+                            {chatSearchOpen ? '会話内検索を閉じる' : '会話内を検索'}
+                          </button>
+
+                          <div className="my-1 border-t border-edge" />
+
+                          {/* 成果 */}
+                          <div className="px-2.5 py-1.5">
+                            <label className="block text-[11px] font-medium text-ink-muted mb-1">成果</label>
+                            <select
+                              value={chatDetail.outcome ?? ''}
+                              onChange={(e) => handleOutcomeUpdate(e.target.value)}
+                              className="w-full text-sm border border-edge rounded-lg px-2 py-1.5 bg-surface text-ink"
+                              aria-label="成果"
+                            >
+                              {outcomeOptions.map((o) => (
+                                <option key={o.value} value={o.value}>
+                                  {o.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* 再連絡 (スヌーズ)。期日に未対応として再浮上する */}
+                          <div className="px-2.5 py-1.5">
+                            <label className="block text-[11px] font-medium text-ink-muted mb-1">再連絡予約</label>
+                            {chatDetail.snoozeUntil ? (
+                              <div className="flex items-center justify-between gap-2 text-xs text-orange-700">
+                                <span className="inline-flex items-center gap-1">
+                                  <Icon name="clock" className="w-3.5 h-3.5" />
+                                  {new Date(chatDetail.snoozeUntil).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} に再浮上
+                                </span>
+                                <button
+                                  onClick={() => { void handleSnooze('clear') }}
+                                  disabled={snoozing}
+                                  className="text-brand-600 hover:text-brand-800 underline disabled:opacity-50"
+                                >
+                                  解除
+                                </button>
+                              </div>
+                            ) : (
+                              <select
+                                value=""
+                                onChange={(e) => { void handleSnooze(e.target.value) }}
+                                disabled={snoozing}
+                                className="w-full text-sm border border-edge rounded-lg px-2 py-1.5 bg-surface text-ink disabled:opacity-50"
+                                title="指定した時刻に未対応として再浮上させる (返信待ちの放置防止)"
+                              >
+                                <option value="">再連絡…</option>
+                                <option value="1h">1時間後</option>
+                                <option value="tomorrow9">明日 9:00</option>
+                                <option value="3days9">3日後 9:00</option>
+                              </select>
+                            )}
+                          </div>
+
+                          {/* admin/owner は任意のスタッフへ割り当て(再割当)できる */}
+                          {(myRole === 'owner' || myRole === 'admin') && staffRoster.length > 0 && (
+                            <div className="px-2.5 py-1.5">
+                              <label className="block text-[11px] font-medium text-ink-muted mb-1">担当を変更 (管理者)</label>
+                              <select
+                                value=""
+                                onChange={(e) => { if (e.target.value) void handleAssign(e.target.value) }}
+                                disabled={claiming}
+                                className="w-full text-sm border border-edge rounded-lg px-2 py-1.5 bg-surface text-ink disabled:opacity-50"
+                                title="このチャットをスタッフに割り当てる (admin/owner のみ)"
+                              >
+                                <option value="">担当を変更…</option>
+                                {staffRoster.filter((s) => s.isActive).map((s) => (
+                                  <option key={s.id} value={s.id}>{s.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+
+                          <div className="my-1 border-t border-edge" />
+
+                          {/* 誘導リンク (LINE で送信するため line 系ボタン) */}
+                          <div className="px-2.5 py-1.5 space-y-1.5">
+                            {chatDetail.telegramUserId ? (
+                              <div
+                                className="flex items-center gap-1.5 text-xs font-medium text-sky-700"
+                                title={chatDetail.tgVerifiedAt ? `連携日時: ${chatDetail.tgVerifiedAt}` : undefined}
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full bg-sky-500" aria-hidden="true" /> Telegram 連携済
+                              </div>
+                            ) : (
+                              <Button
+                                variant="line"
+                                size="sm"
+                                onClick={() => { void handleInviteTelegram(); setActionsMenuOpen(false) }}
+                                disabled={invitingTelegram}
+                                className="w-full"
+                                title="Telegram 誘導リンクを LINE で送る (24時間で失効)"
+                              >
+                                {invitingTelegram ? '送信中…' : 'Telegramに誘導する'}
+                              </Button>
+                            )}
+                            {chatDetail.discordUserId ? (
+                              <div
+                                className="flex items-center gap-1.5 text-xs font-medium text-violet-700"
+                                title={chatDetail.discordVerifiedAt ? `連携日時: ${chatDetail.discordVerifiedAt}` : undefined}
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full bg-violet-500" aria-hidden="true" /> Discord 連携済
+                              </div>
+                            ) : (
+                              <Button
+                                variant="line"
+                                size="sm"
+                                onClick={() => { void handleInviteDiscord(); setActionsMenuOpen(false) }}
+                                disabled={invitingDiscord}
+                                className="w-full"
+                                title="Discord 誘導リンクを LINE で送る (24時間で失効)"
+                              >
+                                {invitingDiscord ? '送信中…' : 'Discordに誘導する'}
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -1722,29 +1911,29 @@ export default function ChatsPage() {
                   を対象に、本文の全文検索結果をプレビュー表示する。トランスクリプトへの
                   ジャンプは行わない (表示中の履歴を超えた古いメッセージもヒットし得るため)。 */}
               {chatSearchOpen && (
-                <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                <div className="px-4 py-3 border-b border-edge bg-surface-alt">
                   <input
                     type="text"
                     autoFocus
                     value={chatSearchQuery}
                     onChange={(e) => setChatSearchQuery(e.target.value)}
                     placeholder={`この会話の中を検索 (${MIN_SEARCH_LENGTH}文字以上)`}
-                    className="w-full text-sm border border-edge rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-brand-500"
+                    className="w-full text-sm border border-edge rounded-lg px-3 py-2 bg-surface text-ink focus:outline-none focus:ring-2 focus:ring-brand-500"
                   />
                   {chatSearchQuery.trim().length >= MIN_SEARCH_LENGTH && (
                     <div className="mt-2 max-h-48 overflow-y-auto space-y-1.5">
                       {chatSearching ? (
-                        <p className="text-xs text-gray-400">検索中...</p>
+                        <p className="text-xs text-ink-faint">検索中...</p>
                       ) : chatSearchError ? (
-                        <p className="text-xs text-red-500">{chatSearchError}</p>
+                        <p className="text-xs text-danger">{chatSearchError}</p>
                       ) : chatSearchResults.length === 0 ? (
-                        <p className="text-xs text-gray-400">一致するメッセージがありません</p>
+                        <p className="text-xs text-ink-faint">一致するメッセージがありません</p>
                       ) : (
                         chatSearchResults.map((hit) => (
-                          <div key={hit.id} className="text-xs bg-white border border-gray-200 rounded-md px-2.5 py-1.5">
-                            <span className="text-gray-400">{formatDatetime(hit.createdAt)}</span>
-                            <p className="text-gray-800 mt-0.5">
-                              {hit.direction === 'outgoing' && <span className="text-gray-400 mr-1">↪</span>}
+                          <div key={hit.id} className="text-xs bg-surface border border-edge rounded-md px-2.5 py-1.5">
+                            <span className="text-ink-faint">{formatDatetime(hit.createdAt)}</span>
+                            <p className="text-ink mt-0.5">
+                              {hit.direction === 'outgoing' && <span className="text-ink-faint mr-1">↪</span>}
                               {hit.content}
                             </p>
                           </div>
@@ -1755,17 +1944,18 @@ export default function ChatsPage() {
                 </div>
               )}
 
-              {/* Messages — LINE-style chat bubbles */}
-              <div ref={messagesScrollRef} className="flex-1 overflow-y-auto p-4 space-y-2" style={{ backgroundColor: '#7494C0' }}>
+              {/* Messages — チャットアプリ風のバブル (受信=左/グレー, 送信=右/ブランド青) */}
+              <div ref={messagesScrollRef} className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 space-y-1 bg-app">
                 {(!chatDetail.messages || chatDetail.messages.length === 0) ? (
-                  <div className="text-center py-8">
-                    <p className="text-white/60 text-sm">メッセージはまだありません。</p>
+                  <div className="flex h-full items-center justify-center">
+                    <p className="text-ink-faint text-sm">メッセージはまだありません。</p>
                   </div>
                 ) : (
                   (chatDetail.messages ?? []).map((msg, idx) => {
                     const prevMsg = idx > 0 ? (chatDetail.messages ?? [])[idx - 1] : null
                     const showDateSep = !prevMsg || !sameYmd(prevMsg.createdAt, msg.createdAt)
                     const isOutgoing = msg.direction === 'outgoing'
+                    const isMedia = msg.messageType === 'image' || msg.messageType === 'sticker' || msg.messageType === 'flex'
 
                     // メッセージ表示の分岐
                     let bubbleContent: React.ReactNode
@@ -1779,7 +1969,7 @@ export default function ChatsPage() {
                       try {
                         const parsed = JSON.parse(msg.content)
                         bubbleContent = (
-                          <img src={parsed.originalContentUrl || parsed.previewImageUrl} alt="" className="max-w-[200px] rounded" />
+                          <img src={parsed.originalContentUrl || parsed.previewImageUrl} alt="" className="max-w-[200px] rounded-lg" />
                         )
                       } catch {
                         bubbleContent = <span>[画像]</span>
@@ -1794,37 +1984,40 @@ export default function ChatsPage() {
                       <div key={msg.id}>
                         {showDateSep && (
                           <div className="flex justify-center my-3">
-                            <span className="text-[11px] text-white/85 bg-black/20 px-2.5 py-0.5 rounded-full">
+                            <span className="text-[11px] font-medium text-ink-muted bg-surface-alt px-2.5 py-0.5 rounded-full">
                               {formatYmdSlash(msg.createdAt)}
                             </span>
                           </div>
                         )}
                         <div
-                          className={`flex items-end gap-2 ${isOutgoing ? 'justify-end' : 'justify-start'}`}
+                          className={`flex items-end gap-2 py-0.5 ${isOutgoing ? 'justify-end' : 'justify-start'}`}
                         >
                           {/* 相手のアイコン（incoming のみ） */}
                           {!isOutgoing && (
                             chatDetail.friendPictureUrl ? (
-                              <img src={chatDetail.friendPictureUrl} alt="" className="w-8 h-8 rounded-full flex-shrink-0 mb-1" />
+                              <img src={chatDetail.friendPictureUrl} alt="" className="w-8 h-8 rounded-full flex-shrink-0 mb-4 object-cover" />
                             ) : (
-                              <div className="w-8 h-8 rounded-full bg-gray-300 flex-shrink-0 mb-1" />
+                              <div className="w-8 h-8 rounded-full bg-surface-alt flex-shrink-0 mb-4 flex items-center justify-center text-ink-muted text-xs font-medium">
+                                {chatDetail.friendName.charAt(0)}
+                              </div>
                             )
                           )}
 
-                          <div className={`flex flex-col ${isOutgoing ? 'items-end' : 'items-start'}`}>
-                            {/* メッセージバブル */}
+                          <div className={`flex flex-col max-w-[78%] ${isOutgoing ? 'items-end' : 'items-start'}`}>
+                            {/* メッセージバブル。メディアは余白/背景を抑える */}
                             <div
-                              className={`max-w-[320px] px-3 py-2 text-sm break-words whitespace-pre-wrap ${
+                              className={`text-sm break-words whitespace-pre-wrap shadow-sm ${
+                                isMedia ? 'p-1' : 'px-3 py-2'
+                              } ${
                                 isOutgoing
-                                  ? 'rounded-tl-2xl rounded-tr-md rounded-bl-2xl rounded-br-2xl text-white'
-                                  : 'rounded-tl-md rounded-tr-2xl rounded-bl-2xl rounded-br-2xl bg-white text-gray-900'
+                                  ? 'rounded-2xl rounded-br-sm bg-brand-600 text-white'
+                                  : 'rounded-2xl rounded-bl-sm bg-surface-alt text-ink'
                               }`}
-                              style={isOutgoing ? { backgroundColor: '#06C755' } : undefined}
                             >
                               {bubbleContent}
                             </div>
                             {/* 時刻 */}
-                            <span className="text-xs text-white/50 mt-0.5 px-1">
+                            <span className="text-[10px] text-ink-faint mt-0.5 px-1">
                               {new Date(msg.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
                             </span>
                           </div>
@@ -1837,20 +2030,23 @@ export default function ChatsPage() {
 
               {/* Notes — 時系列・追記専用。複数スタッフの同時対応で上書きし合わないよう、
                   誰が・いつ・何を書いたかを残す (旧: 上書き式の1行メモ)。 */}
-              <div className="px-4 py-2 border-t border-gray-200 bg-gray-50">
+              <div className="px-4 py-2 border-t border-edge bg-surface-alt">
                 {chatNotes.length > 0 && (
                   <div className="max-h-28 overflow-y-auto mb-2 space-y-1">
                     {chatNotes.map((n) => (
-                      <div key={n.id} className="text-xs bg-white border border-gray-200 rounded-md px-2 py-1">
-                        <span className="font-medium text-gray-600">{n.staffName ?? '(不明)'}</span>
-                        <span className="text-gray-300 mx-1">·</span>
-                        <span className="text-gray-400">{formatDatetime(n.createdAt)}</span>
-                        <p className="text-gray-800 whitespace-pre-wrap break-words">{n.content}</p>
+                      <div key={n.id} className="text-xs bg-surface border border-edge rounded-md px-2 py-1">
+                        <span className="font-medium text-ink-muted">{n.staffName ?? '(不明)'}</span>
+                        <span className="text-ink-faint mx-1">·</span>
+                        <span className="text-ink-faint">{formatDatetime(n.createdAt)}</span>
+                        <p className="text-ink whitespace-pre-wrap break-words">{n.content}</p>
                       </div>
                     ))}
                   </div>
                 )}
                 <div className="flex items-center gap-2">
+                  <span className="flex-shrink-0 inline-flex items-center gap-1 text-[11px] font-medium text-ink-faint">
+                    <Icon name="clipboard" className="w-3.5 h-3.5" /> 社内メモ
+                  </span>
                   <input
                     type="text"
                     value={newNoteContent}
@@ -1858,125 +2054,165 @@ export default function ChatsPage() {
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleAddNote()
                     }}
-                    placeholder="メモを入力..."
-                    className="flex-1 text-xs border border-edge rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-brand-500"
+                    placeholder="メモを入力... (相手には送信されません)"
+                    className="flex-1 text-xs border border-edge rounded-lg px-2 py-1.5 bg-surface text-ink focus:outline-none focus:ring-1 focus:ring-brand-500"
                   />
                   <button
                     onClick={handleAddNote}
                     disabled={addingNote || !newNoteContent.trim()}
-                    className="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50"
+                    className="px-2.5 py-1.5 text-xs font-medium text-ink-muted bg-surface border border-edge hover:bg-surface-alt rounded-lg transition-colors disabled:opacity-50"
                   >
                     {addingNote ? '追加中...' : '追加'}
                   </button>
                 </div>
               </div>
 
-              {/* Send Message Form */}
-              <div className="px-4 py-3 border-t border-gray-200">
-                <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-gray-600">
-                  <label className="inline-flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={showLoadingIndicator}
-                      onChange={(e) => setShowLoadingIndicator(e.target.checked)}
-                      className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-                    />
-                    入力中ローディングを表示
-                  </label>
-                  <select
-                    value={loadingSeconds}
-                    onChange={(e) => setLoadingSeconds(Number.parseInt(e.target.value, 10))}
-                    disabled={!showLoadingIndicator}
-                    className="border border-edge rounded-lg px-2 py-1 bg-white disabled:bg-gray-100 disabled:text-gray-400"
-                  >
-                    {[5, 10, 15, 20, 30, 45, 60].map((sec) => (
-                      <option key={sec} value={sec}>{sec}秒</option>
-                    ))}
-                  </select>
-                  <span className="text-gray-500">送信キー:</span>
-                  <label className="flex items-center gap-1 cursor-pointer">
-                    <input
-                      type="radio"
-                      checked={sendMode === 'enter'}
-                      onChange={() => setSendMode('enter')}
-                      className="accent-brand-600"
-                    />
-                    <span>Enter</span>
-                  </label>
-                  <label className="flex items-center gap-1 cursor-pointer">
-                    <input
-                      type="radio"
-                      checked={sendMode === 'shift-enter'}
-                      onChange={() => setSendMode('shift-enter')}
-                      className="accent-brand-600"
-                    />
-                    <span>Shift+Enter</span>
-                  </label>
-                </div>
-                <div className="mb-2">
-                  <ImageUploader
-                    mode="line-image"
-                    value={pendingImage}
-                    onChange={setPendingImage}
-                    label="画像を送る (任意)"
-                  />
-                </div>
-                {/* クイック返信チップ: text型テンプレートの新しい順5件をワンタップ挿入。
-                    タップで本文に追記し、フォーカスを返信欄へ移す */}
-                {quickReplies.length > 0 && !composerLocked && (
-                  <div className="flex flex-wrap gap-1.5 mb-2">
-                    {quickReplies.map((t) => (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => {
-                          setMessageContent((prev) => (prev ? `${prev}\n${t.content}` : t.content))
-                          textareaRef.current?.focus()
-                        }}
-                        className="px-2.5 py-1 text-xs rounded-lg border border-edge bg-gray-50 text-gray-700 hover:bg-brand-50 hover:border-brand-300 transition-colors max-w-[180px] truncate"
-                        title={t.content}
-                      >
-                        {t.name}
-                      </button>
-                    ))}
+              {/* Composer — 未割当時はロックせず「担当する」を促すインラインプロンプトを出す */}
+              {composerLocked ? (
+                <div className="border-t border-edge bg-surface p-4">
+                  <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
+                    <div className="flex items-center gap-2 text-sm text-amber-800 min-w-0">
+                      <Icon name="lock" className="w-4 h-4 flex-shrink-0" />
+                      <span className="min-w-0">このチャットは未割当です。担当すると返信できます。</span>
+                    </div>
+                    <button
+                      onClick={() => handleClaim(false)}
+                      disabled={claiming}
+                      className="flex-shrink-0 px-3 py-1.5 text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {claiming ? '設定中…' : '担当する'}
+                    </button>
                   </div>
-                )}
-                <div className="flex items-end gap-2">
-                  <textarea
-                    ref={textareaRef}
-                    rows={2}
-                    value={messageContent}
-                    style={{ maxHeight: '200px', overflowY: 'auto' }}
-                    onChange={(e) => {
-                      const value = e.target.value
-                      setMessageContent(value)
-                      if (selectedChatId && isMessageInputFocused && value.trim()) {
-                        void triggerLoadingAnimation(selectedChatId)
-                      }
-                    }}
-                    onCompositionStart={() => { isComposingRef.current = true }}
-                    onCompositionEnd={() => { isComposingRef.current = false }}
-                    onFocus={() => {
-                      setIsMessageInputFocused(true)
-                      if (selectedChatId) {
-                        void triggerLoadingAnimation(selectedChatId)
-                      }
-                    }}
-                    onBlur={() => setIsMessageInputFocused(false)}
-                    onKeyDown={handleKeyDown}
-                    disabled={composerLocked}
-                    placeholder={composerLocked ? '「担当する」を押すと入力できます' : 'メッセージを入力...'}
-                    className="flex-1 text-sm border border-edge rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none overflow-y-auto disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  />
-                  <button
-                    onClick={handleSendMessage}
-                    disabled={composerLocked || sending || (!messageContent.trim() && !pendingImage)}
-                    className="px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {sending ? '送信中...' : '送信'}
-                  </button>
                 </div>
-              </div>
+              ) : (
+                <div className="border-t border-edge bg-surface px-3 sm:px-4 py-3">
+                  {/* クイック返信チップ: text型テンプレートの新しい順5件をワンタップ挿入。
+                      タップで本文に追記し、フォーカスを返信欄へ移す */}
+                  {quickReplies.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                      {quickReplies.map((t) => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => {
+                            setMessageContent((prev) => (prev ? `${prev}\n${t.content}` : t.content))
+                            textareaRef.current?.focus()
+                          }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border border-edge bg-surface-alt text-ink-muted hover:bg-brand-50 hover:border-brand-300 hover:text-brand-700 transition-colors max-w-[180px] truncate"
+                          title={t.content}
+                        >
+                          <Icon name="template" className="w-3 h-3 flex-shrink-0" />
+                          <span className="truncate">{t.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {/* 画像添付 (LINE/Telegram 共通で text + image のみ対応) */}
+                  <div className="mb-2">
+                    <ImageUploader
+                      mode="line-image"
+                      value={pendingImage}
+                      onChange={setPendingImage}
+                      label="画像を送る (任意)"
+                    />
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <textarea
+                      ref={textareaRef}
+                      rows={1}
+                      value={messageContent}
+                      style={{ maxHeight: '200px', overflowY: 'auto' }}
+                      onChange={(e) => {
+                        const value = e.target.value
+                        setMessageContent(value)
+                        if (selectedChatId && isMessageInputFocused && value.trim()) {
+                          void triggerLoadingAnimation(selectedChatId)
+                        }
+                      }}
+                      onCompositionStart={() => { isComposingRef.current = true }}
+                      onCompositionEnd={() => { isComposingRef.current = false }}
+                      onFocus={() => {
+                        setIsMessageInputFocused(true)
+                        if (selectedChatId) {
+                          void triggerLoadingAnimation(selectedChatId)
+                        }
+                      }}
+                      onBlur={() => setIsMessageInputFocused(false)}
+                      onKeyDown={handleKeyDown}
+                      disabled={composerLocked}
+                      placeholder={composerLocked ? '「担当する」を押すと入力できます' : 'メッセージを入力...'}
+                      className="flex-1 min-h-[44px] text-sm border border-edge rounded-2xl px-3.5 py-2.5 bg-surface text-ink focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none overflow-y-auto disabled:bg-surface-alt disabled:cursor-not-allowed"
+                    />
+                    <button
+                      onClick={handleSendMessage}
+                      disabled={composerLocked || sending || (!messageContent.trim() && !pendingImage)}
+                      aria-label="送信"
+                      className="flex-shrink-0 inline-flex items-center gap-1.5 px-4 min-h-[44px] text-sm font-medium text-white rounded-2xl transition-colors bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Icon name="reply" className="w-4 h-4 -scale-x-100" />
+                      {sending ? '送信中...' : '送信'}
+                    </button>
+                  </div>
+                  {/* 送信設定 (折りたたみ)。入力中ローディングは LINE 専用なので Telegram では隠す */}
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setComposerSettingsOpen((v) => !v)}
+                      aria-expanded={composerSettingsOpen}
+                      className="inline-flex items-center gap-1 text-[11px] text-ink-faint hover:text-ink-muted"
+                    >
+                      <Icon name="chevron-down" className={`w-3 h-3 transition-transform ${composerSettingsOpen ? 'rotate-180' : ''}`} />
+                      送信設定
+                    </button>
+                    {composerSettingsOpen && (
+                      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-ink-muted">
+                        {(chats.find((c) => c.id === chatDetail.id)?.channel ?? chatDetail.channel) !== 'telegram' && (
+                          <>
+                            <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={showLoadingIndicator}
+                                onChange={(e) => setShowLoadingIndicator(e.target.checked)}
+                                className="h-4 w-4 rounded border-edge text-brand-600 focus:ring-brand-500"
+                              />
+                              入力中ローディングを表示
+                            </label>
+                            <select
+                              value={loadingSeconds}
+                              onChange={(e) => setLoadingSeconds(Number.parseInt(e.target.value, 10))}
+                              disabled={!showLoadingIndicator}
+                              className="border border-edge rounded-lg px-2 py-1 bg-surface text-ink disabled:bg-surface-alt disabled:text-ink-faint"
+                            >
+                              {[5, 10, 15, 20, 30, 45, 60].map((sec) => (
+                                <option key={sec} value={sec}>{sec}秒</option>
+                              ))}
+                            </select>
+                          </>
+                        )}
+                        <span className="text-ink-faint">送信キー:</span>
+                        <label className="flex items-center gap-1 cursor-pointer">
+                          <input
+                            type="radio"
+                            checked={sendMode === 'enter'}
+                            onChange={() => setSendMode('enter')}
+                            className="accent-brand-600"
+                          />
+                          <span>Enter</span>
+                        </label>
+                        <label className="flex items-center gap-1 cursor-pointer">
+                          <input
+                            type="radio"
+                            checked={sendMode === 'shift-enter'}
+                            onChange={() => setSendMode('shift-enter')}
+                            className="accent-brand-600"
+                          />
+                          <span>Shift+Enter</span>
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </>
           ) : null}
         </div>
