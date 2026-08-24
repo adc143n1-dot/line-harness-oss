@@ -210,7 +210,9 @@ chats.get('/api/chats', async (c) => {
       conditionBindings.push(operatorId);
     }
     if (lineAccountId) {
-      conditions.push('f.line_account_id = ?');
+      // Telegram連絡先 (line_account_id NULL) は統合受信箱として常に含める。
+      // accountFilterSql と揃えないと、page CTE のこの条件で Telegram が再び除外される。
+      conditions.push(`(f.line_account_id = ? OR f.channel = 'telegram')`);
       conditionBindings.push(lineAccountId);
     }
     // status / operator filter は chats を参照するので、その時だけ page CTE 側でも
