@@ -173,8 +173,10 @@ chats.get('/api/chats', async (c) => {
     //   - content は text のみ先頭 200 文字まで切り詰めて返す (flex/image など raw JSON を
     //     返すと broadcast 後の rows で multi-MB レスポンスになる)。
     //   - lineAccountId 指定時は messages_log スキャンを対象アカの friend に絞る。
+    // LINEアカウントで絞る場合も、Telegram連絡先 (line_account_id が NULL) は
+    // 統合受信箱として常に含める。Telegramはどの LINE アカウントにも属さないため。
     const accountFilterSql = lineAccountId
-      ? `friend_id IN (SELECT id FROM friends WHERE line_account_id = ?)`
+      ? `friend_id IN (SELECT id FROM friends WHERE line_account_id = ? OR channel = 'telegram')`
       : `1=1`;
 
     // unansweredOnly は取得後に unansweredMap と突合して絞るため全件必要。
