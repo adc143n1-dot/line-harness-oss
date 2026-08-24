@@ -222,6 +222,15 @@ telegram.post('/api/telegram/webhook/:accountId', async (c) => {
   const from = msg?.from;
   const tgUserId = from?.id;
   const tgChatId = msg?.chat?.id;
+  // 一時デバッグ(構造のみ・本文/個人情報は記録しない)。原因特定後に削除する。
+  console.log('[telegram][debug] update', JSON.stringify({
+    updateKeys: Object.keys(update as Record<string, unknown>),
+    hasMessage: !!msg,
+    msgKeys: msg ? Object.keys(msg as Record<string, unknown>) : null,
+    isBot: from?.is_bot ?? null,
+    hasFromId: tgUserId != null,
+    hasChatId: tgChatId != null,
+  }));
   // Bot 自身/不完全な更新は無視 (200 で再送を止める)
   if (!msg || from?.is_bot || tgUserId == null || tgChatId == null) {
     return c.json({ ok: true });
