@@ -5,11 +5,17 @@ import type { Env } from '../index.js';
 const sharedMocks = vi.hoisted(() => ({ guideToMarkdown: vi.fn(() => '# 使い方\n- ダッシュボード — 概要') }));
 vi.mock('@line-crm/shared', () => sharedMocks);
 
-const advisorMocks = vi.hoisted(() => ({ buildOperationsSnapshot: vi.fn(async () => '## 未対応\n- 3件') }));
+const dbMocks = vi.hoisted(() => ({ getLineAccountById: vi.fn(async () => ({ id: 'acc1', name: 'メイン店' })) }));
+vi.mock('@line-crm/db', () => dbMocks);
+
+const advisorMocks = vi.hoisted(() => ({
+  buildOperationsSnapshot: vi.fn(async (_db: unknown, _opts?: { lineAccountId?: string; accountName?: string }) => '## 未対応\n- 3件'),
+}));
 vi.mock('../services/advisor.js', () => advisorMocks);
 
+type GenReq = { systemPrompt: string; history: { role: string; content: string }[] };
 const aiMocks = vi.hoisted(() => ({
-  generateReply: vi.fn(async () => 'AIの回答です'),
+  generateReply: vi.fn(async (_req: { systemPrompt: string; history: { role: string; content: string }[] }) => 'AIの回答です'),
   buildProvider: vi.fn(),
 }));
 vi.mock('../services/ai-reply/index.js', () => ({ buildProvider: aiMocks.buildProvider }));
@@ -51,12 +57,34 @@ describe('POST /api/assistant/ask', () => {
         { role: 'system', content: 'これは無視される' }, // 不正roleは除去
       ],
     });
-    const arg = aiMocks.generateReply.mock.calls[0][0] as { systemPrompt: string; history: { role: string; content: string }[] };
+    const arg = aiMocks.generateReply.mock.calls[0][0] as GenReq;
     expect(arg.systemPrompt).toContain('ダッシュボード — 概要'); // guide
     expect(arg.systemPrompt).toContain('未対応'); // snapshot
+    expect(arg.systemPrompt).toContain('画面リンク一覧'); // 画面リンク
+    expect(arg.systemPrompt).toContain('/notifications'); // リンクのパス
     // history: sanitize で system は除去、question が末尾
     expect(arg.history.map((h) => h.role)).toEqual(['user', 'assistant', 'user']);
     expect(arg.history[arg.history.length - 1]).toEqual({ role: 'user', content: '未対応を減らすには?' });
+  });
+
+  it('accountId を渡すとアカウント別集計になり、対象アカウント名が systemPrompt に入る', async () => {
+    await app()({ question: '今の状況は?', accountId: 'acc1' });
+    // buildOperationsSnapshot に lineAccountId が渡る
+    expect(advisorMocks.buildOperationsSnapshot).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ lineAccountId: 'acc1', accountName: 'メイン店' }),
+    );
+    const arg = aiMocks.generateReply.mock.calls[0][0] as GenReq;
+    expect(arg.systemPrompt).toContain('分析対象アカウント: メイン店');
+  });
+
+  it('accountId 未指定なら全体集計 (lineAccountId は undefined)', async () => {
+    await app()({ question: '今の状況は?' });
+    expect(advisorMocks.buildOperationsSnapshot).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ lineAccountId: undefined }),
+    );
+    expect(dbMocks.getLineAccountById).not.toHaveBeenCalled();
   });
 
   it('400 when ANTHROPIC key is not configured (no provider)', async () => {

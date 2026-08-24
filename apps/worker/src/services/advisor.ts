@@ -33,57 +33,109 @@ export interface AdvisorReport {
 }
 
 interface CountRow { k: string | null; cnt: number }
+interface SumRow { cnt: number; total: number; success: number }
 
-/** 運用スナップショットを集めて、プロンプトに入れる要約テキストを作る */
-export async function buildOperationsSnapshot(db: D1Database): Promise<string> {
-  const [staffCounts, resolved7d, leads, automationInventory, repeatedManual, unanswered] =
+export interface SnapshotOptions {
+  /** 指定すると、その LINE アカウントに集計を絞る。未指定なら全アカウント合計。 */
+  lineAccountId?: string;
+  /** 表示用のアカウント名 (スコープの明記に使う) */
+  accountName?: string;
+}
+
+/**
+ * 運用スナップショットを集めて、プロンプトに入れる要約テキストを作る。
+ * opts.lineAccountId 指定でアカウント別に絞る (未指定は従来どおり全体)。
+ */
+export async function buildOperationsSnapshot(
+  db: D1Database,
+  opts: SnapshotOptions = {},
+): Promise<string> {
+  const acc = opts.lineAccountId ?? null;
+  // アカウント絞り用の WHERE 断片と bind。指定なしなら常に真の条件で全体集計。
+  const accWhere = (col = 'line_account_id') => (acc ? ` AND ${col} = ?` : '');
+  const b = (): unknown[] => (acc ? [acc] : []);
+
+  const [staffCounts, resolved7d, leads, automationInventory, repeatedManual, cv, broadcastEff, mileage, unanswered] =
     await Promise.all([
       db.prepare(
         `SELECT operator_id AS k, COUNT(*) AS cnt FROM chats
-          WHERE operator_id IS NOT NULL AND status != 'resolved' GROUP BY operator_id`,
-      ).all<CountRow>(),
+          WHERE operator_id IS NOT NULL AND status != 'resolved'${accWhere()} GROUP BY operator_id`,
+      ).bind(...b()).all<CountRow>(),
       db.prepare(
         `SELECT operator_id AS k, COUNT(*) AS cnt FROM chats
-          WHERE resolved_at >= datetime('now', '-7 days', '+9 hours') AND operator_id IS NOT NULL
+          WHERE resolved_at >= datetime('now', '-7 days', '+9 hours') AND operator_id IS NOT NULL${accWhere()}
           GROUP BY operator_id`,
-      ).all<CountRow>(),
+      ).bind(...b()).all<CountRow>(),
       db.prepare(
         `SELECT COALESCE(lead_temperature, 'none') AS k, COUNT(*) AS cnt FROM friends
-          WHERE job_matching_conversation_state IS NOT NULL GROUP BY lead_temperature`,
-      ).all<CountRow>(),
+          WHERE job_matching_conversation_state IS NOT NULL${accWhere()} GROUP BY lead_temperature`,
+      ).bind(...b()).all<CountRow>(),
       db.prepare(
-        `SELECT 'scenarios_active' AS k, COUNT(*) AS cnt FROM scenarios WHERE is_active = 1
-         UNION ALL SELECT 'scenarios_inactive', COUNT(*) FROM scenarios WHERE is_active = 0
-         UNION ALL SELECT 'auto_replies_active', COUNT(*) FROM auto_replies WHERE is_active = 1
-         UNION ALL SELECT 'automations_active', COUNT(*) FROM automations WHERE is_active = 1
-         UNION ALL SELECT 'broadcasts_sent_30d', COUNT(*) FROM broadcasts WHERE status = 'sent' AND sent_at >= datetime('now', '-30 days', '+9 hours')`,
-      ).all<CountRow>(),
+        `SELECT 'scenarios_active' AS k, COUNT(*) AS cnt FROM scenarios WHERE is_active = 1${accWhere()}
+         UNION ALL SELECT 'scenarios_inactive', COUNT(*) FROM scenarios WHERE is_active = 0${accWhere()}
+         UNION ALL SELECT 'auto_replies_active', COUNT(*) FROM auto_replies WHERE is_active = 1${accWhere()}
+         UNION ALL SELECT 'automations_active', COUNT(*) FROM automations WHERE is_active = 1${accWhere()}
+         UNION ALL SELECT 'broadcasts_sent_30d', COUNT(*) FROM broadcasts WHERE status = 'sent' AND sent_at >= datetime('now', '-30 days', '+9 hours')${accWhere()}`,
+      ).bind(...b(), ...b(), ...b(), ...b(), ...b()).all<CountRow>(),
       // スタッフが手動で3回以上送った同一文面 → テンプレ化/自動返信化の候補
       db.prepare(
         `SELECT SUBSTR(content, 1, 120) AS k, COUNT(*) AS cnt FROM messages_log
           WHERE direction = 'outgoing' AND source = 'manual' AND message_type = 'text'
-            AND created_at >= datetime('now', '-30 days', '+9 hours')
+            AND created_at >= datetime('now', '-30 days', '+9 hours')${accWhere()}
           GROUP BY content HAVING COUNT(*) >= 3
           ORDER BY cnt DESC LIMIT 8`,
-      ).all<CountRow>(),
+      ).bind(...b()).all<CountRow>(),
+      // CV: conversion_events を friend 経由でアカウント絞り (直近30日、ポイント別)
+      db.prepare(
+        `SELECT cp.name AS k, COUNT(*) AS cnt
+           FROM conversion_events ce
+           JOIN friends f ON f.id = ce.friend_id
+           JOIN conversion_points cp ON cp.id = ce.conversion_point_id
+          WHERE ce.created_at >= datetime('now', '-30 days', '+9 hours')${acc ? ' AND f.line_account_id = ?' : ''}
+          GROUP BY cp.id ORDER BY cnt DESC LIMIT 10`,
+      ).bind(...b()).all<CountRow>(),
+      // 配信効果: 直近30日の送信済み一斉配信の件数・宛先合計・成功合計
+      db.prepare(
+        `SELECT COUNT(*) AS cnt, COALESCE(SUM(total_count),0) AS total, COALESCE(SUM(success_count),0) AS success
+           FROM broadcasts
+          WHERE status = 'sent' AND sent_at >= datetime('now', '-30 days', '+9 hours')${accWhere()}`,
+      ).bind(...b()).first<SumRow>(),
+      // マイル: 直近30日の発行(amount>0)/使用(amount<0) 合計 (friend 経由でアカウント絞り)
+      db.prepare(
+        `SELECT
+            COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END),0) AS issued,
+            COALESCE(SUM(CASE WHEN amount < 0 THEN -amount ELSE 0 END),0) AS redeemed
+           FROM mileage_ledger ml
+           ${acc ? 'JOIN friends f ON f.id = ml.beneficiary_friend_id' : ''}
+          WHERE ml.created_at >= datetime('now', '-30 days', '+9 hours')${acc ? ' AND f.line_account_id = ?' : ''}`,
+      ).bind(...b()).first<{ issued: number; redeemed: number }>(),
       getAllUnansweredRows(db),
     ]);
 
-  const unassigned = unanswered.filter((r) => r.operatorId === null).length;
-  const oldestWaitMin = unanswered.length > 0
-    ? Math.round((Date.now() - new Date(unanswered[unanswered.length - 1].lastIncomingAt).getTime()) / 60000)
+  // 未対応はアカウント絞りをJS側で行う (getAllUnansweredRows は全体を返す)
+  const unansweredScoped = acc ? unanswered.filter((r) => r.accountId === acc) : unanswered;
+  const unassigned = unansweredScoped.filter((r) => r.operatorId === null).length;
+  const oldestWaitMin = unansweredScoped.length > 0
+    ? Math.round((Date.now() - new Date(unansweredScoped[unansweredScoped.length - 1].lastIncomingAt).getTime()) / 60000)
     : 0;
-  // 未対応の実メッセージ (最新20件・冒頭80文字)。FAQ傾向の推定材料
-  const unansweredSamples = unanswered.slice(0, 20).map((r) => r.lastIncomingContent.slice(0, 80));
+  const unansweredSamples = unansweredScoped.slice(0, 20).map((r) => r.lastIncomingContent.slice(0, 80));
+
+  const scopeLabel = opts.accountName ? `対象アカウント: ${opts.accountName}` : '対象: 全アカウント合計';
 
   const lines: string[] = [
-    `# 現在の運用データ (${jstNow()})`,
+    `# 現在の運用データ (${jstNow()}) — ${scopeLabel}`,
     `## チーム`,
     `- スタッフ別の未完了担当数: ${JSON.stringify(Object.fromEntries(staffCounts.results.map((r) => [r.k, r.cnt])))}`,
     `- スタッフ別の直近7日解決数: ${JSON.stringify(Object.fromEntries(resolved7d.results.map((r) => [r.k, r.cnt])))}`,
-    `- 未対応(人間の返事待ち): ${unanswered.length}件 / うち担当未割当: ${unassigned}件 / 最長待ち: ${oldestWaitMin}分`,
+    `- 未対応(人間の返事待ち): ${unansweredScoped.length}件 / うち担当未割当: ${unassigned}件 / 最長待ち: ${oldestWaitMin}分`,
     `## リード (副業マッチング診断)`,
     `- 温度別: ${JSON.stringify(Object.fromEntries(leads.results.map((r) => [r.k, r.cnt])))}`,
+    `## 成果 (CV・直近30日)`,
+    ...(cv.results.length > 0 ? cv.results.map((r) => `- ${r.k ?? '(名称なし)'}: ${r.cnt}件`) : ['- なし']),
+    `## 配信効果 (直近30日)`,
+    `- 送信済み一斉配信: ${broadcastEff?.cnt ?? 0}件 / 宛先合計: ${broadcastEff?.total ?? 0} / 成功: ${broadcastEff?.success ?? 0}`,
+    `## マイル (直近30日)`,
+    `- 発行: ${mileage?.issued ?? 0} / 使用: ${mileage?.redeemed ?? 0}`,
     `## 自動化の稼働状況`,
     ...automationInventory.results.map((r) => `- ${r.k}: ${r.cnt}`),
     `## スタッフが手動で繰り返し送っている文面 (回数付き、自動化候補)`,

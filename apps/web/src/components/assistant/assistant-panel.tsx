@@ -2,11 +2,29 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api'
+import { useAccount } from '@/contexts/account-context'
 import { Icon } from '@/components/ui/icons'
 import MarkdownLite from '@/components/ui/markdown-lite'
 import { Spinner } from '@/components/ui/spinner'
 
 interface Msg { role: 'user' | 'assistant'; content: string }
+
+const HISTORY_KEY = 'lh_assistant_history'
+const HISTORY_MAX = 30
+
+function loadHistory(): Msg[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY)
+    const arr = raw ? JSON.parse(raw) : []
+    if (!Array.isArray(arr)) return []
+    return arr
+      .filter((m): m is Msg => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
+      .slice(-HISTORY_MAX)
+  } catch {
+    return []
+  }
+}
 
 const SUGGESTIONS = [
   '今の状況をまとめて',
@@ -17,8 +35,9 @@ const SUGGESTIONS = [
 
 // 管理画面のどこからでも呼べるAIアシスタント。app-shell に1回だけ配置する。
 export default function AssistantPanel() {
+  const { selectedAccount, selectedAccountId } = useAccount()
   const [open, setOpen] = useState(false)
-  const [messages, setMessages] = useState<Msg[]>([])
+  const [messages, setMessages] = useState<Msg[]>(loadHistory)
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
@@ -30,6 +49,23 @@ export default function AssistantPanel() {
     }
   }, [messages, open, sending])
 
+  // localStorage に会話を永続化 (端末内・直近30件)。リロードしても続きから聞ける。
+  useEffect(() => {
+    try {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(messages.slice(-HISTORY_MAX)))
+    } catch {
+      // storage不可でも動作は継続
+    }
+  }, [messages])
+
+  const accountName = selectedAccount?.displayName || selectedAccount?.name || null
+
+  const clearHistory = () => {
+    setMessages([])
+    setError('')
+    try { localStorage.removeItem(HISTORY_KEY) } catch { /* noop */ }
+  }
+
   const send = async (text: string) => {
     const question = text.trim()
     if (!question || sending) return
@@ -40,7 +76,7 @@ export default function AssistantPanel() {
     setInput('')
     setSending(true)
     try {
-      const res = await api.assistant.ask({ question, history })
+      const res = await api.assistant.ask({ question, history, accountId: selectedAccountId ?? undefined })
       if (res.success) {
         setMessages((prev) => [...prev, { role: 'assistant', content: res.data.answer }])
       } else {
@@ -76,12 +112,15 @@ export default function AssistantPanel() {
               <span className="w-7 h-7 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center">
                 <Icon name="sparkles" className="w-4 h-4" />
               </span>
-              <p className="text-sm font-bold text-ink">AIアシスタント</p>
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-ink leading-tight">AIアシスタント</p>
+                <p className="text-[10px] text-ink-faint truncate">{accountName ? `${accountName} を分析中` : '全アカウントを分析中'}</p>
+              </div>
             </div>
             <div className="flex items-center gap-1">
               {messages.length > 0 && (
                 <button
-                  onClick={() => { setMessages([]); setError('') }}
+                  onClick={clearHistory}
                   className="px-2 py-1 text-xs text-ink-muted hover:bg-surface-alt rounded-lg"
                 >
                   クリア
@@ -130,7 +169,7 @@ export default function AssistantPanel() {
                 >
                   {m.role === 'user'
                     ? <p className="text-sm whitespace-pre-wrap">{m.content}</p>
-                    : <MarkdownLite text={m.content} />}
+                    : <MarkdownLite text={m.content} onNavigate={() => setOpen(false)} />}
                 </div>
               </div>
             ))}
