@@ -59,7 +59,8 @@ export default function AssistantPanel() {
         <button
           onClick={() => setOpen(true)}
           aria-label="AIアシスタントを開く"
-          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-full bg-brand-600 hover:bg-brand-700 text-white shadow-lg transition-colors"
+          /* 既存の「CCに依頼」FAB(bottom-6)と重ならないよう一段上に配置 */
+          className="fixed bottom-24 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-full bg-brand-600 hover:bg-brand-700 text-white shadow-lg transition-colors"
         >
           <Icon name="sparkles" className="w-5 h-5" />
           <span className="text-sm font-medium hidden sm:inline">AIアシスタント</span>
