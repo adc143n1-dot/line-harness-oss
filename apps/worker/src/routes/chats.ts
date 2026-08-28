@@ -176,7 +176,7 @@ chats.get('/api/chats', async (c) => {
     // LINEアカウントで絞る場合も、Telegram連絡先 (line_account_id が NULL) は
     // 統合受信箱として常に含める。Telegramはどの LINE アカウントにも属さないため。
     const accountFilterSql = lineAccountId
-      ? `friend_id IN (SELECT id FROM friends WHERE line_account_id = ? OR channel = 'telegram')`
+      ? `friend_id IN (SELECT id FROM friends WHERE line_account_id = ? OR channel IN ('telegram', 'personal_line'))`
       : `1=1`;
 
     // unansweredOnly は取得後に unansweredMap と突合して絞るため全件必要。
@@ -210,9 +210,9 @@ chats.get('/api/chats', async (c) => {
       conditionBindings.push(operatorId);
     }
     if (lineAccountId) {
-      // Telegram連絡先 (line_account_id NULL) は統合受信箱として常に含める。
-      // accountFilterSql と揃えないと、page CTE のこの条件で Telegram が再び除外される。
-      conditions.push(`(f.line_account_id = ? OR f.channel = 'telegram')`);
+      // Telegram/個人LINE連絡先 (line_account_id NULL) は統合受信箱として常に含める。
+      // accountFilterSql と揃えないと、page CTE のこの条件で再び除外される。
+      conditions.push(`(f.line_account_id = ? OR f.channel IN ('telegram', 'personal_line'))`);
       conditionBindings.push(lineAccountId);
     }
     // status / operator filter は chats を参照するので、その時だけ page CTE 側でも

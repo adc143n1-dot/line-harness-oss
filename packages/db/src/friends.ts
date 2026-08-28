@@ -23,6 +23,9 @@ export interface Friend {
   telegram_user_id?: string | null;
   telegram_chat_id?: string | null;
   telegram_account_id?: string | null;
+  // 082: 個人LINE(ブリッジ経由)。personal_line_user_id は相手のLINE mid。
+  personal_line_user_id?: string | null;
+  personal_line_account_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -405,4 +408,97 @@ export async function upsertTelegramFriend(
     )
     .run();
   return (await getFriendByTelegramUserId(db, input.telegramAccountId, input.telegramUserId))!;
+}
+
+// ── 個人LINE channel friends (082, ブリッジ経由) ──────────────────────────────
+
+export interface UpsertPersonalLineFriendInput {
+  personalLineAccountId: string;
+  personalLineUserId: string; // 相手のLINE mid
+  displayName?: string | null;
+  pictureUrl?: string | null;
+}
+
+/** 指定アカウント(personal_line_account_id)配下の個人LINEユーザーで連絡先を検索。 */
+export async function getFriendByPersonalLineUserId(
+  db: D1Database,
+  personalLineAccountId: string,
+  personalLineUserId: string,
+): Promise<Friend | null> {
+  const row = await db
+    .prepare(
+      `SELECT * FROM friends
+       WHERE personal_line_account_id = ? AND personal_line_user_id = ? AND channel = 'personal_line'`,
+    )
+    .bind(personalLineAccountId, personalLineUserId)
+    .first<Friend>();
+  return row ?? null;
+}
+
+/**
+ * 個人LINE連絡先の作成/更新。line_user_id は合成IDを持ち channel='personal_line'。
+ * telegram の upsertTelegramFriend と同型。
+ */
+export async function upsertPersonalLineFriend(
+  db: D1Database,
+  input: UpsertPersonalLineFriendInput,
+): Promise<Friend> {
+  const now = jstNow();
+  const existing = await getFriendByPersonalLineUserId(
+    db,
+    input.personalLineAccountId,
+    input.personalLineUserId,
+  );
+
+  if (existing) {
+    await db
+      .prepare(
+        `UPDATE friends
+         SET display_name = COALESCE(?, display_name),
+             picture_url = COALESCE(?, picture_url),
+             is_following = 1,
+             updated_at = ?
+         WHERE id = ?`,
+      )
+      .bind(input.displayName ?? null, input.pictureUrl ?? null, now, existing.id)
+      .run();
+    return (await getFriendByPersonalLineUserId(
+      db,
+      input.personalLineAccountId,
+      input.personalLineUserId,
+    ))!;
+  }
+
+  const id = crypto.randomUUID();
+  // 合成 line_user_id。LINEの 'U...' / Telegramの 'tg:...' と衝突しない。
+  // UNIQUE(line_user_id) が (アカウント, 相手) の一意性も同時に担保する。
+  const syntheticLineUserId = `pl:${input.personalLineAccountId}:${input.personalLineUserId}`;
+  await db
+    .prepare(
+      `INSERT INTO friends
+         (id, line_user_id, display_name, picture_url, is_following,
+          channel, personal_line_user_id, personal_line_account_id,
+          first_followed_at, current_follow_started_at, last_followed_at,
+          created_at, updated_at)
+       VALUES (?, ?, ?, ?, 1, 'personal_line', ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .bind(
+      id,
+      syntheticLineUserId,
+      input.displayName ?? null,
+      input.pictureUrl ?? null,
+      input.personalLineUserId,
+      input.personalLineAccountId,
+      now,
+      now,
+      now,
+      now,
+      now,
+    )
+    .run();
+  return (await getFriendByPersonalLineUserId(
+    db,
+    input.personalLineAccountId,
+    input.personalLineUserId,
+  ))!;
 }

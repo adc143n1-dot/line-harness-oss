@@ -35,8 +35,8 @@ interface Chat {
   outcome: 'converted' | 'lost' | null
   /** 友だち追加 URL の `?lp=xxx` から採取した流入元 */
   source: string | null
-  /** 連絡先のチャネル (line / telegram)。081 マルチチャネル */
-  channel: 'line' | 'telegram'
+  /** 連絡先のチャネル (line / telegram / personal_line)。081/082 マルチチャネル */
+  channel: 'line' | 'telegram' | 'personal_line'
   /** 紐付け済みの Telegram ユーザー ID (未連携なら null) */
   telegramUserId: string | null
   /** 紐付け済みの Discord ユーザー ID (未連携なら null) */
@@ -180,14 +180,25 @@ function formatRelativeTime(iso: string | null): string {
   return formatYmdSlash(iso)
 }
 
-// チャネル表示バッジ。LINE=緑ドット / Telegram=スカイ。一覧行・スレッドヘッダーで共通利用。
-function ChannelBadge({ channel, className = '' }: { channel: 'line' | 'telegram'; className?: string }) {
+// チャネル表示バッジ。LINE=緑ドット / Telegram=スカイ / 個人LINE=アンバー。
+// LINE緑は公式LINE操作専用のため、個人LINE(ブリッジ経由)は別トーンで区別する。
+// 一覧行・スレッドヘッダーで共通利用。
+function ChannelBadge({ channel, className = '' }: { channel: 'line' | 'telegram' | 'personal_line'; className?: string }) {
   if (channel === 'telegram') {
     return (
       <span
         className={`inline-flex items-center gap-1 flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-700 font-medium ${className}`}
       >
         <span className="w-1.5 h-1.5 rounded-full bg-sky-500" aria-hidden="true" /> Telegram
+      </span>
+    )
+  }
+  if (channel === 'personal_line') {
+    return (
+      <span
+        className={`inline-flex items-center gap-1 flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 font-medium ${className}`}
+      >
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" aria-hidden="true" /> 個人LINE
       </span>
     )
   }
@@ -492,7 +503,7 @@ export default function ChatsPage() {
     return new URLSearchParams(window.location.search).get('operator') ?? ''
   })
   // 表示上のチャネル絞り込み。クライアント側で読み込み済み chats を絞るだけ (API は変更しない)。
-  const [channelFilter, setChannelFilter] = useState<'all' | 'line' | 'telegram'>('all')
+  const [channelFilter, setChannelFilter] = useState<'all' | 'line' | 'telegram' | 'personal_line'>('all')
   // スレッドヘッダーの二次操作をまとめる「その他」メニューの開閉。
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false)
   // 送信欄の詳細設定 (入力中ローディング・送信キー) の開閉。
@@ -1304,6 +1315,7 @@ export default function ChatsPage() {
                   { key: 'all', label: 'すべて' },
                   { key: 'line', label: 'LINE' },
                   { key: 'telegram', label: 'Telegram' },
+                  { key: 'personal_line', label: '個人LINE' },
                 ] as const).map((c) => (
                   <button
                     key={c.key}
@@ -1315,6 +1327,7 @@ export default function ChatsPage() {
                   >
                     {c.key === 'line' && <span className="w-1.5 h-1.5 rounded-full bg-line" aria-hidden="true" />}
                     {c.key === 'telegram' && <span className="w-1.5 h-1.5 rounded-full bg-sky-500" aria-hidden="true" />}
+                    {c.key === 'personal_line' && <span className="w-1.5 h-1.5 rounded-full bg-amber-500" aria-hidden="true" />}
                     {c.label}
                   </button>
                 ))}
@@ -1506,10 +1519,14 @@ export default function ChatsPage() {
                                 <span className="text-ink-muted text-base font-medium">{chat.friendName.charAt(0)}</span>
                               </div>
                             )}
-                            {/* チャネル識別ドット (アバター右下)。LINE=緑 / Telegram=スカイ */}
+                            {/* チャネル識別ドット (アバター右下)。LINE=緑 / Telegram=スカイ / 個人LINE=アンバー */}
                             <span
                               className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full ring-2 ring-surface ${
-                                chat.channel === 'telegram' ? 'bg-sky-500' : 'bg-line'
+                                chat.channel === 'telegram'
+                                  ? 'bg-sky-500'
+                                  : chat.channel === 'personal_line'
+                                    ? 'bg-amber-500'
+                                    : 'bg-line'
                               }`}
                               aria-hidden="true"
                             />
@@ -1654,7 +1671,7 @@ export default function ChatsPage() {
                       <p className="text-sm font-semibold text-ink truncate">
                         {chatDetail.friendName}
                       </p>
-                      <ChannelBadge channel={(chats.find((c) => c.id === chatDetail.id)?.channel ?? chatDetail.channel) === 'telegram' ? 'telegram' : 'line'} />
+                      <ChannelBadge channel={chats.find((c) => c.id === chatDetail.id)?.channel ?? chatDetail.channel ?? 'line'} />
                     </div>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <span

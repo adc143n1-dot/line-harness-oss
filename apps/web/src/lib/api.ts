@@ -360,6 +360,20 @@ export interface TelegramAccountItem {
   updatedAt: string
 }
 
+export interface PersonalLineAccountItem {
+  id: string
+  name: string
+  bridgeBaseUrl: string | null
+  isActive: boolean
+  displayOrder: number
+  // ブリッジ設定用の接続情報 (owner専用APIなので値を返す)
+  webhookUrl: string | null
+  inboundSecret: string
+  bridgeSecret: string
+  createdAt: string
+  updatedAt: string
+}
+
 export const api = {
   team: {
     /** チーム全体の担当状況 (スタッフ別の未完了内訳・本日解決・平均初動、未割当バックログ等) */
@@ -702,6 +716,24 @@ export const api = {
       fetchApi<ApiResponse<{ webhookRegistered: boolean }>>(`/api/telegram-accounts/${id}/register-webhook`, { method: 'POST' }),
     remove: (id: string) =>
       fetchApi<ApiResponse<null>>(`/api/telegram-accounts/${id}`, { method: 'DELETE' }),
+  },
+  personalLineAccounts: {
+    list: () =>
+      fetchApi<ApiResponse<PersonalLineAccountItem[]>>('/api/personal-line-accounts'),
+    create: (data: { name: string; bridgeBaseUrl?: string | null }) =>
+      fetchApi<ApiResponse<{ account: PersonalLineAccountItem }>>('/api/personal-line-accounts', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    update: (id: string, data: { name?: string; bridgeBaseUrl?: string | null; isActive?: boolean }) =>
+      fetchApi<ApiResponse<{ account: PersonalLineAccountItem | null }>>(`/api/personal-line-accounts/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    testBridge: (id: string) =>
+      fetchApi<ApiResponse<{ reachable: boolean; status: number }>>(`/api/personal-line-accounts/${id}/test-bridge`, { method: 'POST' }),
+    remove: (id: string) =>
+      fetchApi<ApiResponse<null>>(`/api/personal-line-accounts/${id}`, { method: 'DELETE' }),
   },
   security: {
     /** 管理画面アクセスのIP許可リスト設定と、いまアクセス中の自分のIP (owner のみ) */

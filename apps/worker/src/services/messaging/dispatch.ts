@@ -1,4 +1,4 @@
-import { jstNow, getLineAccountById, getTelegramAccountById } from '@line-crm/db';
+import { jstNow, getLineAccountById, getTelegramAccountById, getPersonalLineAccountById } from '@line-crm/db';
 import type { Friend } from '@line-crm/db';
 import { extractFlexAltText } from '../../utils/flex-alt-text.js';
 import { TelegramClient } from '../telegram/client.js';
@@ -82,6 +82,49 @@ async function sendTelegram(
   return ok ? { ok: true } : { ok: false, error: 'Telegramへの送信に失敗しました' };
 }
 
+async function sendPersonalLine(
+  env: Env['Bindings'],
+  friend: Friend,
+  msg: OutgoingMessage,
+): Promise<DeliverResult> {
+  // 個人LINEには公式APIが無いため、外部ブリッジ(非公式クライアント常駐サーバー)に
+  // HTTP で送信を委譲する。flex は LINE公式アカウント専用の概念で個人LINEでは扱えない。
+  // 画像は MVP では未対応 (契約は用意済みだが実配線は今後)。
+  if (msg.type === 'flex') {
+    return { ok: false, error: '個人LINEではフレックスメッセージを送信できません' };
+  }
+  if (msg.type === 'image') {
+    return { ok: false, error: '個人LINEの画像送信は未対応です' };
+  }
+  if (!friend.personal_line_account_id || !friend.personal_line_user_id) {
+    return { ok: false, error: '個人LINE連絡先の情報が不足しています' };
+  }
+  const account = await getPersonalLineAccountById(env.DB, friend.personal_line_account_id);
+  if (!account) return { ok: false, error: '個人LINEアカウントが見つかりません' };
+  const base = (account.bridge_base_url ?? '').replace(/\/$/, '');
+  if (!base) return { ok: false, error: 'ブリッジURL(bridge_base_url)が未設定です' };
+
+  let res: Response;
+  try {
+    res = await fetch(`${base}/send`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${account.bridge_secret}`,
+      },
+      body: JSON.stringify({ to: friend.personal_line_user_id, type: 'text', content: msg.content }),
+    });
+  } catch (err) {
+    console.error('[personal-line] bridge send error:', err);
+    return { ok: false, error: 'ブリッジへの送信に失敗しました' };
+  }
+  if (!res.ok) {
+    console.error('[personal-line] bridge send failed:', res.status, await res.text().catch(() => ''));
+    return { ok: false, error: `ブリッジ送信エラー (HTTP ${res.status})` };
+  }
+  return { ok: true };
+}
+
 /**
  * friend のチャネルに応じて送信し、成功時に messages_log へ outgoing を記録する。
  * 送信失敗時はログを残さず error を返す (UI/呼び出し元でハンドリング)。
@@ -93,9 +136,12 @@ export async function deliverToFriend(
   opts: DeliverOptions,
 ): Promise<DeliverResult> {
   const channel = friendChannel(friend);
-  const result = channel === 'telegram'
-    ? await sendTelegram(env, friend, msg)
-    : await sendLine(env, friend, msg);
+  const result =
+    channel === 'telegram'
+      ? await sendTelegram(env, friend, msg)
+      : channel === 'personal_line'
+        ? await sendPersonalLine(env, friend, msg)
+        : await sendLine(env, friend, msg);
 
   if (!result.ok) return result;
 
