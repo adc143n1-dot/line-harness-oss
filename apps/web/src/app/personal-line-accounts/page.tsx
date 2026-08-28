@@ -113,6 +113,8 @@ export default function PersonalLineAccountsPage() {
         </ol>
       </div>
 
+      <BridgeGuide />
+
       {error && <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>}
 
       {showForm && (
@@ -210,6 +212,183 @@ function SecretRow({
           {copied === k ? 'コピー済み' : 'コピー'}
         </button>
       </div>
+    </div>
+  )
+}
+
+// コピー可能なコードブロック
+function CodeBlock({ title, code }: { title: string; code: string }) {
+  const [copied, setCopied] = useState(false)
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(code)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1200)
+    } catch { /* secure-context only */ }
+  }
+  return (
+    <div className="rounded-lg border border-edge overflow-hidden">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-surface-alt border-b border-edge">
+        <span className="text-xs font-medium text-ink-muted font-mono">{title}</span>
+        <button onClick={copy} className="text-xs font-medium text-brand-600 hover:text-brand-700">
+          {copied ? 'コピー済み' : 'コピー'}
+        </button>
+      </div>
+      <pre className="p-3 text-xs leading-relaxed bg-app text-ink overflow-x-auto"><code>{code}</code></pre>
+    </div>
+  )
+}
+
+const BRIDGE_PY = `# bridge.py — 個人LINE ブリッジサーバー(最小構成 / Flask)
+# ⚠️ 非公式クライアントの利用は LINE 利用規約に反し、アカウント凍結の
+#    リスクを伴います。自己責任でご利用ください。
+import os, threading, requests
+from flask import Flask, request, jsonify
+
+# 管理画面「個人LINE(ブリッジ)」の各アカウントに表示される3つの値を環境変数に:
+HARNESS_WEBHOOK_URL = os.environ["HARNESS_WEBHOOK_URL"]  # = 受信WebフックURL
+INBOUND_SECRET      = os.environ["INBOUND_SECRET"]        # = X-Bridge-Secret
+BRIDGE_SECRET       = os.environ["BRIDGE_SECRET"]         # = Bearer bridge_secret
+
+app = Flask(__name__)
+
+# ── 非公式LINEクライアント(ここは各自で用意) ───────────────────────────
+# 例として CHRLINE 等の非公式ライブラリを想定。QR+PINでログインし、得られた
+# authToken を保存して再利用する(ログイン情報はこのサーバー内に閉じる)。
+#   from CHRLINE import CHRLINE
+#   line = CHRLINE()   # 初回QR/PINログイン、以降はtoken再利用
+# 下記2つを、使うライブラリのAPIに合わせて実装するだけ。
+def send_line_message(to_mid: str, text: str) -> None:
+    # TODO: line.sendMessage(to_mid, text) 等に置き換える
+    raise NotImplementedError
+
+def receive_loop() -> None:
+    # TODO: 非公式クライアントの受信ループ(擬似コード):
+    #   while True:
+    #     for op in line.fetchOps():
+    #       if op.type == RECEIVE_MESSAGE and not op.message.from_is_self:
+    #         forward_incoming(op.message.sender, line.getName(op.message.sender),
+    #                          op.message.text)
+    pass
+
+# ── ハーネス → ブリッジ:送信(POST /send) ─────────────────────────────
+@app.post("/send")
+def send():
+    if request.headers.get("Authorization") != f"Bearer {BRIDGE_SECRET}":
+        return jsonify(ok=False), 401
+    data = request.get_json(force=True)
+    send_line_message(data["to"], data.get("content", ""))
+    return jsonify(ok=True)
+
+# ── 疎通確認(管理画面「疎通テスト」が GET /health を叩く) ─────────────
+@app.get("/health")
+def health():
+    return jsonify(ok=True)
+
+# ── ブリッジ → ハーネス:受信転送(受信ループから呼ぶ) ──────────────────
+def forward_incoming(user_id: str, display_name: str, text: str,
+                     picture_url: str | None = None) -> None:
+    requests.post(
+        HARNESS_WEBHOOK_URL,
+        headers={"X-Bridge-Secret": INBOUND_SECRET, "Content-Type": "application/json"},
+        json={"from": {"userId": user_id, "displayName": display_name,
+                       "pictureUrl": picture_url},
+              "message": {"type": "text", "text": text}},
+        timeout=10,
+    )
+
+if __name__ == "__main__":
+    # 受信ループは常時走らせる必要があるので別スレッドで起動
+    threading.Thread(target=receive_loop, daemon=True).start()
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "8080")))
+`
+
+const BRIDGE_DOCKERFILE = `FROM python:3.12-slim
+WORKDIR /app
+RUN pip install flask requests
+# ↑ 非公式LINEクライアント(CHRLINE 等)も requirements に追加する
+COPY bridge.py .
+ENV PORT=8080
+CMD ["python", "bridge.py"]
+`
+
+const BRIDGE_RUN = `# 1) ビルド & 起動(常時起動のVPS/サーバーで)
+docker build -t line-bridge .
+docker run -d --restart=always -p 8080:8080 \\
+  -e HARNESS_WEBHOOK_URL="（管理画面の 受信WebフックURL）" \\
+  -e INBOUND_SECRET="（管理画面の X-Bridge-Secret）" \\
+  -e BRIDGE_SECRET="（管理画面の Bearer bridge_secret）" \\
+  --name line-bridge line-bridge
+
+# 2) HTTPS を付ける(ハーネスは https の bridge_base_url しか叩けない)
+#    Caddy/Nginx 等のリバースプロキシで TLS 終端し、
+#    https://あなたのドメイン を管理画面の bridge_base_url に設定する。`
+
+// ブリッジサーバーの作り方ガイド(折りたたみ)
+function BridgeGuide() {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="mb-4 rounded-lg border border-edge bg-surface">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between px-4 py-3 text-left"
+        aria-expanded={open}
+      >
+        <span className="text-sm font-semibold text-ink">🛠 ブリッジサーバーの作り方(最小構成)</span>
+        <span className="text-xs text-ink-faint">{open ? '閉じる ▲' : '開く ▼'}</span>
+      </button>
+
+      {open && (
+        <div className="px-4 pb-4 space-y-4 text-sm text-ink-muted border-t border-edge pt-4">
+          <div>
+            <p className="font-medium text-ink mb-1">全体像</p>
+            <pre className="p-3 text-xs leading-relaxed bg-app text-ink rounded-lg border border-edge overflow-x-auto"><code>{`[あなたの個人LINE]
+   ⇅ 非公式クライアント(QR+PINでログイン)
+[常時起動のブリッジサーバー(あなたが用意)]
+   ⇅ このハーネスと HTTP で接続
+[このハーネス(管理画面のチャット)]`}</code></pre>
+            <p className="mt-2">
+              個人LINEには公式APIが無いため、非公式クライアントを載せた小さな中継サーバー(ブリッジ)を
+              常時起動し、ハーネスとは下記2つのHTTPだけでやり取りします。
+              <span className="font-medium text-ink"> 受信</span>: ブリッジ→ハーネスの受信WebフックへPOST /
+              <span className="font-medium text-ink"> 送信</span>: ハーネス→ブリッジの <code>/send</code> へPOST。
+            </p>
+          </div>
+
+          <div>
+            <p className="font-medium text-ink mb-1">用意するもの</p>
+            <ul className="list-disc pl-5 space-y-0.5">
+              <li>常時起動できるサーバー(VPS / Docker など)。無料枠のサーバーレスは不可(受信を延々と待ち受けるため)。</li>
+              <li>HTTPS(ハーネスは <code>https</code> の <code>bridge_base_url</code> しか呼べません)。</li>
+              <li>非公式LINEクライアント・ライブラリ(例: <span className="font-mono">CHRLINE</span> 等)。これがToS上のリスク源です。</li>
+            </ul>
+          </div>
+
+          <div>
+            <p className="font-medium text-ink mb-1">管理画面の値 → 環境変数の対応</p>
+            <ul className="list-disc pl-5 space-y-0.5">
+              <li>「受信WebフックURL」 → <code>HARNESS_WEBHOOK_URL</code></li>
+              <li>「X-Bridge-Secret(受信認証)」 → <code>INBOUND_SECRET</code></li>
+              <li>「Bearer bridge_secret(送信認証)」 → <code>BRIDGE_SECRET</code></li>
+              <li>公開したブリッジのURL(例 <span className="font-mono">https://…</span>) → 各アカウントの <span className="font-medium text-ink">bridge_base_url</span> に設定</li>
+            </ul>
+          </div>
+
+          <CodeBlock title="bridge.py" code={BRIDGE_PY} />
+          <CodeBlock title="Dockerfile" code={BRIDGE_DOCKERFILE} />
+          <CodeBlock title="起動コマンド" code={BRIDGE_RUN} />
+
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs">
+            <p className="font-medium text-ink">⚠️ 実装のポイントと注意</p>
+            <ul className="mt-1 list-disc pl-5 space-y-0.5">
+              <li>実装が必要なのは <code>send_line_message</code> と <code>receive_loop</code> の2箇所だけ。使う非公式ライブラリのAPIに合わせて埋めます。</li>
+              <li>Bot自身(自分)の送信メッセージは受信転送しない(ループ防止)。</li>
+              <li>ログイン情報(QR/PIN・authToken)はこのサーバー内に閉じ、ハーネスには渡しません。</li>
+              <li>非公式クライアントの利用はLINE規約違反・凍結リスクを伴います。守りたいアカウントでの利用は避け、是非はご自身で判断してください。</li>
+            </ul>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
